@@ -331,7 +331,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       setBuyerRegistrationHint("");
 
       const response = await fetch(
-        "https://fpmodarba.inplsoftwares.online/api/buyer-check",
+        "https://chinaboster.inplsoftwares.online/api/buyer-check",
         {
           method: "POST",
           headers: {
