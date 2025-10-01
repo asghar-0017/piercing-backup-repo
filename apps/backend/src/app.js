@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "http://localhost:5150",
+          "http://inv-pc:5150",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "http://localhost:5150",
-      "http://localhost:5150",
+      "http://inv-pc:5150",
+      "http://inv-pc:5150",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],

@@ -35,6 +35,6 @@ router.post(
   requirePermission("product.view"),
   productController.checkExistingProducts
 );
-router.post("/products/bulk", requirePermission("Bulk Product Operations"), productController.bulkCreateProducts);
+router.post("/products/bulk", requirePermission("product_uploader"), productController.bulkCreateProducts);
 
 export default router;

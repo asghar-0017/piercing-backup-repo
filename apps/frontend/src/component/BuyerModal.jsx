@@ -331,7 +331,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       setBuyerRegistrationHint("");
 
       const response = await fetch(
-        "http://localhost:5150/api/buyer-check",
+        "http://inv-pc:5150/api/buyer-check",
         {
           method: "POST",
           headers: {

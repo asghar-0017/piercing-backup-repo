@@ -46,7 +46,7 @@ const API_CONFIG = {
 
 const api = axios.create({
   // baseURL: "https://fbrtestcase.inplsoftwares.online/api",
-  baseURL: "http://localhost:5150/api",
+  baseURL: "http://inv-pc:5150/api",
   // You can add headers or other config here if needed
 });
 
