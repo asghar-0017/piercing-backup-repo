@@ -163,10 +163,24 @@ class AutoSchemaSync {
       { table: 'products', column: 'created_by_name', type: 'VARCHAR(255)', allowNull: true },
       { table: 'invoices', column: 'created_by_user_id', type: 'INT', allowNull: true },
       { table: 'invoices', column: 'created_by_email', type: 'VARCHAR(255)', allowNull: true },
-      { table: 'invoices', column: 'created_by_name', type: 'VARCHAR(255)', allowNull: true }
+      { table: 'invoices', column: 'created_by_name', type: 'VARCHAR(255)', allowNull: true },
+      
+      // Invoice items DECIMAL field updates (increase precision for large amounts)
+      { table: 'invoice_items', column: 'quantity', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'unitPrice', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'totalValues', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'valueSalesExcludingST', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'fixedNotifiedValueOrRetailPrice', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'salesTaxApplicable', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'salesTaxWithheldAtSource', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'extraTax', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'furtherTax', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'fedPayable', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'advanceIncomeTax', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true },
+      { table: 'invoice_items', column: 'discount', type: 'DECIMAL(20,2)', allowNull: true, isUpdate: true }
     ];
 
-    for (const { table, column, type, allowNull } of commonColumns) {
+    for (const { table, column, type, allowNull, isUpdate = false } of commonColumns) {
       try {
         const tableExists = await this.tableExists(sequelize, table);
         if (tableExists) {
@@ -175,6 +189,10 @@ class AutoSchemaSync {
             await this.addMissingColumn(sequelize, table, column, type, allowNull);
             this.results.columnsAdded++;
             this.log(`Added column: ${table}.${column} (${databaseType})`);
+          } else if (isUpdate) {
+            // Update existing column type for DECIMAL fields
+            await this.updateColumnType(sequelize, table, column, type);
+            this.log(`Updated column type: ${table}.${column} to ${type} (${databaseType})`);
           }
         }
       } catch (error) {
@@ -228,6 +246,44 @@ class AutoSchemaSync {
     }
     
     await sequelize.query(sql);
+  }
+
+  async updateColumnType(sequelize, tableName, columnName, newType) {
+    try {
+      // Check current column type
+      const [results] = await sequelize.query(
+        `SELECT DATA_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE 
+         FROM information_schema.columns 
+         WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
+        { replacements: [tableName, columnName] }
+      );
+      
+      if (results.length === 0) {
+        this.log(`Column ${tableName}.${columnName} not found`, 'warn');
+        return;
+      }
+      
+      const currentColumn = results[0];
+      const currentType = currentColumn.DATA_TYPE;
+      const currentPrecision = currentColumn.NUMERIC_PRECISION;
+      const currentScale = currentColumn.NUMERIC_SCALE;
+      
+      // Only update if the type is different
+      if (currentType === 'decimal' && newType.includes('DECIMAL')) {
+        const newPrecision = newType.match(/DECIMAL\((\d+),(\d+)\)/);
+        if (newPrecision) {
+          const [, newPrecisionValue, newScaleValue] = newPrecision;
+          if (parseInt(newPrecisionValue) > parseInt(currentPrecision) || 
+              parseInt(newScaleValue) > parseInt(currentScale)) {
+            const sql = `ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${columnName}\` ${newType}`;
+            await sequelize.query(sql);
+            this.log(`Updated ${tableName}.${columnName} from DECIMAL(${currentPrecision},${currentScale}) to ${newType}`);
+          }
+        }
+      }
+    } catch (error) {
+      this.log(`Error updating column type ${tableName}.${columnName}: ${error.message}`, 'warn');
+    }
   }
 
   async syncTenantDatabases() {

@@ -3104,6 +3104,12 @@ export const deleteInvoice = async (req, res) => {
       }))
     };
 
+    // Delete invoice items first to avoid foreign key constraint
+    await req.tenantModels.InvoiceItem.destroy({
+      where: { invoice_id: invoice.id }
+    });
+
+    // Now delete the invoice
     await invoice.destroy();
 
     // Log audit event for invoice deletion

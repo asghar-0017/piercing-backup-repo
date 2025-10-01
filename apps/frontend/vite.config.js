@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://chinaboster.inplsoftwares.online",
+        target: "http://localhost:5150",
         changeOrigin: true,
         secure: false,
       },

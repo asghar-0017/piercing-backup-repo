@@ -40,39 +40,39 @@ export const createInvoiceItemModel = (sequelize) => {
         allowNull: true,
       },
       quantity: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       unitPrice: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       totalValues: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       valueSalesExcludingST: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       fixedNotifiedValueOrRetailPrice: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       salesTaxApplicable: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       salesTaxWithheldAtSource: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       extraTax: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       furtherTax: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       sroScheduleNo: {
@@ -80,15 +80,15 @@ export const createInvoiceItemModel = (sequelize) => {
         allowNull: true,
       },
       fedPayable: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       advanceIncomeTax: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       discount: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       saleType: {
