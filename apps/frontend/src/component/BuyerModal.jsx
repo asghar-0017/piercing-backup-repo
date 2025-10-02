@@ -331,7 +331,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       setBuyerRegistrationHint("");
 
       const response = await fetch(
-        "http://inv-pc:5150/api/buyer-check",
+        "https://maritimefisheries.inplsoftwares.online/api/buyer-check",
         {
           method: "POST",
           headers: {
