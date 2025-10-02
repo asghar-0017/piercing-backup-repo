@@ -13,6 +13,7 @@ export const createBuyer = async (req, res) => {
       buyerProvince,
       buyerAddress,
       buyerRegistrationType,
+      buyerPhoneNumber,
     } = req.body;
 
     // Validate required fields
@@ -96,6 +97,7 @@ export const createBuyer = async (req, res) => {
       buyerProvince: normalizedProvince,
       buyerAddress,
       buyerRegistrationType,
+      buyerPhoneNumber,
       created_by_user_id: req.user?.userId || req.user?.id || null,
       created_by_email: req.user?.email || null,
       created_by_name:
@@ -118,6 +120,7 @@ export const createBuyer = async (req, res) => {
         buyerProvince: buyer.buyerProvince,
         buyerAddress: buyer.buyerAddress,
         buyerRegistrationType: buyer.buyerRegistrationType,
+        buyerPhoneNumber: buyer.buyerPhoneNumber,
         created_by_user_id: buyer.created_by_user_id,
         created_by_email: buyer.created_by_email,
         created_by_name: buyer.created_by_name,
@@ -293,6 +296,7 @@ export const updateBuyer = async (req, res) => {
       buyerProvince,
       buyerAddress,
       buyerRegistrationType,
+      buyerPhoneNumber,
     } = req.body;
 
     const buyer = await Buyer.findByPk(id);
@@ -381,6 +385,7 @@ export const updateBuyer = async (req, res) => {
       buyerProvince: buyer.buyerProvince,
       buyerAddress: buyer.buyerAddress,
       buyerRegistrationType: buyer.buyerRegistrationType,
+      buyerPhoneNumber: buyer.buyerPhoneNumber,
     };
 
     await buyer.update({
@@ -389,6 +394,7 @@ export const updateBuyer = async (req, res) => {
       buyerProvince: normalizedProvince,
       buyerAddress,
       buyerRegistrationType,
+      buyerPhoneNumber,
     });
 
     // Log audit event for buyer update
@@ -405,6 +411,7 @@ export const updateBuyer = async (req, res) => {
         buyerProvince: buyer.buyerProvince,
         buyerAddress: buyer.buyerAddress,
         buyerRegistrationType: buyer.buyerRegistrationType,
+        buyerPhoneNumber: buyer.buyerPhoneNumber,
       }, // newValues
       {
         entityName: buyer.buyerBusinessName || buyer.buyerNTNCNIC,
@@ -692,6 +699,7 @@ export const bulkCreateBuyers = async (req, res) => {
         buyerProvince: buyer.normalizedProvince,
         buyerAddress: buyer.buyerAddress?.trim() || null,
         buyerRegistrationType: buyer.buyerRegistrationType.trim(),
+        buyerPhoneNumber: buyer.buyerPhoneNumber?.trim() || null,
       });
     });
 

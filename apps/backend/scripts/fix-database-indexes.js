@@ -1,151 +1,141 @@
-#!/usr/bin/env node
-
-/**
- * Fix Database Indexes Script
- * This script removes unnecessary indexes to resolve "Too many keys specified" error
- */
-
-import { createConnection } from 'mysql2/promise';
+import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-// Database configuration
-const dbConfig = {
-  host: process.env.MYSQL_HOST || 'localhost',
-  port: process.env.MYSQL_PORT || 3306,
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASSWORD || 'Jsab43#%87dgDJ49bf^9b',
-  database: process.env.MYSQL_MASTER_DB || 'fbr_master'
-};
-
 async function fixDatabaseIndexes() {
   let connection;
   
   try {
-    console.log('🔧 Fixing Database Indexes...');
+    console.log('🔧 Fixing database indexes...');
     
-    // Connect to database
-    console.log('📡 Connecting to database...');
-    connection = await createConnection(dbConfig);
-    console.log('✅ Connected to database successfully');
+    // Create connection using environment variables
+    connection = await mysql.createConnection({
+      host: process.env.MYSQL_HOST || 'localhost',
+      port: process.env.MYSQL_PORT || 3306,
+      user: process.env.MYSQL_USER || 'root',
+      password: process.env.MYSQL_PASSWORD || 'Jsab43#%87dgDJ49bf^9b',
+      database: process.env.MYSQL_MASTER_DB || 'fbr_master'
+    });
+
+    console.log('✅ Connected to master database');
+
+    // Fix tenants table - remove excess indexes
+    console.log('🔨 Fixing tenants table...');
     
-    // Get all tables and their indexes
-    console.log('🔍 Analyzing database indexes...');
-    
-    const [tables] = await connection.execute("SHOW TABLES");
-    console.log(`📊 Found ${tables.length} tables to analyze`);
-    
-    for (const table of tables) {
-      const tableName = Object.values(table)[0];
-      console.log(`\n📋 Analyzing table: ${tableName}`);
-      
-      // Get indexes for this table
-      const [indexes] = await connection.execute(`SHOW INDEX FROM \`${tableName}\``);
-      
-      if (indexes.length > 50) {
-        console.log(`⚠️  Table ${tableName} has ${indexes.length} indexes (high count)`);
-        
-        // Group indexes by name to find duplicates
-        const indexGroups = {};
-        indexes.forEach(idx => {
-          if (!indexGroups[idx.Key_name]) {
-            indexGroups[idx.Key_name] = [];
-          }
-          indexGroups[idx.Key_name].push(idx);
-        });
-        
-        // Find potentially duplicate indexes
-        const duplicateIndexes = [];
-        Object.keys(indexGroups).forEach(keyName => {
-          if (keyName !== 'PRIMARY' && indexGroups[keyName].length > 1) {
-            duplicateIndexes.push(keyName);
-          }
-        });
-        
-        if (duplicateIndexes.length > 0) {
-          console.log(`   🔍 Found ${duplicateIndexes.length} potentially duplicate indexes`);
-          duplicateIndexes.forEach(idxName => {
-            console.log(`   - ${idxName}`);
-          });
+    try {
+      // Get all indexes on tenants table
+      const [indexes] = await connection.execute(`
+        SELECT INDEX_NAME 
+        FROM INFORMATION_SCHEMA.STATISTICS 
+        WHERE TABLE_SCHEMA = ? 
+        AND TABLE_NAME = 'tenants'
+        AND INDEX_NAME != 'PRIMARY'
+      `, [process.env.MYSQL_MASTER_DB || 'fbr_master']);
+
+      console.log(`Found ${indexes.length} indexes on tenants table`);
+
+      // Drop all non-primary indexes
+      for (const { INDEX_NAME } of indexes) {
+        try {
+          await connection.execute(`DROP INDEX \`${INDEX_NAME}\` ON tenants`);
+          console.log(`✅ Dropped index: ${INDEX_NAME}`);
+        } catch (error) {
+          console.log(`⚠️  Could not drop index ${INDEX_NAME}: ${error.message}`);
         }
+      }
+
+      // Recreate only essential indexes
+      await connection.execute(`CREATE UNIQUE INDEX idx_tenant_id ON tenants(tenant_id)`);
+      console.log('✅ Created essential index: idx_tenant_id');
+
+    } catch (error) {
+      console.log(`⚠️  Error fixing tenants table: ${error.message}`);
+    }
+
+    // Fix tenant databases
+    const [tenantDbs] = await connection.execute(`
+      SELECT SCHEMA_NAME 
+      FROM INFORMATION_SCHEMA.SCHEMATA 
+      WHERE SCHEMA_NAME LIKE '%tenant%' OR SCHEMA_NAME LIKE 'Innovative%'
+      ORDER BY SCHEMA_NAME
+    `);
+
+    console.log(`📊 Found ${tenantDbs.length} tenant databases`);
+
+    for (const { SCHEMA_NAME: dbName } of tenantDbs) {
+      try {
+        console.log(`\n🔧 Processing database: ${dbName}`);
         
-        // Find indexes that might be redundant
-        const redundantIndexes = [];
-        Object.keys(indexGroups).forEach(keyName => {
-          if (keyName !== 'PRIMARY' && keyName.startsWith('idx_') && keyName.includes('_')) {
-            const parts = keyName.split('_');
-            if (parts.length > 3) {
-              redundantIndexes.push(keyName);
+        // Check if buyers table exists
+        const [tables] = await connection.execute(`
+          SELECT TABLE_NAME 
+          FROM INFORMATION_SCHEMA.TABLES 
+          WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'buyers'
+        `, [dbName]);
+
+        if (tables.length === 0) {
+          console.log(`⏭️  No buyers table in ${dbName}, skipping...`);
+          continue;
+        }
+
+        // Use the database
+        await connection.execute(`USE \`${dbName}\``);
+
+        // Clean up buyers table indexes
+        console.log(`🔨 Cleaning up buyers table indexes in ${dbName}...`);
+        
+        try {
+          // Get all indexes on buyers table
+          const [indexes] = await connection.execute(`
+            SELECT INDEX_NAME 
+            FROM INFORMATION_SCHEMA.STATISTICS 
+            WHERE TABLE_SCHEMA = ? 
+            AND TABLE_NAME = 'buyers'
+            AND INDEX_NAME != 'PRIMARY'
+          `, [dbName]);
+
+          console.log(`Found ${indexes.length} indexes on buyers table`);
+
+          // Drop all non-primary indexes
+          for (const { INDEX_NAME } of indexes) {
+            try {
+              await connection.execute(`DROP INDEX \`${INDEX_NAME}\` ON buyers`);
+              console.log(`✅ Dropped index: ${INDEX_NAME}`);
+            } catch (error) {
+              console.log(`⚠️  Could not drop index ${INDEX_NAME}: ${error.message}`);
             }
           }
-        });
-        
-        if (redundantIndexes.length > 0) {
-          console.log(`   🔍 Found ${redundantIndexes.length} potentially redundant indexes`);
-          redundantIndexes.forEach(idxName => {
-            console.log(`   - ${idxName}`);
-          });
+
+          // Recreate only essential indexes
+          await connection.execute(`CREATE UNIQUE INDEX idx_buyer_ntn_cnic ON buyers(buyerNTNCNIC)`);
+          await connection.execute(`CREATE INDEX idx_buyer_business_name ON buyers(buyerBusinessName)`);
+          console.log('✅ Created essential indexes on buyers table');
+
+        } catch (error) {
+          console.log(`⚠️  Error fixing buyers table in ${dbName}: ${error.message}`);
         }
+
+        console.log(`✅ Successfully processed ${dbName}`);
         
-      } else {
-        console.log(`   ✅ Table ${tableName} has ${indexes.length} indexes (acceptable)`);
-      }
-    }
-    
-    // Check specific problematic tables
-    console.log('\n🔍 Checking specific tables for index issues...');
-    
-    const problematicTables = ['tenants', 'users', 'roles', 'permissions'];
-    
-    for (const tableName of problematicTables) {
-      try {
-        const [indexes] = await connection.execute(`SHOW INDEX FROM \`${tableName}\``);
-        console.log(`📊 Table ${tableName}: ${indexes.length} indexes`);
-        
-        if (indexes.length > 30) {
-          console.log(`⚠️  Table ${tableName} has too many indexes`);
-          
-          // List all indexes
-          const indexNames = [...new Set(indexes.map(idx => idx.Key_name))];
-          console.log(`   Indexes: ${indexNames.join(', ')}`);
-          
-          // Suggest removing some indexes
-          const indexesToRemove = indexNames.filter(name => 
-            name !== 'PRIMARY' && 
-            (name.includes('_idx_') || name.includes('_index_') || name.includes('_key_'))
-          );
-          
-          if (indexesToRemove.length > 0) {
-            console.log(`   💡 Consider removing these indexes: ${indexesToRemove.slice(0, 5).join(', ')}`);
-          }
-        }
       } catch (error) {
-        console.log(`   ❌ Error checking table ${tableName}: ${error.message}`);
+        console.error(`❌ Error processing ${dbName}:`, error.message);
+        // Continue with next database
       }
     }
-    
-    console.log('\n🎉 Database index analysis completed!');
-    console.log('');
-    console.log('📋 Recommendations:');
-    console.log('   1. Remove duplicate indexes');
-    console.log('   2. Remove redundant composite indexes');
-    console.log('   3. Keep only essential indexes for performance');
-    console.log('   4. Consider using composite indexes instead of multiple single-column indexes');
-    console.log('');
-    console.log('⚠️  Note: This script only analyzes indexes. Manual cleanup may be required.');
+
+    console.log('\n🎉 Database index cleanup completed!');
     
   } catch (error) {
-    console.error('❌ Analysis failed:', error);
+    console.error('❌ Error:', error.message);
     process.exit(1);
   } finally {
     if (connection) {
       await connection.end();
-      console.log('📡 Database connection closed');
     }
   }
 }
 
-// Run the analysis
-fixDatabaseIndexes().catch(console.error);
+// Run the script
+fixDatabaseIndexes();

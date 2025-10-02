@@ -136,6 +136,32 @@ export const getEntityAuditLogs = async (req, res) => {
 };
 
 /**
+ * Get complete edit history for a specific entity with timeline view
+ */
+export const getEntityEditHistory = async (req, res) => {
+  try {
+    const { entityType, entityId } = req.params;
+
+    if (!entityType || !entityId) {
+      return res.status(400).json(
+        formatResponse(false, "Entity type and entity ID are required", null, 400)
+      );
+    }
+
+    const history = await AuditService.getEntityEditHistory(entityType, parseInt(entityId));
+
+    return res.status(200).json(
+      formatResponse(true, "Entity edit history fetched successfully", { history }, 200)
+    );
+  } catch (error) {
+    console.error("Error in getEntityEditHistory:", error);
+    return res.status(500).json(
+      formatResponse(false, "Failed to fetch entity edit history", null, 500, error.message)
+    );
+  }
+};
+
+/**
  * Get audit statistics
  */
 export const getAuditStatistics = async (req, res) => {

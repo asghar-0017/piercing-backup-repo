@@ -89,6 +89,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "buyerBusinessName",
     "buyerProvince",
     "buyerAddress",
+    "buyerPhoneNumber",
   ];
 
   // Map display headers (as shown in Excel) back to internal keys
@@ -97,6 +98,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Buyer Buisness Name": "buyerBusinessName",
     "Buyer Province": "buyerProvince",
     "Buyer Address": "buyerAddress",
+    "Buyer Phone Number": "buyerPhoneNumber",
   };
 
   const downloadTemplate = async () => {
@@ -114,6 +116,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         "Buyer Buisness Name",
         "Buyer Province",
         "Buyer Address",
+        "Buyer Phone Number",
       ];
       worksheet.addRow(visualHeaders);
       worksheet.getRow(1).font = { bold: true };
@@ -838,7 +841,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         <Box sx={{ mb: 3 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Upload a CSV or Excel file with the following columns: Buyer
-            NTN/CNIC, Buyer Buisness Name, Buyer Province, Buyer Address.
+            NTN/CNIC, Buyer Buisness Name, Buyer Province, Buyer Address, Buyer Phone Number.
             <br />
             <strong>NTN/CNIC Format:</strong>
             <br />• <strong>NTN:</strong> 7 characters (digits and alphabets
@@ -1022,6 +1025,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                         "Buyer Buisness Name",
                         "Buyer Province",
                         "Buyer Address",
+                        "Buyer Phone Number",
                         "Registration Type",
                       ].map((header) => (
                         <TableCell

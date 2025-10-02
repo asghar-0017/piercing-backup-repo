@@ -1705,6 +1705,7 @@ export default function CreateInvoice() {
         buyerProvince: buyerData.buyerProvince,
         buyerAddress: buyerData.buyerAddress,
         buyerRegistrationType: buyerData.buyerRegistrationType,
+        buyerPhoneNumber: buyerData.buyerPhoneNumber,
       };
 
       // Create new buyer

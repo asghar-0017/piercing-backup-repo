@@ -9,8 +9,12 @@ const AuditManagement = () => {
   const [error, setError] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedEntity, setSelectedEntity] = useState({ type: "", id: "" });
+  const [entityHistory, setEntityHistory] = useState(null);
+  const [showEntityHistory, setShowEntityHistory] = useState(false);
   const [filters, setFilters] = useState({
     entityType: "",
+    entityId: "",
     operation: "",
     tenantId: "",
     startDate: "",
@@ -57,6 +61,38 @@ const AuditManagement = () => {
     } catch (err) {
       setError("Failed to fetch audit logs");
       console.error("Error fetching audit logs:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch entity history
+  const fetchEntityHistory = async (entityType, entityId) => {
+    console.log(`🔍 Frontend Debug - Fetching entity history for ${entityType} #${entityId}`);
+    console.log(`🔍 Frontend Debug - Current filters:`, filters);
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/audit/entity/${entityType}/${entityId}/history`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      const result = await response.json();
+      console.log(`🔍 Frontend Debug - Entity history response:`, result);
+      
+      if (result.success) {
+        setEntityHistory(result.data.history);
+        setShowEntityHistory(true);
+        console.log(`🔍 Frontend Debug - Entity history set:`, result.data.history);
+      } else {
+        setError(result.message);
+        console.error(`🔍 Frontend Debug - Entity history error:`, result.message);
+      }
+    } catch (err) {
+      setError("Failed to fetch entity history");
+      console.error("Error fetching entity history:", err);
     } finally {
       setLoading(false);
     }
@@ -123,7 +159,13 @@ const AuditManagement = () => {
     fetchStatistics();
     
     if (activeTab === "logs") {
-      fetchAuditLogs();
+      if (filters.entityId && filters.entityType) {
+        // If specific entity is selected, fetch its history
+        fetchEntityHistory(filters.entityType, filters.entityId);
+      } else {
+        // Otherwise fetch regular audit logs
+        fetchAuditLogs();
+      }
     } else if (activeTab === "summary") {
       fetchAuditSummary();
     } else if (activeTab === "statistics") {
@@ -132,7 +174,12 @@ const AuditManagement = () => {
   }, [activeTab, pagination.page, filters]);
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    console.log(`🔍 Frontend Debug - Filter change: ${key} = ${value}`);
+    setFilters(prev => {
+      const newFilters = { ...prev, [key]: value };
+      console.log(`🔍 Frontend Debug - New filters:`, newFilters);
+      return newFilters;
+    });
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -206,6 +253,25 @@ const AuditManagement = () => {
   const closeDetailsModal = () => {
     setSelectedLog(null);
     setShowDetailsModal(false);
+  };
+
+  // View entity history
+  const viewEntityHistory = (entityType, entityId) => {
+    setFilters(prev => ({ ...prev, entityType, entityId }));
+    fetchEntityHistory(entityType, entityId);
+  };
+
+  // Clear entity selection
+  const clearEntitySelection = () => {
+    setFilters(prev => ({ ...prev, entityType: "", entityId: "" }));
+    setShowEntityHistory(false);
+    setEntityHistory(null);
+  };
+
+  // Close entity history view
+  const closeEntityHistory = () => {
+    setShowEntityHistory(false);
+    setEntityHistory(null);
   };
 
   // Helper function to render seller information
@@ -712,14 +778,19 @@ const AuditManagement = () => {
           <div className="p-6">
             {/* Filters */}
             <div className="mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Entity Type
                   </label>
                   <select
                     value={filters.entityType}
-                    onChange={(e) => handleFilterChange("entityType", e.target.value)}
+                    onChange={(e) => {
+                      handleFilterChange("entityType", e.target.value);
+                      if (!e.target.value) {
+                        handleFilterChange("entityId", "");
+                      }
+                    }}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Types</option>
@@ -750,6 +821,30 @@ const AuditManagement = () => {
                   </select>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Entity ID (for complete history)
+                  </label>
+                  <div className="flex">
+                    <input
+                      type="number"
+                      value={filters.entityId}
+                      onChange={(e) => handleFilterChange("entityId", e.target.value)}
+                      placeholder="Enter ID..."
+                      className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!filters.entityType}
+                    />
+                    {filters.entityId && filters.entityType && (
+                      <button
+                        onClick={() => fetchEntityHistory(filters.entityType, filters.entityId)}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="View Complete History"
+                      >
+                        🕒
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -790,22 +885,34 @@ const AuditManagement = () => {
               </div>
 
               <div className="mt-4 flex justify-between">
-                <button
-                  onClick={() => {
-                    setFilters({
-                      entityType: "",
-                      operation: "",
-                      tenantId: "",
-                      startDate: "",
-                      endDate: "",
-                      search: "",
-                    });
-                    setPagination(prev => ({ ...prev, page: 1 }));
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Clear Filters
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => {
+                      setFilters({
+                        entityType: "",
+                        entityId: "",
+                        operation: "",
+                        tenantId: "",
+                        startDate: "",
+                        endDate: "",
+                        search: "",
+                      });
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                      clearEntitySelection();
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  >
+                    Clear Filters
+                  </button>
+                  {filters.entityId && filters.entityType && (
+                    <button
+                      onClick={clearEntitySelection}
+                      className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-300 rounded-md hover:bg-blue-100"
+                    >
+                      Show All Logs
+                    </button>
+                  )}
+                </div>
 
                 {activeTab === "logs" && (
                   <button
@@ -831,66 +938,213 @@ const AuditManagement = () => {
               </div>
             )}
 
+            {/* Complete History Banner */}
+            {!showEntityHistory && auditLogs.length > 0 && (
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">ℹ️</span>
+                  <div>
+                    <h4 className="text-lg font-semibold text-blue-900">Complete History Available</h4>
+                    <p className="text-blue-700 text-sm">
+                      Click "View Complete History" buttons to see all changes for an entity in chronological order.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!loading && !error && (
               <>
                 {activeTab === "logs" && (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Entity
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Operation
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            User
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Date
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {auditLogs.map((log) => (
-                          <tr key={log.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(log.entityType)}`}>
-                                  {log.entityType}
-                                </span>
-                                <span className="ml-2 text-sm text-gray-900">#{log.entityId}</span>
+                  <>
+                    {/* Entity History View */}
+                    {showEntityHistory && entityHistory && (
+                      <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg p-6 shadow-lg">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <span className="text-2xl">🕒</span>
+                              <h3 className="text-xl font-bold text-blue-900">
+                                Complete Edit History: {entityHistory.entityName || `${entityHistory.entityType} #${entityHistory.entityId}`}
+                              </h3>
+                            </div>
+                            <p className="text-blue-700 text-sm font-medium">
+                              📅 Timeline of ALL changes from creation to current state - {entityHistory.timeline.length} operations
+                            </p>
+                          </div>
+                          <button
+                            onClick={closeEntityHistory}
+                            className="text-blue-600 hover:text-blue-800 text-2xl font-bold bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-md"
+                          >
+                            ×
+                          </button>
+                        </div>
+
+                        {/* Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                          <div className="bg-white p-4 rounded-lg">
+                            <div className="text-sm font-medium text-gray-600">Total Operations</div>
+                            <div className="text-2xl font-bold text-gray-900">{entityHistory.summary.totalOperations}</div>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg">
+                            <div className="text-sm font-medium text-gray-600">Created By</div>
+                            <div className="text-sm font-bold text-gray-900">{entityHistory.summary.createdBy?.name || "Unknown"}</div>
+                            <div className="text-xs text-gray-500">{entityHistory.summary.createdBy?.email || ""}</div>
+                          </div>
+                          <div className="bg-white p-4 rounded-lg">
+                            <div className="text-sm font-medium text-gray-600">Last Modified By</div>
+                            <div className="text-sm font-bold text-gray-900">{entityHistory.summary.lastModifiedBy?.name || "Unknown"}</div>
+                            <div className="text-xs text-gray-500">{entityHistory.summary.lastModifiedBy?.email || ""}</div>
+                          </div>
+                          <div className={`p-4 rounded-lg ${entityHistory.isDeleted ? 'bg-red-50' : 'bg-green-50'}`}>
+                            <div className={`text-sm font-medium ${entityHistory.isDeleted ? 'text-red-600' : 'text-green-600'}`}>
+                              Status
+                            </div>
+                            <div className={`text-sm font-bold ${entityHistory.isDeleted ? 'text-red-900' : 'text-green-900'}`}>
+                              {entityHistory.isDeleted ? "Deleted" : "Active"}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="space-y-4 max-h-96 overflow-y-auto">
+                          {entityHistory.timeline.length === 0 ? (
+                            <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                              <div className="text-4xl mb-2">📝</div>
+                              <h4 className="text-lg font-medium text-gray-900 mb-2">No History Found</h4>
+                              <p className="text-gray-500">This entity has no audit history recorded.</p>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Timeline Header */}
+                              <div className="bg-white border-2 border-blue-200 rounded-lg p-4 mb-4">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <span className="text-2xl">📅</span>
+                                  <h4 className="text-lg font-bold text-blue-900">Complete Timeline - All Changes in Order</h4>
+                                </div>
+                                <p className="text-blue-700 text-sm">
+                                  This shows the complete journey from creation to current state, with all users who made changes.
+                                </p>
                               </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(log.operation)}`}>
-                                {log.operation}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{log.userName || "Unknown"}</div>
-                              <div className="text-sm text-gray-500">{log.userEmail || "N/A"}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(log.created_at)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <button
-                                onClick={() => showAuditDetails(log)}
-                                className="text-blue-600 hover:text-blue-900 font-medium"
-                              >
-                                View Details
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                              
+                              {entityHistory.timeline.map((entry, index) => (
+                            <div key={entry.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4">
+                                  <div className="text-2xl">
+                                    {entry.operation === 'CREATE' ? '➕' : 
+                                     entry.operation === 'UPDATE' ? '✏️' : 
+                                     entry.operation === 'DELETE' ? '🗑️' : '📝'}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(entry.operation)}`}>
+                                        {entry.operation}
+                                      </span>
+                                      <span className="text-sm text-gray-500">
+                                        by {entry.user.name || "Unknown"}
+                                      </span>
+                                    </div>
+                                    <div className="text-sm text-gray-600 mt-1">
+                                      {formatDate(entry.timestamp)}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => showAuditDetails({
+                                    ...entry,
+                                    entityType: entityHistory.entityType,
+                                    entityId: entityHistory.entityId,
+                                    oldValues: entry.oldValues,
+                                    newValues: entry.newValues,
+                                    changedFields: entry.changedFields,
+                                    ipAddress: entry.ipAddress,
+                                    tenantName: entry.tenant.name,
+                                    additionalInfo: entry.additionalInfo
+                                  })}
+                                  className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                                >
+                                  View Details
+                                </button>
+                              </div>
+                            </div>
+                              ))
+                              }
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Regular Audit Logs Table */}
+                    {!showEntityHistory && (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Entity
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Operation
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                User
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {auditLogs.map((log) => (
+                              <tr key={log.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center">
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(log.entityType)}`}>
+                                      {log.entityType}
+                                    </span>
+                                    <span className="ml-2 text-sm text-gray-900">#{log.entityId}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(log.operation)}`}>
+                                    {log.operation}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="text-sm text-gray-900">{log.userName || "Unknown"}</div>
+                                  <div className="text-sm text-gray-500">{log.userEmail || "N/A"}</div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  {formatDate(log.created_at)}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => showAuditDetails(log)}
+                                      className="px-3 py-1 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                                    >
+                                      View Details
+                                    </button>
+                                    <button
+                                      onClick={() => viewEntityHistory(log.entityType, log.entityId)}
+                                      className="px-3 py-1 text-xs font-bold text-white bg-green-600 border border-green-700 rounded hover:bg-green-700"
+                                    >
+                                      🕒 Complete History
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {activeTab === "summary" && (
@@ -942,15 +1196,17 @@ const AuditManagement = () => {
                               {summary.totalOperations}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {summary.isDeleted ? (
-                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full text-red-600 bg-red-100">
-                                  Deleted
-                                </span>
-                              ) : (
-                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full text-green-600 bg-green-100">
-                                  Active
-                                </span>
-                              )}
+                              <div className="flex items-center space-x-2">
+                                {summary.isDeleted ? (
+                                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full text-red-600 bg-red-100">
+                                    Deleted
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full text-green-600 bg-green-100">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -991,6 +1247,7 @@ const AuditManagement = () => {
                     </div>
                   </div>
                 )}
+
               </>
             )}
 
@@ -1126,6 +1383,7 @@ const AuditManagement = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -117,16 +117,38 @@ class AuditService {
    * Get user display name
    */
   getUserDisplayName(user) {
+    // Check for full name first
     if (user.firstName || user.lastName) {
       return `${user.firstName || ""} ${user.lastName || ""}`.trim();
     }
+    
+    // Check for name field
+    if (user.name) {
+      return user.name;
+    }
+    
+    // Check for userName field
+    if (user.userName) {
+      return user.userName;
+    }
+    
+    // Check for email
     if (user.email) {
       return user.email;
     }
+    
+    // Check for role-based naming
     if (user.role === "admin") {
       return `Admin (${user.id || user.userId || "Unknown"})`;
     }
-    return null;
+    
+    // If we have an ID but no name, return a generic identifier
+    if (user.id || user.userId) {
+      return `User #${user.id || user.userId}`;
+    }
+    
+    // Last resort - return "Unknown" instead of null
+    return "Unknown";
   }
 
   /**
@@ -503,6 +525,177 @@ class AuditService {
     } catch (error) {
       console.error("Error fetching audit statistics:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Get complete edit history for a specific entity with timeline view
+   */
+  async getEntityEditHistory(entityType, entityId) {
+    try {
+      console.log(`🔍 AuditService Debug - Getting edit history for ${entityType} #${entityId}`);
+      
+      // Get all audit logs for this entity, ordered by creation time
+      const logs = await AuditLog.findAll({
+        where: { 
+          entityType, 
+          entityId 
+        },
+        order: [["created_at", "ASC"]], // Chronological order
+      });
+
+      if (logs.length === 0) {
+        return {
+          entityType,
+          entityId,
+          entityName: null,
+          timeline: [],
+          summary: {
+            totalOperations: 0,
+            createdBy: null,
+            lastModifiedBy: null,
+            firstCreated: null,
+            lastModified: null,
+            isDeleted: false
+          }
+        };
+      }
+
+      // Build timeline with state progression
+      const timeline = [];
+      let currentState = null;
+      let previousState = null;
+
+      for (let i = 0; i < logs.length; i++) {
+        const log = logs[i];
+        const logData = log.toJSON();
+        
+        // Parse JSON fields
+        let oldValues = null;
+        let newValues = null;
+        let changedFields = null;
+
+        try {
+          oldValues = logData.oldValues ? JSON.parse(logData.oldValues) : null;
+          newValues = logData.newValues ? JSON.parse(logData.newValues) : null;
+          changedFields = logData.changedFields ? JSON.parse(logData.changedFields) : null;
+        } catch (parseError) {
+          console.warn(`Error parsing JSON for log ${log.id}:`, parseError);
+        }
+
+        // Determine entity name from the first CREATE or first available data
+        let entityName = null;
+        if (log.operation === 'CREATE' && newValues) {
+          entityName = this.extractEntityName(newValues, entityType);
+        } else if (currentState) {
+          entityName = this.extractEntityName(currentState, entityType);
+        }
+
+        // Build timeline entry
+        const timelineEntry = {
+          id: log.id,
+          operation: log.operation,
+          user: {
+            id: log.userId,
+            name: log.userName,
+            email: log.userEmail,
+            role: log.userRole
+          },
+          timestamp: log.created_at,
+          oldValues: oldValues,
+          newValues: newValues,
+          changedFields: changedFields,
+          ipAddress: log.ipAddress,
+          tenant: {
+            id: log.tenantId,
+            name: log.tenantName
+          },
+          additionalInfo: log.additionalInfo ? JSON.parse(log.additionalInfo) : null
+        };
+
+        // Update current state based on operation
+        if (log.operation === 'CREATE') {
+          currentState = newValues;
+          previousState = null;
+        } else if (log.operation === 'UPDATE') {
+          previousState = currentState;
+          currentState = newValues;
+        } else if (log.operation === 'DELETE') {
+          previousState = currentState;
+          currentState = null;
+        }
+
+        timelineEntry.currentState = currentState;
+        timelineEntry.previousState = previousState;
+
+        timeline.push(timelineEntry);
+      }
+
+      // Build summary
+      const firstLog = logs[0];
+      const lastLog = logs[logs.length - 1];
+      const createLog = logs.find(log => log.operation === 'CREATE');
+      const lastUpdateLog = logs.filter(log => log.operation === 'UPDATE').pop();
+      const deleteLog = logs.find(log => log.operation === 'DELETE');
+
+      const summary = {
+        totalOperations: logs.length,
+        createdBy: createLog ? {
+          id: createLog.userId,
+          name: createLog.userName,
+          email: createLog.userEmail,
+          role: createLog.userRole
+        } : null,
+        lastModifiedBy: lastUpdateLog ? {
+          id: lastUpdateLog.userId,
+          name: lastUpdateLog.userName,
+          email: lastUpdateLog.userEmail,
+          role: lastUpdateLog.userRole
+        } : (createLog ? {
+          id: createLog.userId,
+          name: createLog.userName,
+          email: createLog.userEmail,
+          role: createLog.userRole
+        } : null),
+        firstCreated: firstLog.created_at,
+        lastModified: lastLog.created_at,
+        isDeleted: !!deleteLog,
+        entityName: this.extractEntityName(currentState, entityType)
+      };
+
+      return {
+        entityType,
+        entityId,
+        entityName: summary.entityName,
+        timeline,
+        summary,
+        currentState,
+        isDeleted: summary.isDeleted
+      };
+
+    } catch (error) {
+      console.error("Error getting entity edit history:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extract entity name from data based on entity type
+   */
+  extractEntityName(data, entityType) {
+    if (!data) return null;
+
+    switch (entityType) {
+      case 'invoice':
+        return data.invoice_number || data.system_invoice_id || data.fbr_invoice_number || `Invoice #${data.id}`;
+      case 'buyer':
+        return data.buyerBusinessName || data.businessName || data.name || `Buyer #${data.id}`;
+      case 'product':
+        return data.product_name || data.name || data.productName || `Product #${data.id}`;
+      case 'user':
+        return data.userName || data.name || data.email || `User #${data.id}`;
+      default:
+        return data.name || data.title || `${entityType} #${data.id}`;
     }
   }
 }

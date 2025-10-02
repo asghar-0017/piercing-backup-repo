@@ -35,6 +35,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
     buyerProvince: "",
     buyerAddress: "",
     buyerRegistrationType: "",
+    buyerPhoneNumber: "",
     documentType: "NTN", // Default to NTN
   });
   const [provinces, setProvinces] = useState([]);
@@ -48,7 +49,29 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
     useState(false);
   const [buyerRegistrationHint, setBuyerRegistrationHint] = useState("");
   const [ntnDebounceTimer, setNtnDebounceTimer] = useState(null);
-  const [registrationTypeLocked, setRegistrationTypeLocked] = useState(false);
+  const [fbrCache, setFbrCache] = useState(new Map()); // Cache for FBR results
+  const [fbrServiceDown, setFbrServiceDown] = useState(false); // Track if FBR service is down
+
+  // Check if all required fields are filled
+  const isFormValid = () => {
+    const {
+      buyerNTNCNIC,
+      buyerBusinessName,
+      buyerProvince,
+      buyerAddress,
+      buyerRegistrationType,
+      buyerPhoneNumber,
+    } = formData;
+    
+    return !!(
+      buyerNTNCNIC &&
+      buyerBusinessName &&
+      buyerProvince &&
+      buyerAddress &&
+      buyerRegistrationType &&
+      buyerPhoneNumber
+    );
+  };
 
   // Reset form data when modal opens
   useEffect(() => {
@@ -63,6 +86,11 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         // If editing an existing buyer, populate the form
         console.log("=== EDITING BUYER ===");
         console.log("Buyer data received:", buyer);
+
+      // Reset checking states when editing
+      setCheckingBuyerRegistration(false);
+      setBuyerRegistrationHint("");
+      setFbrServiceDown(false); // Reset service down flag when editing
 
         // Determine document type based on NTN/CNIC value
         const determineDocumentType = (ntnCnic) => {
@@ -81,13 +109,13 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
           buyerBusinessName: buyer.buyerBusinessName || "",
           buyerProvince: buyer.buyerProvince || "",
           buyerAddress: buyer.buyerAddress || "",
-          buyerRegistrationType: buyer.buyerRegistrationType || "",
+          buyerRegistrationType: buyer.buyerRegistrationType || "Unregistered",
+          buyerPhoneNumber: buyer.buyerPhoneNumber || "",
           documentType: documentType,
         });
         console.log("Form data set with NTN/CNIC:", buyer.buyerNTNCNIC || "");
         console.log("Form data set with province:", buyer.buyerProvince || "");
         console.log("=== END EDITING BUYER ===");
-        setRegistrationTypeLocked(false);
       } else {
         // If adding a new buyer, reset the form to empty
         setFormData({
@@ -95,10 +123,10 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
           buyerBusinessName: "",
           buyerProvince: "",
           buyerAddress: "",
-          buyerRegistrationType: "",
+          buyerRegistrationType: "Unregistered", // Default value
+          buyerPhoneNumber: "",
           documentType: "NTN",
         });
-        setRegistrationTypeLocked(false);
       }
     }
   }, [isOpen, buyer]);
@@ -286,6 +314,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         buyerProvince,
         buyerAddress,
         buyerRegistrationType,
+        buyerPhoneNumber,
         documentType,
       } = formData;
       if (
@@ -293,7 +322,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         !buyerBusinessName ||
         !buyerProvince ||
         !buyerAddress ||
-        !buyerRegistrationType
+        !buyerRegistrationType ||
+        !buyerPhoneNumber
       ) {
         throw new Error("Please fill in all required fields.");
       }
@@ -306,8 +336,18 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         throw new Error("CNIC must be exactly 13 characters long.");
       }
 
-      // Proceed with saving
-      onSave(formData);
+      // Validate phone number format if provided
+      if (formData.buyerPhoneNumber && formData.buyerPhoneNumber.trim()) {
+        const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,15}$/;
+        if (!phoneRegex.test(formData.buyerPhoneNumber.trim())) {
+          throw new Error("Please enter a valid phone number (10-15 digits with optional +, spaces, hyphens, or parentheses).");
+        }
+      }
+
+      // Proceed with saving - exclude documentType as it's only for frontend logic
+      const { documentType: _, ...dataToSave } = formData;
+      console.log("Saving buyer data:", dataToSave);
+      onSave(dataToSave);
     } catch (error) {
       console.error("Error during save process:", error);
 
@@ -326,9 +366,43 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
   const checkBuyerRegistration = async (registrationNo) => {
     console.log("checkBuyerRegistration() -> registrationNo:", registrationNo);
     if (!registrationNo) return;
+    
+    // If service is known to be down, don't attempt API call
+    if (fbrServiceDown) {
+      setBuyerRegistrationHint("FBR API issue - service unavailable. Please set registration type manually.");
+      setFormData((prev) => ({
+        ...prev,
+        buyerRegistrationType: "FBR API Issue - Service Unavailable",
+      }));
+      return;
+    }
+    
+    // Check cache first
+    const cacheKey = registrationNo.trim();
+    if (fbrCache.has(cacheKey)) {
+      const cachedResult = fbrCache.get(cacheKey);
+      console.log("Using cached FBR result:", cachedResult);
+      
+      setFormData((prev) => ({
+        ...prev,
+        buyerRegistrationType: cachedResult.registrationType,
+      }));
+      
+      setBuyerRegistrationHint(
+        cachedResult.registrationType === "Registered"
+          ? ""
+          : ""
+      );
+      return;
+    }
+    
     try {
       setCheckingBuyerRegistration(true);
       setBuyerRegistrationHint("");
+
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
       const response = await fetch(
         "https://maritimefisheries.inplsoftwares.online/api/buyer-check",
@@ -338,8 +412,11 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ registrationNo }),
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeoutId);
 
       console.log(
         "FBR buyer check response status:",
@@ -348,21 +425,26 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         response.ok
       );
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json().catch(() => ({}));
 
       console.log("FBR buyer check parsed data:", data);
 
-      let derivedRegistrationType = "";
+      let derivedRegistrationType = "Unregistered"; // Default to Unregistered
+      
       if (data && typeof data.REGISTRATION_TYPE === "string") {
         derivedRegistrationType =
           data.REGISTRATION_TYPE.toLowerCase() === "registered"
             ? "Registered"
             : "Unregistered";
-      } else {
+      } else if (data) {
         let isRegistered = false;
         if (typeof data === "boolean") {
           isRegistered = data;
-        } else if (data) {
+        } else {
           isRegistered =
             data.isRegistered === true ||
             data.registered === true ||
@@ -374,6 +456,12 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         derivedRegistrationType = isRegistered ? "Registered" : "Unregistered";
       }
 
+      // Cache the result for future use
+      setFbrCache(prev => new Map(prev).set(cacheKey, {
+        registrationType: derivedRegistrationType,
+        timestamp: Date.now()
+      }));
+
       setFormData((prev) => ({
         ...prev,
         buyerRegistrationType: derivedRegistrationType,
@@ -381,16 +469,42 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
 
       setBuyerRegistrationHint(
         derivedRegistrationType === "Registered"
-          ? "Auto-filled as Registered from FBR"
-          : "Auto-filled as Unregistered from FBR"
+          ? ""
+          : ""
       );
-      setRegistrationTypeLocked(true);
     } catch (err) {
       console.error("Buyer registration check failed:", err);
-      setBuyerRegistrationHint(
-        "Could not verify from FBR. You can choose manually."
-      );
-      setRegistrationTypeLocked(false);
+      
+      // Mark service as down if we get 503 or 500 errors
+      if (err.message.includes('503') || err.message.includes('500') || err.message.includes('Upstream request failed')) {
+        setFbrServiceDown(true);
+        console.log("FBR service marked as down due to server errors");
+      }
+      
+      let errorMessage = "FBR API issue - service unavailable.";
+      let registrationTypeError = "FBR API Issue - Service Unavailable";
+      
+      if (err.name === 'AbortError') {
+        errorMessage = "FBR API issue - check timed out.";
+        registrationTypeError = "FBR API Issue - Timeout";
+      } else if (err.message.includes('Failed to fetch')) {
+        errorMessage = "FBR API issue - service unavailable.";
+        registrationTypeError = "FBR API Issue - Service Unavailable";
+      } else if (err.message.includes('503')) {
+        errorMessage = "FBR API issue - service temporarily unavailable.";
+        registrationTypeError = "FBR API Issue - Service Unavailable";
+      } else if (err.message.includes('500')) {
+        errorMessage = "FBR API issue - server error.";
+        registrationTypeError = "FBR API Issue - Server Error";
+      }
+      
+      setBuyerRegistrationHint(errorMessage);
+      
+      // Show the specific error in the registration type field
+      setFormData((prev) => ({
+        ...prev,
+        buyerRegistrationType: registrationTypeError,
+      }));
     } finally {
       setCheckingBuyerRegistration(false);
     }
@@ -401,24 +515,59 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
     if (isOpen && !buyer) {
       setFormData((prev) => ({ ...prev, buyerNTNCNIC: "" }));
       setBuyerRegistrationHint("");
-      setRegistrationTypeLocked(false);
     }
   }, [formData.documentType, isOpen, buyer]);
 
-  // Debounce API call when NTN/CNIC changes so user doesn't have to blur
+  // Clean up old cache entries (older than 1 hour) and reset service down flag
   useEffect(() => {
-    if (!isOpen) return;
+    const cleanupCache = () => {
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      setFbrCache(prev => {
+        const newCache = new Map();
+        for (const [key, value] of prev) {
+          if (value.timestamp > oneHourAgo) {
+            newCache.set(key, value);
+          }
+        }
+        return newCache;
+      });
+    };
+
+    const resetServiceDown = () => {
+      setFbrServiceDown(false);
+      console.log("FBR service down flag reset - attempting to reconnect");
+    };
+
+    const interval = setInterval(cleanupCache, 30 * 60 * 1000); // Clean every 30 minutes
+    const serviceResetInterval = setInterval(resetServiceDown, 5 * 60 * 1000); // Reset service down flag every 5 minutes
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(serviceResetInterval);
+    };
+  }, []);
+
+  // API call when NTN/CNIC reaches correct length (7 for NTN, 13 for CNIC)
+  // Only for new buyers, not when editing existing ones
+  useEffect(() => {
+    if (!isOpen || buyer) return; // Don't check FBR when editing existing buyer
     const value = (formData.buyerNTNCNIC || "").trim();
     if (ntnDebounceTimer) clearTimeout(ntnDebounceTimer);
     if (!value) return;
 
+    // Only check if the value has reached the correct length
+    const isCorrectLength = (formData.documentType === "NTN" && value.length === 7) || 
+                           (formData.documentType === "CNIC" && value.length === 13);
+    
+    if (!isCorrectLength) return;
+
     const id = setTimeout(() => {
-      console.log("Debounce fire -> checking buyer with:", value);
+      console.log("Length reached -> checking buyer with:", value);
       checkBuyerRegistration(value);
-    }, 700);
+    }, 500); // Reduced delay since we're only calling when length is correct
     setNtnDebounceTimer(id);
     return () => clearTimeout(id);
-  }, [formData.buyerNTNCNIC, isOpen, buyer]);
+  }, [formData.buyerNTNCNIC, formData.documentType, isOpen, buyer]);
 
   if (!isOpen) return null;
 
@@ -657,10 +806,15 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                   },
                 }}
                 helperText={
-                  checkingBuyerRegistration
-                    ? "Checking registration from FBR..."
-                    : buyerRegistrationHint ||
-                      `${formData.documentType === "NTN" ? "NTN: Max 7 alphanumeric characters" : "CNIC: Exactly 13 numbers only"} (${formData.buyerNTNCNIC.length}/${formData.documentType === "NTN" ? "7" : "13"})`
+                  checkingBuyerRegistration ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#007AFF' }}>
+                      <CircularProgress size={14} sx={{ color: '#007AFF' }} />
+                      <span>Checking registration from FBR...</span>
+                    </Box>
+                  ) : (
+                    buyerRegistrationHint ||
+                    `${formData.documentType === "NTN" ? "NTN: Max 7 alphanumeric characters" : "CNIC: Exactly 13 numbers only"} (${formData.buyerNTNCNIC.length}/${formData.documentType === "NTN" ? "7" : "13"})`
+                  )
                 }
               />
 
@@ -937,81 +1091,142 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                 }}
               />
 
-              <FormControl
-                fullWidth
-                required
+              {/* Phone Number and Registration Type in a row */}
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                {/* Phone Number Field */}
+              <TextField
+                label="Phone Number"
+                name="buyerPhoneNumber"
+                value={formData.buyerPhoneNumber}
+                onChange={handleChange}
+                variant="outlined"
                 size="small"
-                sx={{
-                  "& .MuiOutlinedInput-root": {
-                    backgroundColor: "rgba(255, 255, 255, 0.6)",
-                    backdropFilter: "blur(10px)",
-                    borderRadius: 2,
-                    "& fieldset": {
-                      borderColor: "rgba(0, 0, 0, 0.12)",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: "rgba(0, 0, 0, 0.2)",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: "#007AFF",
-                      borderWidth: 2,
-                    },
-                  },
-                  "& .MuiInputLabel-root": {
-                    color: "#1a1a1a",
-                    fontWeight: 500,
-                  },
-                  "& .MuiSelect-select": {
-                    color: "#1a1a1a",
-                  },
-                }}
-              >
-                <InputLabel id="buyerRegistrationType-label">
-                  Registration Type
-                </InputLabel>
-                <Select
-                  labelId="buyerRegistrationType-label"
-                  name="buyerRegistrationType"
-                  value={formData.buyerRegistrationType}
-                  label="Registration Type"
-                  onChange={handleChange}
-                  disabled={checkingBuyerRegistration || registrationTypeLocked}
-                  MenuProps={{
-                    PaperProps: {
-                      sx: {
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        backdropFilter: "blur(20px)",
-                        border: "1px solid rgba(255, 255, 255, 0.3)",
-                        borderRadius: 2,
-                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
+                required
+                placeholder="Enter phone number"
+                  sx={{
+                    flex: 1,
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "rgba(255, 255, 255, 0.6)",
+                      backdropFilter: "blur(10px)",
+                      borderRadius: 2,
+                      "& fieldset": {
+                        borderColor: "rgba(0, 0, 0, 0.12)",
                       },
+                      "&:hover fieldset": {
+                        borderColor: "rgba(0, 0, 0, 0.2)",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#007AFF",
+                        borderWidth: 2,
+                      },
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "#1a1a1a",
+                      fontWeight: 500,
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      color: "#1a1a1a",
                     },
                   }}
-                >
-                  <MenuItem
-                    value="Registered"
+                />
+
+                {/* Registration Type Section */}
+                <Box sx={{ flex: 1 }}>
+                  {/* Registration Type - Auto-filled by API */}
+                  <TextField
+                    label="Registration Type"
+                    value={
+                      checkingBuyerRegistration 
+                        ? "Checking FBR..." 
+                        : formData.buyerRegistrationType || "Will be auto-filled from FBR"
+                    }
+                    disabled
+                    size="small"
+                    fullWidth
                     sx={{
-                      color: "#1a1a1a",
-                      "&:hover": {
-                        backgroundColor: "rgba(0, 122, 255, 0.1)",
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: checkingBuyerRegistration 
+                          ? "rgba(0, 122, 255, 0.05)" 
+                          : "rgba(255, 255, 255, 0.4)",
+                        backdropFilter: "blur(10px)",
+                        borderRadius: 2,
+                        "& fieldset": {
+                          borderColor: checkingBuyerRegistration 
+                            ? "rgba(0, 122, 255, 0.3)" 
+                            : "rgba(0, 0, 0, 0.12)",
+                        },
+                        "&:hover fieldset": {
+                          borderColor: checkingBuyerRegistration 
+                            ? "rgba(0, 122, 255, 0.5)" 
+                            : "rgba(0, 0, 0, 0.2)",
+                        },
+                      },
+                      "& .MuiInputLabel-root": {
+                        color: checkingBuyerRegistration 
+                          ? "#007AFF" 
+                          : "#1a1a1a",
+                        fontWeight: 500,
+                      },
+                      "& .MuiOutlinedInput-input": {
+                        color: checkingBuyerRegistration 
+                          ? "#007AFF" 
+                          : "#1a1a1a",
+                        fontWeight: 500,
                       },
                     }}
-                  >
-                    Registered
-                  </MenuItem>
-                  <MenuItem
-                    value="Unregistered"
-                    sx={{
-                      color: "#1a1a1a",
-                      "&:hover": {
-                        backgroundColor: "rgba(0, 122, 255, 0.1)",
-                      },
+                    InputProps={{
+                      endAdornment: checkingBuyerRegistration ? (
+                        <CircularProgress size={20} sx={{ color: '#007AFF' }} />
+                      ) : null,
                     }}
-                  >
-                    Unregistered
-                  </MenuItem>
-                </Select>
-              </FormControl>
+                    helperText={
+                      checkingBuyerRegistration 
+                        ? "Verifying registration status with FBR..." 
+                        : buyerRegistrationHint || ""
+                    }
+                  />
+                  
+                  {/* Retry FBR check button when there's an error - positioned below the field like Get Provinces */}
+                  {buyerRegistrationHint && 
+                   (buyerRegistrationHint.includes("unavailable") || buyerRegistrationHint.includes("FBR API issue")) && 
+                   !checkingBuyerRegistration && 
+                   formData.buyerNTNCNIC && 
+                   !buyer && (
+                    <Button
+                      onClick={() => {
+                        setFbrServiceDown(false); // Reset service down flag
+                        checkBuyerRegistration(formData.buyerNTNCNIC);
+                      }}
+                      disabled={checkingBuyerRegistration}
+                      variant="outlined"
+                      size="small"
+                      sx={{
+                        mt: 0.5,
+                        color: "#007AFF",
+                        borderColor: "#007AFF",
+                        backgroundColor: "rgba(0, 122, 255, 0.05)",
+                        fontWeight: 500,
+                        fontSize: "12px",
+                        py: 0.3,
+                        px: 1.5,
+                        borderRadius: 1.5,
+                        textTransform: "none",
+                        "&:hover": {
+                          backgroundColor: "rgba(0, 122, 255, 0.1)",
+                          borderColor: "#0056CC",
+                        },
+                        "&:disabled": {
+                          color: "rgba(0, 122, 255, 0.5)",
+                          borderColor: "rgba(0, 122, 255, 0.3)",
+                        },
+                        transition: "all 0.2s ease-in-out",
+                      }}
+                    >
+                      Retry FBR Check
+                    </Button>
+                  )}
+                </Box>
+              </Box>
 
               {/* Action buttons with modern styling */}
               <Stack spacing={1} sx={{ mt: { xs: 1, sm: 1.5 } }}>
@@ -1019,7 +1234,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                   type="submit"
                   variant="contained"
                   fullWidth
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isFormValid()}
                   size="small"
                   sx={{
                     backgroundColor: "#007AFF",
@@ -1036,7 +1251,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                       boxShadow: "0 6px 25px rgba(0, 122, 255, 0.4)",
                     },
                     "&:disabled": {
-                      backgroundColor: "rgba(0, 122, 255, 0.6)",
+                      backgroundColor: isSubmitting ? "rgba(0, 122, 255, 0.6)" : "rgba(0, 0, 0, 0.12)",
+                      color: isSubmitting ? "white" : "rgba(0, 0, 0, 0.26)",
                     },
                     transition: "all 0.2s ease-in-out",
                   }}
@@ -1049,37 +1265,13 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                       />
                       Saving...
                     </>
+                  ) : !isFormValid() ? (
+                    "Fill Required Fields"
                   ) : (
                     "Save"
                   )}
                 </Button>
 
-                <Button
-                  type="button"
-                  onClick={onClose}
-                  variant="outlined"
-                  fullWidth
-                  size="small"
-                  sx={{
-                    color: "#666",
-                    borderColor: "rgba(0, 0, 0, 0.12)",
-                    backgroundColor: "rgba(255, 255, 255, 0.4)",
-                    backdropFilter: "blur(10px)",
-                    fontWeight: 500,
-                    fontSize: { xs: "13px", sm: "14px" },
-                    py: { xs: 0.8, sm: 1 },
-                    borderRadius: 2,
-                    textTransform: "none",
-                    "&:hover": {
-                      backgroundColor: "rgba(255, 255, 255, 0.6)",
-                      borderColor: "rgba(0, 0, 0, 0.2)",
-                      transform: "translateY(-1px)",
-                    },
-                    transition: "all 0.2s ease-in-out",
-                  }}
-                >
-                  Cancel
-                </Button>
               </Stack>
             </Stack>
           </Box>

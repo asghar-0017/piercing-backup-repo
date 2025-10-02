@@ -43,6 +43,13 @@ export const createBuyerModel = (sequelize) => {
         len: [1, 100]
       }
     },
+    buyerPhoneNumber: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+      validate: {
+        len: [0, 20]
+      }
+    },
     // Creator tracking
     created_by_user_id: {
       type: DataTypes.INTEGER,

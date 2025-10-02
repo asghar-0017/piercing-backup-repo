@@ -158,6 +158,8 @@ class AutoSchemaSync {
       { table: 'buyers', column: 'created_by_user_id', type: 'INT', allowNull: true },
       { table: 'buyers', column: 'created_by_email', type: 'VARCHAR(255)', allowNull: true },
       { table: 'buyers', column: 'created_by_name', type: 'VARCHAR(255)', allowNull: true },
+      { table: 'buyers', column: 'buyerPhoneNumber', type: 'VARCHAR(20)', allowNull: true },
+      { table: 'buyers', column: 'buyerCity', type: 'VARCHAR(100)', allowNull: true },
       { table: 'products', column: 'created_by_user_id', type: 'INT', allowNull: true },
       { table: 'products', column: 'created_by_email', type: 'VARCHAR(255)', allowNull: true },
       { table: 'products', column: 'created_by_name', type: 'VARCHAR(255)', allowNull: true },

@@ -3,6 +3,7 @@ import {
   getAuditLogs,
   getAuditSummary,
   getEntityAuditLogs,
+  getEntityEditHistory,
   getAuditStatistics,
   getAuditLogsByUser,
   getAuditLogsByTenant,
@@ -27,6 +28,9 @@ router.get("/statistics", requirePermission("audit.view"), getAuditStatistics);
 
 // Get audit logs for a specific entity
 router.get("/entity/:entityType/:entityId", requirePermission("audit.view"), getEntityAuditLogs);
+
+// Get complete edit history for a specific entity with timeline view
+router.get("/entity/:entityType/:entityId/history", requirePermission("audit.view"), getEntityEditHistory);
 
 // Get audit logs by user
 router.get("/user/:userId", requirePermission("audit.view"), getAuditLogsByUser);

@@ -45,6 +45,7 @@ const Buyers = () => {
         buyerProvince: buyerData.buyerProvince,
         buyerAddress: buyerData.buyerAddress,
         buyerRegistrationType: buyerData.buyerRegistrationType,
+        buyerPhoneNumber: buyerData.buyerPhoneNumber,
       };
 
       if (selectedBuyer) {
