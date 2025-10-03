@@ -27,7 +27,7 @@ import invoiceBackupRoutes from "./routes/invoiceBackupRoutes.js";
 import hsCodeRoutes from "./routes/hsCodeRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
 
-dotenv.config();
+dotenv.config({ path: './.env' });
 
 const app = express();
 

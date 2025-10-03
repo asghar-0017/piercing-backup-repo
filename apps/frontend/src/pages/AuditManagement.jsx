@@ -279,9 +279,9 @@ const AuditManagement = () => {
     if (!data) return null;
     
     return (
-      <div className="bg-blue-50 p-4 rounded-lg mb-4">
-        <h4 className="text-md font-semibold text-blue-900 mb-3">Seller Information</h4>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="bg-blue-50 p-3 sm:p-4 rounded-lg mb-4">
+        <h4 className="text-sm sm:text-md font-semibold text-blue-900 mb-3">Seller Information</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div>
             <span className="font-medium text-gray-700">Business Name:</span>
             <span className="ml-2 text-gray-900">{data.sellerBusinessName || 'N/A'}</span>
@@ -306,7 +306,7 @@ const AuditManagement = () => {
               <span className="ml-2 text-gray-900">{data.sellerCity}</span>
             </div>
           )}
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <span className="font-medium text-gray-700">Address:</span>
             <span className="ml-2 text-gray-900">{data.sellerAddress || 'N/A'}</span>
           </div>
@@ -320,9 +320,9 @@ const AuditManagement = () => {
     if (!data) return null;
     
     return (
-      <div className="bg-green-50 p-4 rounded-lg mb-4">
-        <h4 className="text-md font-semibold text-green-900 mb-3">Buyer Information</h4>
-        <div className="grid grid-cols-2 gap-4 text-sm">
+      <div className="bg-green-50 p-3 sm:p-4 rounded-lg mb-4">
+        <h4 className="text-sm sm:text-md font-semibold text-green-900 mb-3">Buyer Information</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div>
             <span className="font-medium text-gray-700">Business Name:</span>
             <span className="ml-2 text-gray-900">{data.buyerBusinessName || 'N/A'}</span>
@@ -345,7 +345,7 @@ const AuditManagement = () => {
               <span className="ml-2 text-gray-900">{data.buyerCity}</span>
             </div>
           )}
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <span className="font-medium text-gray-700">Address:</span>
             <span className="ml-2 text-gray-900">{data.buyerAddress || 'N/A'}</span>
           </div>
@@ -462,9 +462,9 @@ const AuditManagement = () => {
       return (
         <div className="space-y-4">
           {/* Basic Invoice Information */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="text-md font-semibold text-gray-900 mb-3">Invoice Information</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+            <h4 className="text-sm sm:text-md font-semibold text-gray-900 mb-3">Invoice Information</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
                 <span className="font-medium text-gray-700">Invoice Number:</span>
                 <span className="ml-2 text-gray-900">{parsedObj.invoice_number || 'N/A'}</span>
@@ -630,13 +630,13 @@ const AuditManagement = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Field
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Previous Value
               </th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 New Value
               </th>
             </tr>
@@ -644,10 +644,10 @@ const AuditManagement = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {Object.entries(parsedFields).map(([field, values]) => (
               <tr key={field}>
-                <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td className="px-2 sm:px-4 py-2 text-sm font-medium text-gray-900 break-words">
                   {field}
                 </td>
-                <td className="px-4 py-2 text-sm text-red-600">
+                <td className="px-2 sm:px-4 py-2 text-sm text-red-600 break-words">
                   {field === 'invoice_items' && Array.isArray(values.old) ? (
                     <div className="mt-2">
                       <p className="text-sm font-medium text-gray-700 mb-2">Previous Items ({values.old.length} items):</p>
@@ -656,11 +656,11 @@ const AuditManagement = () => {
                   ) : values.old === null 
                     ? <span className="text-gray-500 italic">null</span>
                     : typeof values.old === 'object' && values.old !== null 
-                      ? JSON.stringify(values.old, null, 2) 
+                      ? <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(values.old, null, 2)}</pre>
                       : String(values.old)
                   }
                 </td>
-                <td className="px-4 py-2 text-sm text-green-600">
+                <td className="px-2 sm:px-4 py-2 text-sm text-green-600 break-words">
                   {field === 'invoice_items' && Array.isArray(values.new) ? (
                     <div className="mt-2">
                       <p className="text-sm font-medium text-gray-700 mb-2">New Items ({values.new.length} items):</p>
@@ -669,7 +669,7 @@ const AuditManagement = () => {
                   ) : values.new === null 
                     ? <span className="text-gray-500 italic">null</span>
                     : typeof values.new === 'object' && values.new !== null 
-                      ? JSON.stringify(values.new, null, 2) 
+                      ? <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(values.new, null, 2)}</pre>
                       : String(values.new)
                   }
                 </td>
@@ -1281,28 +1281,28 @@ const AuditManagement = () => {
 
       {/* Audit Details Modal */}
       {showDetailsModal && selectedLog && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 max-w-5xl shadow-lg rounded-md bg-white max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              <h3 className="text-lg font-medium text-gray-900">
-                Audit Details - {selectedLog.entityType} #{selectedLog.entityId}
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="relative p-2 sm:p-4 md:p-5 border w-[95%] sm:w-11/12 md:w-10/12 lg:w-9/12 xl:w-8/12 2xl:w-7/12 max-w-6xl shadow-lg rounded-md bg-white max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-start sm:items-center mb-4 flex-shrink-0">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 pr-2">
+                Details - {selectedLog.entityType} #{selectedLog.entityId}
               </h3>
               <button
                 onClick={closeDetailsModal}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
                 <span className="sr-only">Close</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="space-y-6 overflow-y-auto flex-1 pr-2">
+            <div className="space-y-4 sm:space-y-6 overflow-y-auto flex-1 pr-1 sm:pr-2">
                 {/* Basic Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h4 className="text-md font-semibold text-gray-900 mb-3">Basic Information</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <h4 className="text-sm sm:text-md font-semibold text-gray-900 mb-3">Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Operation</label>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(selectedLog.operation)}`}>
@@ -1341,9 +1341,9 @@ const AuditManagement = () => {
 
                 {/* Old Values (for UPDATE/DELETE operations) */}
                 {selectedLog.oldValues && (
-                  <div className="bg-red-50 p-4 rounded-lg">
-                    <h4 className="text-md font-semibold text-red-900 mb-3">Previous Values</h4>
-                    <div className="bg-white p-3 rounded border">
+                  <div className="bg-red-50 p-3 sm:p-4 rounded-lg">
+                    <h4 className="text-sm sm:text-md font-semibold text-red-900 mb-3">Previous Values</h4>
+                    <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
                       {renderObjectAsTable(selectedLog.oldValues)}
                     </div>
                   </div>
@@ -1351,9 +1351,9 @@ const AuditManagement = () => {
 
                 {/* New Values (for CREATE/UPDATE operations) */}
                 {selectedLog.newValues && (
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h4 className="text-md font-semibold text-green-900 mb-3">New Values</h4>
-                    <div className="bg-white p-3 rounded border">
+                  <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                    <h4 className="text-sm sm:text-md font-semibold text-green-900 mb-3">New Values</h4>
+                    <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
                       {renderObjectAsTable(selectedLog.newValues)}
                     </div>
                   </div>
@@ -1361,9 +1361,9 @@ const AuditManagement = () => {
 
                 {/* Changed Fields (for UPDATE operations) */}
                 {selectedLog.changedFields && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="text-md font-semibold text-blue-900 mb-3">Changed Fields</h4>
-                    <div className="bg-white p-3 rounded border">
+                  <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                    <h4 className="text-sm sm:text-md font-semibold text-blue-900 mb-3">Changed Fields</h4>
+                    <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
                       {renderChangedFieldsAsTable(selectedLog.changedFields)}
                     </div>
                   </div>
@@ -1372,10 +1372,10 @@ const AuditManagement = () => {
 
             </div>
 
-            <div className="mt-6 flex justify-end flex-shrink-0 border-t pt-4">
+            <div className="mt-4 sm:mt-6 flex justify-end flex-shrink-0 border-t pt-3 sm:pt-4">
               <button
                 onClick={closeDetailsModal}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 w-full sm:w-auto"
               >
                 Close
               </button>

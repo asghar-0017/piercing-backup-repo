@@ -43,12 +43,30 @@ class AuditService {
       console.log('🔍 AuditService Debug - Changed Fields Type:', typeof changedFields);
       console.log('🔍 AuditService Debug - Changed Fields Keys:', changedFields ? Object.keys(changedFields) : 'null');
 
+      // Validate user ID exists in database
+      let validUserId = user.id || user.userId || null;
+      if (validUserId) {
+        try {
+          const [userExists] = await masterSequelize.query(
+            'SELECT id FROM users WHERE id = ?',
+            { replacements: [validUserId] }
+          );
+          if (!userExists || userExists.length === 0) {
+            console.warn(`⚠️ User ID ${validUserId} does not exist in database, setting to null`);
+            validUserId = null;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error validating user ID ${validUserId}:`, error.message);
+          validUserId = null;
+        }
+      }
+
       // Create audit log entry
       const auditLog = await AuditLog.create({
         entityType,
         entityId,
         operation,
-        userId: user.id || user.userId || null,
+        userId: validUserId,
         userEmail: user.email || null,
         userName: this.getUserDisplayName(user),
         userRole: user.role || null,
@@ -165,6 +183,24 @@ class AuditService {
           transaction,
         });
 
+        // Validate user ID exists in database
+        let validUserId = user.id || user.userId || null;
+        if (validUserId) {
+          try {
+            const [userExists] = await masterSequelize.query(
+              'SELECT id FROM users WHERE id = ?',
+              { replacements: [validUserId] }
+            );
+            if (!userExists || userExists.length === 0) {
+              console.warn(`⚠️ User ID ${validUserId} does not exist in database for audit summary, setting to null`);
+              validUserId = null;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Error validating user ID ${validUserId} for audit summary:`, error.message);
+            validUserId = null;
+          }
+        }
+
         const userDisplayName = this.getUserDisplayName(user);
         const now = new Date();
 
@@ -176,18 +212,18 @@ class AuditService {
               entityId,
               entityName: this.getEntityName(entityType, newValues, additionalInfo),
               totalOperations: 1,
-              createdByUserId: user.id || user.userId || null,
+              createdByUserId: validUserId,
               createdByEmail: user.email || null,
               createdByName: userDisplayName,
               createdAt: now,
-              lastModifiedByUserId: user.id || user.userId || null,
+              lastModifiedByUserId: validUserId,
               lastModifiedByEmail: user.email || null,
               lastModifiedByName: userDisplayName,
               lastModifiedAt: now,
               tenantId: tenant.id || tenant.tenantId || null,
               tenantName: tenant.name || tenant.sellerBusinessName || null,
               isDeleted: operation === "DELETE",
-              deletedByUserId: operation === "DELETE" ? (user.id || user.userId || null) : null,
+              deletedByUserId: operation === "DELETE" ? validUserId : null,
               deletedByEmail: operation === "DELETE" ? (user.email || null) : null,
               deletedByName: operation === "DELETE" ? userDisplayName : null,
               deletedAt: operation === "DELETE" ? now : null,
@@ -198,7 +234,7 @@ class AuditService {
           // Update existing summary
           const updateData = {
             totalOperations: summary.totalOperations + 1,
-            lastModifiedByUserId: user.id || user.userId || null,
+            lastModifiedByUserId: validUserId,
             lastModifiedByEmail: user.email || null,
             lastModifiedByName: userDisplayName,
             lastModifiedAt: now,
@@ -212,7 +248,7 @@ class AuditService {
           // Handle deletion
           if (operation === "DELETE") {
             updateData.isDeleted = true;
-            updateData.deletedByUserId = user.id || user.userId || null;
+            updateData.deletedByUserId = validUserId;
             updateData.deletedByEmail = user.email || null;
             updateData.deletedByName = userDisplayName;
             updateData.deletedAt = now;
