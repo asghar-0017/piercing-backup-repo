@@ -7,6 +7,7 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+    
 
     steps:
       - name: Checkout code
@@ -25,4 +26,4 @@ jobs:
       - name: Start or restart backend with PM2
         run: |
           cd ${{ github.workspace }}/apps/backend/
-          /usr/bin/pm2 start index.js --name maritimefish || /usr/bin/pm2 restart maritimefish
+          /usr/bin/pm2 start index.js --name rajbytextileind || /usr/bin/pm2 restart rajbytextileind
