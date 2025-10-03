@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://faizenterprises.inplsoftwares.online",
+        target: "https://ybari.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
