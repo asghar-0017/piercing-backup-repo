@@ -31,6 +31,12 @@ import AdminUser from '../model/mysql/AdminUser.js';
 import AdminSession from '../model/mysql/AdminSession.js';
 import ResetCode from '../model/mysql/ResetCode.js';
 import AutoPermissionsSetup from './auto-permissions-setup.js';
+import { createBuyerModel } from '../model/mysql/tenant/Buyer.js';
+import { createProductModel } from '../model/mysql/tenant/Product.js';
+import { createInvoiceModel } from '../model/mysql/tenant/Invoice.js';
+import { createInvoiceItemModel } from '../model/mysql/tenant/InvoiceItem.js';
+import { createInvoiceBackupModel } from '../model/mysql/tenant/InvoiceBackup.js';
+import { createInvoiceBackupSummaryModel } from '../model/mysql/tenant/InvoiceBackupSummary.js';
 
 dotenv.config();
 
@@ -104,7 +110,13 @@ class AutoSchemaSync {
       { name: 'UserTenantAssignment', model: UserTenantAssignment },
       { name: 'AdminUser', model: AdminUser },
       { name: 'AdminSession', model: AdminSession },
-      { name: 'ResetCode', model: ResetCode }
+      { name: 'ResetCode', model: ResetCode },
+      { name: 'Buyer', model: createBuyerModel(masterSequelize) },
+      { name: 'Product', model: createProductModel(masterSequelize) },
+      { name: 'Invoice', model: createInvoiceModel(masterSequelize) },
+      { name: 'InvoiceItem', model: createInvoiceItemModel(masterSequelize) },
+      { name: 'InvoiceBackup', model: createInvoiceBackupModel(masterSequelize) },
+      { name: 'InvoiceBackupSummary', model: createInvoiceBackupSummaryModel(masterSequelize) }
     ];
 
     for (const { name, model } of models) {
