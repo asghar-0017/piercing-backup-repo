@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "http://faizenterprises.inplsoftwares.online",
+          "https://faizenterprises.inplsoftwares.online",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "http://faizenterprises.inplsoftwares.online",
-      "http://faizenterprises.inplsoftwares.online",
+      "https://faizenterprises.inplsoftwares.online",
+      "https://faizenterprises.inplsoftwares.online",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],

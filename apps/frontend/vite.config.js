@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "http://faizenterprises.inplsoftwares.online",
+        target: "https://faizenterprises.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
