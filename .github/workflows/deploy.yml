@@ -26,4 +26,4 @@ jobs:
       - name: Start or restart backend with PM2
         run: |
           cd ${{ github.workspace }}/apps/backend/
-          /usr/bin/pm2 start index.js --name lunacare || /usr/bin/pm2 restart lunacare
+          /usr/bin/pm2 start index.js --name getzhealth || /usr/bin/pm2 restart getzhealth
