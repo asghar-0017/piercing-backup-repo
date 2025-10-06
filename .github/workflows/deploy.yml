@@ -7,7 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-    
 
     steps:
       - name: Checkout code
@@ -26,4 +25,4 @@ jobs:
       - name: Start or restart backend with PM2
         run: |
           cd ${{ github.workspace }}/apps/backend/
-          /usr/bin/pm2 start index.js --name getzhealth || /usr/bin/pm2 restart getzhealth
+          /usr/bin/pm2 start index.js --name habibsugar || /usr/bin/pm2 restart habibsugar

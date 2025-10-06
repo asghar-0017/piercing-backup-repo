@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://getzhealth.inplsoftwares.online",
+        target: "https://habibsugar.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
