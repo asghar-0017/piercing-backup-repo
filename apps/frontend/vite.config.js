@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://amsprocessing.inplsoftwares.online",
+        target: "https://united-tubes.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },

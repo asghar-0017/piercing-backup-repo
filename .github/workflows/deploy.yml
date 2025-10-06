@@ -7,7 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
-    
 
     steps:
       - name: Checkout code
@@ -25,5 +24,5 @@ jobs:
 
       - name: Start or restart backend with PM2
         run: |
-          cd ${{ github.workspace }}/apps/backend/
-          /usr/bin/pm2 start index.js --name amsprocessing || /usr/bin/pm2 restart amsprocessing
+          cd ${{ github.workspace }}/apps/backend
+          /usr/bin/pm2 start index.js --name united-tubes || /usr/bin/pm2 restart united-tubes
