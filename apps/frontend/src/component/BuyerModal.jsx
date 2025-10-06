@@ -548,9 +548,9 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
   }, []);
 
   // API call when NTN/CNIC reaches correct length (7 for NTN, 13 for CNIC)
-  // Only for new buyers, not when editing existing ones
+  // Check FBR for both new buyers and when editing existing buyers
   useEffect(() => {
-    if (!isOpen || buyer) return; // Don't check FBR when editing existing buyer
+    if (!isOpen) return;
     const value = (formData.buyerNTNCNIC || "").trim();
     if (ntnDebounceTimer) clearTimeout(ntnDebounceTimer);
     if (!value) return;
@@ -567,7 +567,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
     }, 500); // Reduced delay since we're only calling when length is correct
     setNtnDebounceTimer(id);
     return () => clearTimeout(id);
-  }, [formData.buyerNTNCNIC, formData.documentType, isOpen, buyer]);
+  }, [formData.buyerNTNCNIC, formData.documentType, isOpen]);
 
   if (!isOpen) return null;
 
@@ -769,10 +769,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                 }}
                 onBlur={(e) => {
                   console.log("NTN/CNIC onBlur ->", e.target.value);
-                  // Only check registration if we're not editing an existing buyer
-                  if (!buyer) {
-                    checkBuyerRegistration(e.target.value?.trim());
-                  }
+                  // Check registration for both new and existing buyers
+                  checkBuyerRegistration(e.target.value?.trim());
                 }}
                 fullWidth
                 required
@@ -1186,12 +1184,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                     }
                   />
                   
-                  {/* Retry FBR check button when there's an error - positioned below the field like Get Provinces */}
-                  {buyerRegistrationHint && 
-                   (buyerRegistrationHint.includes("unavailable") || buyerRegistrationHint.includes("FBR API issue")) && 
-                   !checkingBuyerRegistration && 
-                   formData.buyerNTNCNIC && 
-                   !buyer && (
+                  {/* FBR check buttons - positioned below the field like Get Provinces */}
+                  {formData.buyerNTNCNIC && !checkingBuyerRegistration && (
                     <Button
                       onClick={() => {
                         setFbrServiceDown(false); // Reset service down flag
@@ -1222,7 +1216,10 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                         transition: "all 0.2s ease-in-out",
                       }}
                     >
-                      Retry FBR Check
+                      {buyerRegistrationHint && 
+                       (buyerRegistrationHint.includes("unavailable") || buyerRegistrationHint.includes("FBR API issue")) 
+                        ? "Retry FBR Check" 
+                        : "Check FBR Registration"}
                     </Button>
                   )}
                 </Box>
