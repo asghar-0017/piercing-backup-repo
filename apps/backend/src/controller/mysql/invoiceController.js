@@ -3167,7 +3167,7 @@ export const getInvoiceStats = async (req, res) => {
       
       // Filter by invoiceDate (the actual invoice date) instead of created_at
       whereClause.invoiceDate = {
-        [req.tenantDb.Sequelize.Op.between]: [req.query.start_date, req.query.end_date],
+        [req.tenantDb.Sequelize.Op.between]: [startDate, endDate],
       };
     }
 
@@ -5216,10 +5216,7 @@ export const getDashboardSummary = async (req, res) => {
       // Filter by invoiceDate (the actual invoice date) instead of created_at
       whereDateRange = {
         invoiceDate: {
-          [Op.between]: [
-            req.query.start_date, // Use the original date strings for string comparison
-            req.query.end_date
-          ]
+          [Op.between]: [startDate, endDate]
         }
       };
     } else {
