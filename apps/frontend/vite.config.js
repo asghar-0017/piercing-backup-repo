@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://fazalind.inplsoftwares.online",
+        target: "https://usmansons.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
