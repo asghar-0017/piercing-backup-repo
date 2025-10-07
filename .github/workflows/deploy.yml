@@ -25,4 +25,4 @@ jobs:
       - name: Start or restart backend with PM2
         run: |
           cd ${{ github.workspace }}/apps/backend
-          /usr/bin/pm2 start index.js --name hafizten || /usr/bin/pm2 restart hafizten
+          /usr/bin/pm2 start index.js --name harmainint || /usr/bin/pm2 restart harmainint

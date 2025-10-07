@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://hafiztennary.inplsoftwares.online",
+        target: "https://harmainint.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
