@@ -1851,12 +1851,30 @@ export const getAllInvoices = async (req, res) => {
                       include: [{
                         model: req.tenantModels.Invoice,
                         where: {
-                          invoiceDate: {
-                            [req.tenantDb.Sequelize.Op.between]: [
-                              new Date(start_date + 'T00:00:00.000Z'),
-                              new Date(end_date + 'T23:59:59.999Z')
-                            ]
-                          }
+                          [req.tenantDb.Sequelize.Op.or]: [
+                            // Handle YYYY-MM-DD format
+                            {
+                              invoiceDate: {
+                                [req.tenantDb.Sequelize.Op.between]: [start_date, end_date]
+                              }
+                            },
+                            // Handle DD-MM-YYYY format (convert and compare)
+                            {
+                              invoiceDate: {
+                                [req.tenantDb.Sequelize.Op.and]: [
+                                  req.tenantDb.Sequelize.where(
+                                    req.tenantDb.Sequelize.fn('STR_TO_DATE', 
+                                      req.tenantDb.Sequelize.col('invoiceDate'), 
+                                      '%d-%m-%Y'
+                                    ),
+                                    {
+                                      [req.tenantDb.Sequelize.Op.between]: [start_date, end_date]
+                                    }
+                                  )
+                                ]
+                              }
+                            }
+                          ]
                         },
                         attributes: ['id', 'invoiceDate']
                       }],
@@ -2178,26 +2196,45 @@ export const getAllInvoices = async (req, res) => {
     // Add date range filter
 
     if (start_date && end_date) {
-      const startDate = new Date(start_date);
-      const endDate = new Date(end_date);
-      
-      // Set start date to beginning of day (00:00:00.000)
-      startDate.setHours(0, 0, 0, 0);
-      
-      // Set end date to end of day to include the full day (23:59:59.999)
-      endDate.setHours(23, 59, 59, 999);
+      // Since invoiceDate is stored as STRING in database, we need to handle string comparison
+      // Convert the date strings to proper format for comparison
+      const startDateStr = start_date; // Already in YYYY-MM-DD format from frontend
+      const endDateStr = end_date;     // Already in YYYY-MM-DD format from frontend
       
       console.log('Invoice List Date Range Filter:', {
         start_date,
         end_date,
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
+        startDateStr,
+        endDateStr
       });
       
-      // Filter by invoiceDate (the actual invoice date) instead of created_at
-      whereClause.invoiceDate = {
-        [req.tenantDb.Sequelize.Op.between]: [startDate, endDate],
-      };
+      // Filter by invoiceDate using string comparison since it's stored as STRING
+      // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
+      whereClause[req.tenantDb.Sequelize.Op.or] = [
+        // Handle YYYY-MM-DD format
+        {
+          invoiceDate: {
+            [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr],
+          }
+        },
+        // Handle DD-MM-YYYY format (convert and compare)
+        {
+          invoiceDate: {
+            [req.tenantDb.Sequelize.Op.and]: [
+              // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
+              req.tenantDb.Sequelize.where(
+                req.tenantDb.Sequelize.fn('STR_TO_DATE', 
+                  req.tenantDb.Sequelize.col('invoiceDate'), 
+                  '%d-%m-%Y'
+                ),
+                {
+                  [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+                }
+              )
+            ]
+          }
+        }
+      ];
     }
 
 
@@ -2237,16 +2274,35 @@ export const getAllInvoices = async (req, res) => {
     
     // Debug: Check invoices in date range without buyer filter
     if (start_date && end_date) {
-      const startDate = new Date(start_date);
-      const endDate = new Date(end_date);
-      startDate.setHours(0, 0, 0, 0);
-      endDate.setHours(23, 59, 59, 999);
+      const startDateStr = start_date;
+      const endDateStr = end_date;
       
       const dateRangeInvoices = await Invoice.findAll({
         where: {
-          invoiceDate: {
-            [req.tenantDb.Sequelize.Op.between]: [startDate, endDate]
-          }
+          [req.tenantDb.Sequelize.Op.or]: [
+            // Handle YYYY-MM-DD format
+            {
+              invoiceDate: {
+                [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+              }
+            },
+            // Handle DD-MM-YYYY format (convert and compare)
+            {
+              invoiceDate: {
+                [req.tenantDb.Sequelize.Op.and]: [
+                  req.tenantDb.Sequelize.where(
+                    req.tenantDb.Sequelize.fn('STR_TO_DATE', 
+                      req.tenantDb.Sequelize.col('invoiceDate'), 
+                      '%d-%m-%Y'
+                    ),
+                    {
+                      [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+                    }
+                  )
+                ]
+              }
+            }
+          ]
         },
         limit: 5,
         attributes: ['id', 'invoiceDate', 'buyerNTNCNIC', 'buyerBusinessName'],
@@ -3156,19 +3212,36 @@ export const getInvoiceStats = async (req, res) => {
     const whereClause = {};
 
     if (start_date && end_date) {
-      const startDate = new Date(start_date);
-      const endDate = new Date(end_date);
+      const startDateStr = start_date;
+      const endDateStr = end_date;
       
-      // Set start date to beginning of day (00:00:00.000)
-      startDate.setHours(0, 0, 0, 0);
-      
-      // Set end date to end of day to include the full day (23:59:59.999)
-      endDate.setHours(23, 59, 59, 999);
-      
-      // Filter by invoiceDate (the actual invoice date) instead of created_at
-      whereClause.invoiceDate = {
-        [req.tenantDb.Sequelize.Op.between]: [startDate, endDate],
-      };
+      // Filter by invoiceDate using string comparison since it's stored as STRING
+      // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
+      whereClause[req.tenantDb.Sequelize.Op.or] = [
+        // Handle YYYY-MM-DD format
+        {
+          invoiceDate: {
+            [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr],
+          }
+        },
+        // Handle DD-MM-YYYY format (convert and compare)
+        {
+          invoiceDate: {
+            [req.tenantDb.Sequelize.Op.and]: [
+              // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
+              req.tenantDb.Sequelize.where(
+                req.tenantDb.Sequelize.fn('STR_TO_DATE', 
+                  req.tenantDb.Sequelize.col('invoiceDate'), 
+                  '%d-%m-%Y'
+                ),
+                {
+                  [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+                }
+              )
+            ]
+          }
+        }
+      ];
     }
 
     // Add user filter for non-admin users
@@ -5202,22 +5275,44 @@ export const getDashboardSummary = async (req, res) => {
     
     if (req.query.start_date && req.query.end_date) {
       // Use provided date range
-      const startDate = new Date(req.query.start_date);
-      const endDate = new Date(req.query.end_date);
+      const startDateStr = req.query.start_date; // Already in YYYY-MM-DD format
+      const endDateStr = req.query.end_date;     // Already in YYYY-MM-DD format
       
-      // Set start date to beginning of day (00:00:00.000)
-      startDate.setHours(0, 0, 0, 0);
+      console.log('Dashboard Date Range Filter:', {
+        start_date: req.query.start_date,
+        end_date: req.query.end_date,
+        startDateStr,
+        endDateStr
+      });
       
-      // Set end date to end of day to include the full day (23:59:59.999)
-      endDate.setHours(23, 59, 59, 999);
-      
-    
-      
-      // Filter by invoiceDate (the actual invoice date) instead of created_at
+      // Filter by invoiceDate using string comparison since it's stored as STRING
+      // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
       whereDateRange = {
-        invoiceDate: {
-          [Op.between]: [startDate, endDate]
-        }
+        [Op.or]: [
+          // Handle YYYY-MM-DD format
+          {
+            invoiceDate: {
+              [Op.between]: [startDateStr, endDateStr],
+            }
+          },
+          // Handle DD-MM-YYYY format (convert and compare)
+          {
+            invoiceDate: {
+              [Op.and]: [
+                // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
+                sequelize.where(
+                  sequelize.fn('STR_TO_DATE', 
+                    sequelize.col('invoiceDate'), 
+                    '%d-%m-%Y'
+                  ),
+                  {
+                    [Op.between]: [startDateStr, endDateStr]
+                  }
+                )
+              ]
+            }
+          }
+        ]
       };
     } else {
       // Default to last 12 months if no date range specified
