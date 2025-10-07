@@ -25,4 +25,4 @@ jobs:
       - name: Start or restart backend with PM2
         run: |
           cd ${{ github.workspace }}/apps/backend
-          /usr/bin/pm2 start index.js --name saenterprises || /usr/bin/pm2 restart saenterprises
+          /usr/bin/pm2 start index.js --name pacificenterprises || /usr/bin/pm2 restart pacificenterprises
