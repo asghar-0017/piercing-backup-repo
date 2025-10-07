@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://adnan-textile.inplsoftwares.online",
+        target: "https://united-tubes.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
