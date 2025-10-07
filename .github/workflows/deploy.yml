@@ -25,4 +25,4 @@ jobs:
       - name: Start or restart backend with PM2
         run: |
           cd ${{ github.workspace }}/apps/backend
-          /usr/bin/pm2 start index.js --name united-tubes || /usr/bin/pm2 restart united-tubes
+          /usr/bin/pm2 start index.js --name adnan-power || /usr/bin/pm2 restart adnan-power
