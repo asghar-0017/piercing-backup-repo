@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "https://harmainint.inplsoftwares.online",
+          "https://fazalind.inplsoftwares.online",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "https://harmainint.inplsoftwares.online",
-      "https://harmainint.inplsoftwares.online",
+      "https://fazalind.inplsoftwares.online",
+      "https://fazalind.inplsoftwares.online",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],
