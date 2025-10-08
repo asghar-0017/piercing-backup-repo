@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://lunacare.inplsoftwares.online",
+        target: "https://mmajid.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
