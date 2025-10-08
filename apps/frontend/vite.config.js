@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://pacificenterprises.inplsoftwares.online",
+        target: "https://getzhealth.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
