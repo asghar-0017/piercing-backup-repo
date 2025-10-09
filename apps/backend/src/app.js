@@ -5,7 +5,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import ejs from "ejs";
+import ejs from "ejs"
 
 // Import MySQL connector instead of MongoDB
 import mysqlConnector from "./dbConnector/mysqlConnector.js";
