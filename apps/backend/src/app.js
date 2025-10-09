@@ -5,7 +5,7 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import ejs from "ejs"
+import ejs from "ejs";
 
 // Import MySQL connector instead of MongoDB
 import mysqlConnector from "./dbConnector/mysqlConnector.js";
@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "https://central-timber.inplsoftwares.online",
+          "https://faizenterprises.inplsoftwares.online",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "https://central-timber.inplsoftwares.online",
-      "https://central-timber.inplsoftwares.online",
+      "https://faizenterprises.inplsoftwares.online",
+      "https://faizenterprises.inplsoftwares.online",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],
