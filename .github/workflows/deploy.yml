@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name hajiadamsons || /usr/bin/pm2 restart hajiadamsons
+          /usr/bin/pm2 start index.js --name royalgroup || /usr/bin/pm2 restart royalgroup

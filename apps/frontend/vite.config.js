@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://hajiadamsons.inplsoftwares.online",
+        target: "https://royalgroup.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
