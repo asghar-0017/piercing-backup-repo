@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "https://zephyr.inplsoftwares.online",
+          "https://sjg.inplsoftwares.online",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "https://zephyr.inplsoftwares.online",
-      "https://zephyr.inplsoftwares.online",
+      "https://sjg.inplsoftwares.online",
+      "https://sjg.inplsoftwares.online",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],

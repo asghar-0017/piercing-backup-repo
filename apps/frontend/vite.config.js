@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://zephyr.inplsoftwares.online",
+        target: "https://sjg.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },
