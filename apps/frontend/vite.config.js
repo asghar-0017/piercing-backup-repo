@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://euronano.inplsoftwares.online",
+        target: "https://zephyr.inplsoftwares.online",
         changeOrigin: true,
         secure: false,
       },

@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name euronano || /usr/bin/pm2 restart euronano
+          /usr/bin/pm2 start index.js --name zephyr || /usr/bin/pm2 restart zephyr
