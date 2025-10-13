@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://royalgroup.inplsoftwares.online",
+        target: "https://oncopharma.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
