@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "http://localhost:5150",
+        target: "https://pearlfabrics.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
