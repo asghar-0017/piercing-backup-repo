@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name protech || /usr/bin/pm2 restart protech
+          /usr/bin/pm2 start index.js --name syedindustries || /usr/bin/pm2 restart syedindustries

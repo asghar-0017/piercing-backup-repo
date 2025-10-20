@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://protech.inplsoftwares.com",
+        target: "https://syedindustries.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
