@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "https://hayat.inplsoftwares.com",
+          "https://skyways.inplsoftwares.com",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "https://hayat.inplsoftwares.com",
-      "https://hayat.inplsoftwares.com",
+      "https://skyways.inplsoftwares.com",
+      "https://skyways.inplsoftwares.com",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],

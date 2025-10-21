@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://hayat.inplsoftwares.com",
+        target: "https://skyways.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
