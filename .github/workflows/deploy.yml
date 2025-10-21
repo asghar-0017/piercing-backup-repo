@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name getextile || /usr/bin/pm2 restart getextile
+          /usr/bin/pm2 start index.js --name hayat || /usr/bin/pm2 restart hayat
