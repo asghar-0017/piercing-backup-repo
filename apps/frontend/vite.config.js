@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://skyways.inplsoftwares.com",
+        target: "https://lokhandwala.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },

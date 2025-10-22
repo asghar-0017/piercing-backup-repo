@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name skyways || /usr/bin/pm2 restart skyways
+          /usr/bin/pm2 start index.js --name lokhandwala || /usr/bin/pm2 restart lokhandwala
