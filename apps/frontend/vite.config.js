@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://lokhandwala.inplsoftwares.com",
+        target: "https://mfm.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
