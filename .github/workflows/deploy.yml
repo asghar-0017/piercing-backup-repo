@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name mfm || /usr/bin/pm2 restart mfm
+          /usr/bin/pm2 start index.js --name syra || /usr/bin/pm2 restart syra
