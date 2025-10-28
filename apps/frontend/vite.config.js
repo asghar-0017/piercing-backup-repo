@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://syraent.inplsoftwares.com",
+        target: "http://aftabengineering.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
