@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://aftabengineering.inplsoftwares.com",
+        target: "https://luckyimpex.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
