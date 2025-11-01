@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://activefoods.inplsoftwares.com",
+        target: "https://matenterprises.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
