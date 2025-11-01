@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://matenterprises.inplsoftwares.com",
+        target: "https://jaguartrading.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },

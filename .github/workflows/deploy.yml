@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name matenterprises || /usr/bin/pm2 restart matenterprises
+          /usr/bin/pm2 start index.js --name jaguartrading || /usr/bin/pm2 restart jaguartrading
