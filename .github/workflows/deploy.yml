@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name luckyimpex || /usr/bin/pm2 restart luckyimpex
+          /usr/bin/pm2 start index.js --name activefoods || /usr/bin/pm2 restart activefoods
