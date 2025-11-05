@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "http://jafco.inplsoftwares.com",
+        target: "https://jafco.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
