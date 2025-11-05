@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "https://jaguartrading.inplsoftwares.com",
+          "https://krestacorp.inplsoftwares.online",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "https://jaguartrading.inplsoftwares.com",
-      "https://jaguartrading.inplsoftwares.com",
+      "https://krestacorp.inplsoftwares.online",
+      "https://krestacorp.inplsoftwares.online",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],
