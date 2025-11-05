@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name krestacorp || /usr/bin/pm2 restart krestacorp
+          /usr/bin/pm2 start index.js --name jafco || /usr/bin/pm2 restart jafco

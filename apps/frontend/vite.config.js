@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://krestacorp.inplsoftwares.online",
+        target: "http://jafco.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
