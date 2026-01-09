@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://mywater.inplsoftwares.com",
+        target: "http://karobarisahulat.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
