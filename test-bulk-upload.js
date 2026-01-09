@@ -52,7 +52,7 @@ const testBulkUpload = async () => {
     });
 
     const response = await fetch(
-      "http://karobarisahulat.inplsoftwares.com/api/tenant/tenant_1756409312403_uo1hmt4tz/invoices/bulk",
+      "https//karobarisahulat.inplsoftwares.com/api/tenant/tenant_1756409312403_uo1hmt4tz/invoices/bulk",
       {
         method: "POST",
         headers: {
