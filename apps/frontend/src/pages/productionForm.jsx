@@ -877,43 +877,41 @@ export default function ProductionFoam() {
         items: cleanedItems,
       };
 
-      const token = localStorage.getItem("token");
-      console.log("Token used:", token);
-
-      const validateRes = await postData(
-        "di_data/v1/di/validateinvoicedata_sb",
-        cleanedData,
-        "production"
+      // Validate with FBR API through backend
+      const validateRes = await api.post(
+        `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=production`,
+        cleanedData
       );
 
       // Handle different FBR response structures
+      const validationData = validateRes.data?.data || validateRes.data;
       const hasValidationResponse =
-        validateRes.data && validateRes.data.validationResponse;
+        validationData && validationData.validationResponse;
       const isValidationSuccess =
         validateRes.status === 200 &&
         (hasValidationResponse
-          ? validateRes.data.validationResponse.statusCode === "00"
+          ? validationData.validationResponse.statusCode === "00"
           : true);
 
       if (isValidationSuccess) {
         try {
-          const postRes = await postData(
-            "di_data/v1/di/postinvoicedata",
-            cleanedData,
-            "production"
+          const postRes = await api.post(
+            `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=production`,
+            cleanedData
           );
           console.log("Post Invoice Response:", postRes);
           // Handle different FBR response structures for post
+          const postResponseData = postRes.data?.data || postRes.data;
           const hasPostValidationResponse =
-            postRes.data && postRes.data.validationResponse;
+            postResponseData && postResponseData.validationResponse;
           const isPostSuccess =
             postRes.status === 200 &&
             (hasPostValidationResponse
-              ? postRes.data.validationResponse.statusCode === "00"
+              ? postResponseData.validationResponse.statusCode === "00"
               : true);
 
           if (isPostSuccess) {
-            const invoiceNumber = postRes.data.invoiceNumber;
+            const invoiceNumber = postResponseData.invoiceNumber;
             Swal.fire({
               icon: "success",
               title: "Invoice Created Successfully!",
@@ -940,7 +938,7 @@ export default function ProductionFoam() {
             let errorDetails = [];
 
             if (hasPostValidationResponse) {
-              const validation = postRes.data.validationResponse;
+              const validation = postResponseData.validationResponse;
               if (validation.error) {
                 errorMessage = validation.error;
               }
@@ -955,18 +953,20 @@ export default function ProductionFoam() {
                   }
                 });
               }
-            } else if (postRes.data.error) {
-              errorMessage = postRes.data.error;
-            } else if (postRes.data.message) {
+            } else if (postResponseData.error) {
+              errorMessage = postResponseData.error;
+            } else if (postResponseData.message) {
+              errorMessage = postResponseData.message;
+            } else if (postRes.data?.message) {
               errorMessage = postRes.data.message;
             }
 
             // Check for additional error details in the response
             if (
-              postRes.data.invoiceStatuses &&
-              Array.isArray(postRes.data.invoiceStatuses)
+              postResponseData.invoiceStatuses &&
+              Array.isArray(postResponseData.invoiceStatuses)
             ) {
-              postRes.data.invoiceStatuses.forEach((status, index) => {
+              postResponseData.invoiceStatuses.forEach((status, index) => {
                 if (status.error) {
                   errorDetails.push(`Item ${index + 1}: ${status.error}`);
                 }
@@ -1074,7 +1074,7 @@ export default function ProductionFoam() {
         let errorDetails = [];
 
         if (hasValidationResponse) {
-          const validation = validateRes.data.validationResponse;
+          const validation = validationData.validationResponse;
           if (validation.error) {
             errorMessage = validation.error;
           }
@@ -1089,18 +1089,20 @@ export default function ProductionFoam() {
               }
             });
           }
-        } else if (validateRes.data.error) {
-          errorMessage = validateRes.data.error;
-        } else if (validateRes.data.message) {
+        } else if (validationData.error) {
+          errorMessage = validationData.error;
+        } else if (validationData.message) {
+          errorMessage = validationData.message;
+        } else if (validateRes.data?.message) {
           errorMessage = validateRes.data.message;
         }
 
         // Check for additional error details in the response
         if (
-          validateRes.data.invoiceStatuses &&
-          Array.isArray(validateRes.data.invoiceStatuses)
+          validationData.invoiceStatuses &&
+          Array.isArray(validationData.invoiceStatuses)
         ) {
-          validateRes.data.invoiceStatuses.forEach((status, index) => {
+          validationData.invoiceStatuses.forEach((status, index) => {
             if (status.error) {
               errorDetails.push(`Item ${index + 1}: ${status.error}`);
             }

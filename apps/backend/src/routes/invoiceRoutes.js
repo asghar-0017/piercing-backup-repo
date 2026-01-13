@@ -53,7 +53,7 @@ router.post("/invoices/:id/submit", requirePermission("invoice.submit"), invoice
 
 // Get document types from FBR
 router.get(
-  "/tenant/:tenantId/document-types",
+  "/document-types",
   authenticateToken,
   identifyTenant,
   invoiceController.getDocumentTypesController
@@ -61,7 +61,7 @@ router.get(
 
 // Get provinces from FBR
 router.get(
-  "/tenant/:tenantId/provinces",
+  "/provinces",
   authenticateToken,
   identifyTenant,
   invoiceController.getProvincesController
@@ -69,7 +69,7 @@ router.get(
 
 // Validate invoice data with FBR
 router.post(
-  "/tenant/:tenantId/validate-invoice",
+  "/validate-invoice",
   authenticateToken,
   identifyTenant,
   invoiceController.validateInvoiceDataController
@@ -77,7 +77,7 @@ router.post(
 
 // Submit invoice data to FBR
 router.post(
-  "/tenant/:tenantId/submit-invoice",
+  "/submit-invoice",
   authenticateToken,
   identifyTenant,
   invoiceController.submitInvoiceDataController

@@ -657,23 +657,24 @@ export default function BasicTable() {
               ...invoiceData,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
+              scenarioId: "SN001", // Hardcoded SN001 for FBR validation
               items: cleanedItems,
             };
 
-            // STEP 1: Hit FBR API First - validateinvoicedata
-            const fbrValidateResponse = await postData(
-              "di_data/v1/di/validateinvoicedata",
-              cleanedData,
-              "sandbox"
+            // STEP 1: Hit FBR API through backend - validateinvoicedata
+            const fbrValidateResponse = await api.post(
+              `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=sandbox`,
+              cleanedData
             );
 
             // Handle different FBR response structures
+            const validationData = fbrValidateResponse.data?.data || fbrValidateResponse.data;
             const hasValidationResponse =
-              fbrValidateResponse.data && fbrValidateResponse.data.validationResponse;
+              validationData && validationData.validationResponse;
             const isFbrSuccess =
               fbrValidateResponse.status === 200 &&
               (hasValidationResponse
-                ? fbrValidateResponse.data.validationResponse.statusCode === "00"
+                ? validationData.validationResponse.statusCode === "00"
                 : true);
 
             if (!isFbrSuccess) {
@@ -683,7 +684,7 @@ export default function BasicTable() {
 
               // Handle different error response structures
               if (hasValidationResponse) {
-                const validation = fbrValidateResponse.data.validationResponse;
+                const validation = validationData.validationResponse;
                 if (validation.error) {
                   errorMessage = validation.error;
                 }
@@ -698,6 +699,12 @@ export default function BasicTable() {
                     }
                   });
                 }
+              } else if (validationData?.error) {
+                errorMessage = validationData.error;
+              } else if (validationData?.message) {
+                errorMessage = validationData.message;
+              } else if (fbrValidateResponse.data?.message) {
+                errorMessage = fbrValidateResponse.data.message;
               }
 
               const fullErrorMessage = errorDetails.length > 0
@@ -978,6 +985,7 @@ export default function BasicTable() {
               ...invoiceData,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
+              scenarioId:'SN001',
               items: cleanedItems,
             };
 
@@ -1031,11 +1039,10 @@ export default function BasicTable() {
               throw new Error(`Validation failed: ${validationError.message}`);
             }
 
-            // STEP 1: Hit FBR API First
-            const fbrResponse = await postData(
-              "di_data/v1/di/postinvoicedata",
-              cleanedData,
-              "sandbox"
+            // STEP 1: Hit FBR API through backend
+            const fbrResponse = await api.post(
+              `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=sandbox`,
+              cleanedData
             );
 
             // Handle different FBR response structures
@@ -1043,31 +1050,33 @@ export default function BasicTable() {
             let isSuccess = false;
             let errorDetails = null;
 
+            const responseData = fbrResponse.data?.data || fbrResponse.data;
+
             if (fbrResponse.status === 200) {
               // Check for validationResponse structure (old format)
-              if (fbrResponse.data && fbrResponse.data.validationResponse) {
-                const validation = fbrResponse.data.validationResponse;
+              if (responseData && responseData.validationResponse) {
+                const validation = responseData.validationResponse;
                 isSuccess = validation.statusCode === "00";
-                fbrInvoiceNumber = fbrResponse.data.invoiceNumber;
+                fbrInvoiceNumber = responseData.invoiceNumber;
                 if (!isSuccess) {
                   errorDetails = validation;
                 }
               }
               // Check for direct response structure (new format)
               else if (
-                fbrResponse.data &&
-                (fbrResponse.data.invoiceNumber || fbrResponse.data.success)
+                responseData &&
+                (responseData.invoiceNumber || responseData.success)
               ) {
                 isSuccess = true;
-                fbrInvoiceNumber = fbrResponse.data.invoiceNumber;
+                fbrInvoiceNumber = responseData.invoiceNumber;
               }
               // Check for error response structure
-              else if (fbrResponse.data && fbrResponse.data.error) {
+              else if (responseData && responseData.error) {
                 isSuccess = false;
-                errorDetails = fbrResponse.data;
+                errorDetails = responseData;
               }
               // Check for empty response - this might be a successful submission
-              else if (!fbrResponse.data || fbrResponse.data === "") {
+              else if (!responseData || responseData === "") {
                 isSuccess = true;
                 fbrInvoiceNumber = `FBR_${Date.now()}`;
               }
@@ -1079,7 +1088,7 @@ export default function BasicTable() {
 
             if (!isSuccess) {
               const details = errorDetails || {
-                raw: fbrResponse.data ?? null,
+                raw: responseData ?? null,
                 note: "Unexpected FBR response structure",
                 status: fbrResponse.status,
               };

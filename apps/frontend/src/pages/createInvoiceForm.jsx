@@ -3029,6 +3029,7 @@ export default function CreateInvoice() {
         ...formData,
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
+        scenarioId: "SN001", // Hardcoded SN001 for FBR validation
         items: itemsToSave.map(
           (
             {
@@ -3081,23 +3082,20 @@ export default function CreateInvoice() {
         ),
       };
 
-      // Token for FBR validation
-      const token = API_CONFIG.getCurrentToken("sandbox");
-
-      // First, validate with FBR API
-      const validateRes = await postData(
-        "di_data/v1/di/validateinvoicedata",
-        cleanedData,
-        "sandbox"
+      // Validate with FBR API through backend
+      const validateRes = await api.post(
+        `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=sandbox`,
+        cleanedData
       );
 
       // Handle different FBR response structures
+      const validationData = validateRes.data?.data || validateRes.data;
       const hasValidationResponse =
-        validateRes.data && validateRes.data.validationResponse;
+        validationData && validationData.validationResponse;
       const isSuccess =
         validateRes.status === 200 &&
         (hasValidationResponse
-          ? validateRes.data.validationResponse.statusCode === "00"
+          ? validationData.validationResponse.statusCode === "00"
           : true);
 
       if (isSuccess) {
@@ -3128,6 +3126,7 @@ export default function CreateInvoice() {
           ...formData,
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
           transctypeId: formData.transctypeId,
+          scenarioId: "SN001", // Hardcoded SN001 for save and validate
           items: backendItems, // Use backend items that include all fields
         };
 
@@ -3169,8 +3168,9 @@ export default function CreateInvoice() {
         let errorDetails = [];
 
         // Handle different error response structures
+        const errorData = validateRes.data?.data || validateRes.data;
         if (hasValidationResponse) {
-          const validation = validateRes.data.validationResponse;
+          const validation = errorData.validationResponse;
           if (validation.error) {
             errorMessage = validation.error;
           }
@@ -3185,18 +3185,20 @@ export default function CreateInvoice() {
               }
             });
           }
-        } else if (validateRes.data.error) {
-          errorMessage = validateRes.data.error;
-        } else if (validateRes.data.message) {
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (validateRes.data?.message) {
           errorMessage = validateRes.data.message;
         }
 
         // Check for additional error details in the response
         if (
-          validateRes.data.invoiceStatuses &&
-          Array.isArray(validateRes.data.invoiceStatuses)
+          errorData.invoiceStatuses &&
+          Array.isArray(errorData.invoiceStatuses)
         ) {
-          validateRes.data.invoiceStatuses.forEach((status, index) => {
+          errorData.invoiceStatuses.forEach((status, index) => {
             if (status.error) {
               errorDetails.push(`Item ${index + 1}: ${status.error}`);
             }
@@ -3491,14 +3493,14 @@ export default function CreateInvoice() {
         ...formData,
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: cleanedItems,
       };
 
-      // STEP 1: Hit FBR API First
-      const fbrResponse = await postData(
-        "di_data/v1/di/postinvoicedata",
-        cleanedData,
-        "sandbox"
+      // STEP 1: Hit FBR API through backend
+      const fbrResponse = await api.post(
+        `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=sandbox`,
+        cleanedData
       );
 
       // Handle different FBR response structures
@@ -3506,31 +3508,33 @@ export default function CreateInvoice() {
       let isSuccess = false;
       let errorDetails = null;
 
+      const responseData = fbrResponse.data?.data || fbrResponse.data;
+
       if (fbrResponse.status === 200) {
         // Check for validationResponse structure (old format)
-        if (fbrResponse.data && fbrResponse.data.validationResponse) {
-          const validation = fbrResponse.data.validationResponse;
+        if (responseData && responseData.validationResponse) {
+          const validation = responseData.validationResponse;
           isSuccess = validation.statusCode === "00";
-          fbrInvoiceNumber = fbrResponse.data.invoiceNumber;
+          fbrInvoiceNumber = responseData.invoiceNumber;
           if (!isSuccess) {
             errorDetails = validation;
           }
         }
         // Check for direct response structure (new format)
         else if (
-          fbrResponse.data &&
-          (fbrResponse.data.invoiceNumber || fbrResponse.data.success)
+          responseData &&
+          (responseData.invoiceNumber || responseData.success)
         ) {
           isSuccess = true;
-          fbrInvoiceNumber = fbrResponse.data.invoiceNumber;
+          fbrInvoiceNumber = responseData.invoiceNumber;
         }
         // Check for error response structure
-        else if (fbrResponse.data && fbrResponse.data.error) {
+        else if (responseData && responseData.error) {
           isSuccess = false;
-          errorDetails = fbrResponse.data;
+          errorDetails = responseData;
         }
         // Check for empty response - this might be a successful submission
-        else if (!fbrResponse.data || fbrResponse.data === "") {
+        else if (!responseData || responseData === "") {
           isSuccess = true;
           fbrInvoiceNumber = `FBR_${Date.now()}`;
         }
@@ -3542,7 +3546,7 @@ export default function CreateInvoice() {
 
       if (!isSuccess) {
         const details = errorDetails || {
-          raw: fbrResponse.data ?? null,
+          raw: responseData ?? null,
           note: "Unexpected FBR response structure",
           status: fbrResponse.status,
         };
@@ -3612,6 +3616,7 @@ export default function CreateInvoice() {
         ...formData, // Use original form data to preserve all fields
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: backendItems, // Use backend items that include all fields
         fbr_invoice_number: fbrInvoiceNumber,
         status: "posted", // Set status as posted since it's been submitted to FBR

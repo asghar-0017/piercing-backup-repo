@@ -23,6 +23,7 @@ import Tenant from "../../model/mysql/Tenant.js";
 import hsCodeCacheService from "../../service/HSCodeCacheService.js";
 import { logAuditEvent } from "../../middleWare/auditMiddleware.js";
 import InvoiceBackupService from "../../service/InvoiceBackupService.js";
+import { validateInvoiceData, submitInvoiceData } from "../../service/FBRService.js";
 
 const { toWords } = numberToWords;
 
@@ -3600,7 +3601,7 @@ export const submitSavedInvoice = async (req, res) => {
     // Submit directly to FBR (skipping validation)
 
     const postRes = await postData(
-      "di_data/v1/di/postinvoicedata",
+      "di_data/v1/di/postinvoicedata_sb",
 
       fbrData,
 
@@ -5704,31 +5705,12 @@ export const getProvincesController = async (req, res) => {
 
 export const validateInvoiceDataController = async (req, res) => {
   try {
-    const { tenantId } = req.params;
-
     const { environment = "sandbox" } = req.query;
 
     const invoiceData = req.body;
 
-    // Get token from request headers
-
-    const token = req.headers.authorization?.replace("Bearer ", "");
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-
-        message: "Authorization token required",
-      });
-    }
-
-    console.log(
-      `Validating invoice data for tenant: ${tenantId}, environment: ${environment}`
-    );
-
-    // Get tenant data to check FBR credentials
-
-    const tenant = await Tenant.findByPk(tenantId);
+    // Get tenant from middleware (set by identifyTenant)
+    const tenant = req.tenant;
 
     if (!tenant) {
       return res.status(404).json({
@@ -5738,9 +5720,16 @@ export const validateInvoiceDataController = async (req, res) => {
       });
     }
 
-    // Check if tenant has FBR credentials
+    console.log(
+      `Validating invoice data for tenant: ${tenant.tenant_id}, environment: ${environment}`
+    );
 
-    if (!tenant.sandboxProductionToken) {
+    // Check if tenant has FBR credentials
+    const fbrToken = environment === "production" 
+      ? tenant.sandboxProductionToken 
+      : tenant.sandboxTestToken || tenant.sandboxProductionToken;
+
+    if (!fbrToken) {
       return res.status(400).json({
         success: false,
 
@@ -5755,7 +5744,7 @@ export const validateInvoiceDataController = async (req, res) => {
 
       environment,
 
-      token
+      fbrToken
     );
 
     res.json({
@@ -5818,31 +5807,12 @@ export const validateInvoiceDataController = async (req, res) => {
 
 export const submitInvoiceDataController = async (req, res) => {
   try {
-    const { tenantId } = req.params;
-
     const { environment = "sandbox" } = req.query;
 
     const invoiceData = req.body;
 
-    // Get token from request headers
-
-    const token = req.headers.authorization?.replace("Bearer ", "");
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-
-        message: "Authorization token required",
-      });
-    }
-
-    console.log(
-      `Submitting invoice data for tenant: ${tenantId}, environment: ${environment}`
-    );
-
-    // Get tenant data to check FBR credentials
-
-    const tenant = await Tenant.findByPk(tenantId);
+    // Get tenant from middleware (set by identifyTenant)
+    const tenant = req.tenant;
 
     if (!tenant) {
       return res.status(404).json({
@@ -5852,9 +5822,16 @@ export const submitInvoiceDataController = async (req, res) => {
       });
     }
 
-    // Check if tenant has FBR credentials
+    console.log(
+      `Submitting invoice data for tenant: ${tenant.tenant_id}, environment: ${environment}`
+    );
 
-    if (!tenant.sandboxProductionToken) {
+    // Check if tenant has FBR credentials
+    const fbrToken = environment === "production" 
+      ? tenant.sandboxProductionToken 
+      : tenant.sandboxTestToken || tenant.sandboxProductionToken;
+
+    if (!fbrToken) {
       return res.status(400).json({
         success: false,
 
@@ -5869,7 +5846,7 @@ export const submitInvoiceDataController = async (req, res) => {
 
       environment,
 
-      token
+      fbrToken
     );
 
     res.json({
