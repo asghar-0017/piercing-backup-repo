@@ -932,7 +932,7 @@ export const bulkCheckFBRRegistration = async (req, res) => {
         },
       });
     }
-  
+
     // Process in moderate batches with controlled concurrency to avoid upstream throttling
     const batchSize = 50;
     const batches = [];
