@@ -49,7 +49,10 @@ import IconButton from "@mui/material/IconButton";
 import { FaTrash, FaEdit } from "react-icons/fa";
 import { IoIosAddCircle } from "react-icons/io";
 import dayjs from "dayjs";
-import { getTransactionTypes, checkRegistrationStatusWithDate } from "../API/FBRService";
+import {
+  getTransactionTypes,
+  checkRegistrationStatusWithDate,
+} from "../API/FBRService";
 import { fetchData, postData } from "../API/GetApi";
 import RateSelector from "../component/RateSelector";
 import SROScheduleNumber from "../component/SROScheduleNumber";
@@ -265,6 +268,14 @@ export default function CreateInvoice() {
   const [productHasMore, setProductHasMore] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const searchDebounceRef = React.useRef(null);
+  const [productInputValue, setProductInputValue] = useState("");
+
+  const normalizeHsCode = (hsCode) => {
+    if (!hsCode) return "";
+    return hsCode.includes(" - ")
+      ? hsCode.split(" - ")[0].trim()
+      : hsCode.trim();
+  };
 
   const [transactionTypes, setTransactionTypes] = React.useState([]);
   const [transactionTypesError, setTransactionTypesError] =
@@ -282,7 +293,7 @@ export default function CreateInvoice() {
     isActive: null,
     shouldApplyFurtherTax: null,
     message: "",
-    error: null
+    error: null,
   });
 
   // Debug effect to monitor transactionTypes state
@@ -310,7 +321,7 @@ export default function CreateInvoice() {
         isActive: null,
         shouldApplyFurtherTax: null,
         message: "",
-        error: null
+        error: null,
       });
       return;
     }
@@ -324,28 +335,37 @@ export default function CreateInvoice() {
     // Call FBR API to check registration status
     const checkFbrStatus = async () => {
       try {
-        setFbrRegistrationStatus(prev => ({ ...prev, loading: true, error: null }));
-        
-        const currentDate = dayjs().format('YYYY-MM-DD');
-        console.log(`Checking FBR status for NTN: ${buyer.buyerNTNCNIC}, Date: ${currentDate}`);
-        
-        const result = await checkRegistrationStatusWithDate(buyer.buyerNTNCNIC, currentDate);
-        
+        setFbrRegistrationStatus((prev) => ({
+          ...prev,
+          loading: true,
+          error: null,
+        }));
+
+        const currentDate = dayjs().format("YYYY-MM-DD");
+        console.log(
+          `Checking FBR status for NTN: ${buyer.buyerNTNCNIC}, Date: ${currentDate}`
+        );
+
+        const result = await checkRegistrationStatusWithDate(
+          buyer.buyerNTNCNIC,
+          currentDate
+        );
+
         console.log("FBR API result:", result);
-        
+
         setFbrRegistrationStatus({
           loading: false,
           isActive: result.isActive,
           shouldApplyFurtherTax: result.shouldApplyFurtherTax,
           message: result.message,
-          error: null
+          error: null,
         });
 
         // Update Further Tax for all items based on FBR status
         if (result.shouldApplyFurtherTax !== null) {
-          setFormData(prev => ({
+          setFormData((prev) => ({
             ...prev,
-            items: prev.items.map(item => {
+            items: prev.items.map((item) => {
               // Only auto-calculate if not manually edited
               if (item.isFurtherTaxManual) {
                 // If manually edited, only recalculate Total Values with current Further Tax
@@ -358,20 +378,28 @@ export default function CreateInvoice() {
                   parseFloat(item.advanceIncomeTax || 0);
 
                 const discountAmount = parseFloat(item.discount || 0);
-                const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
-                const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
-                const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-                
+                const totalAfterDiscount =
+                  calculatedTotalBeforeDiscount - discountAmount;
+                const taxWithheld = parseFloat(
+                  item.salesTaxWithheldAtSource || 0
+                );
+                const calculatedTotal = Number(
+                  (totalAfterDiscount + taxWithheld).toFixed(2)
+                );
+
                 return {
                   ...item,
                   totalValues: calculatedTotal.toString(), // Update Total Values
-                  isTotalValuesManual: false // Reset manual flag since it's auto-calculated
+                  isTotalValuesManual: false, // Reset manual flag since it's auto-calculated
                 };
               }
-              
-              const valueSalesExcludingST = parseFloat(item.valueSalesExcludingST) || 0;
-              const furtherTaxAmount = result.shouldApplyFurtherTax ? (valueSalesExcludingST * 0.04) : 0;
-              
+
+              const valueSalesExcludingST =
+                parseFloat(item.valueSalesExcludingST) || 0;
+              const furtherTaxAmount = result.shouldApplyFurtherTax
+                ? valueSalesExcludingST * 0.04
+                : 0;
+
               // Recalculate Total Values when Further Tax changes
               const calculatedTotalBeforeDiscount =
                 parseFloat(item.valueSalesExcludingST || 0) +
@@ -382,21 +410,25 @@ export default function CreateInvoice() {
                 parseFloat(item.advanceIncomeTax || 0);
 
               const discountAmount = parseFloat(item.discount || 0);
-              const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
-              const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
-              const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-              
+              const totalAfterDiscount =
+                calculatedTotalBeforeDiscount - discountAmount;
+              const taxWithheld = parseFloat(
+                item.salesTaxWithheldAtSource || 0
+              );
+              const calculatedTotal = Number(
+                (totalAfterDiscount + taxWithheld).toFixed(2)
+              );
+
               return {
                 ...item,
                 furtherTax: furtherTaxAmount.toFixed(2), // Calculate 4% of Value Sales (Excluding ST)
                 totalValues: calculatedTotal.toString(), // Update Total Values
                 // Don't reset isFurtherTaxManual flag - preserve user's manual edits
-                isTotalValuesManual: false // Reset manual flag since it's auto-calculated
+                isTotalValuesManual: false, // Reset manual flag since it's auto-calculated
               };
-            })
+            }),
           }));
         }
-
       } catch (error) {
         console.error("Error checking FBR registration status:", error);
         setFbrRegistrationStatus({
@@ -404,7 +436,7 @@ export default function CreateInvoice() {
           isActive: null,
           shouldApplyFurtherTax: null,
           message: "",
-          error: error.message
+          error: error.message,
         });
       }
     };
@@ -415,9 +447,9 @@ export default function CreateInvoice() {
   // Effect to recalculate Total Values when Further Tax is manually changed
   React.useEffect(() => {
     if (fbrRegistrationStatus.shouldApplyFurtherTax !== null) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        items: prev.items.map(item => {
+        items: prev.items.map((item) => {
           if (item.isFurtherTaxManual) {
             // If manually edited, only recalculate Total Values with current Further Tax
             const calculatedTotalBeforeDiscount =
@@ -429,20 +461,23 @@ export default function CreateInvoice() {
               parseFloat(item.advanceIncomeTax || 0);
 
             const discountAmount = parseFloat(item.discount || 0);
-            const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
+            const totalAfterDiscount =
+              calculatedTotalBeforeDiscount - discountAmount;
             const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
-            const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-            
+            const calculatedTotal = Number(
+              (totalAfterDiscount + taxWithheld).toFixed(2)
+            );
+
             return {
               ...item,
               totalValues: calculatedTotal.toString(), // Update Total Values
-              isTotalValuesManual: false // Reset manual flag since it's auto-calculated
+              isTotalValuesManual: false, // Reset manual flag since it's auto-calculated
             };
           }
-          
+
           // For non-manual further tax, don't recalculate - let user control it
           return item;
-        })
+        }),
       }));
     }
   }, [fbrRegistrationStatus.shouldApplyFurtherTax]);
@@ -450,14 +485,18 @@ export default function CreateInvoice() {
   // Effect to calculate Further Tax when Value Sales changes (for new invoices)
   React.useEffect(() => {
     if (fbrRegistrationStatus.shouldApplyFurtherTax !== null) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        items: prev.items.map(item => {
+        items: prev.items.map((item) => {
           // Only auto-calculate if not manually edited and FBR status requires further tax
-          if (!item.isFurtherTaxManual && fbrRegistrationStatus.shouldApplyFurtherTax) {
-            const valueSalesExcludingST = parseFloat(item.valueSalesExcludingST) || 0;
+          if (
+            !item.isFurtherTaxManual &&
+            fbrRegistrationStatus.shouldApplyFurtherTax
+          ) {
+            const valueSalesExcludingST =
+              parseFloat(item.valueSalesExcludingST) || 0;
             const furtherTaxAmount = valueSalesExcludingST * 0.04;
-            
+
             // Recalculate Total Values when Further Tax changes
             const calculatedTotalBeforeDiscount =
               parseFloat(item.valueSalesExcludingST || 0) +
@@ -468,28 +507,34 @@ export default function CreateInvoice() {
               parseFloat(item.advanceIncomeTax || 0);
 
             const discountAmount = parseFloat(item.discount || 0);
-            const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
+            const totalAfterDiscount =
+              calculatedTotalBeforeDiscount - discountAmount;
             const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
-            const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-            
+            const calculatedTotal = Number(
+              (totalAfterDiscount + taxWithheld).toFixed(2)
+            );
+
             return {
               ...item,
               furtherTax: furtherTaxAmount.toFixed(2), // Calculate 4% of Value Sales (Excluding ST)
               totalValues: calculatedTotal.toString(), // Update Total Values
-              isTotalValuesManual: false // Reset manual flag since it's auto-calculated
+              isTotalValuesManual: false, // Reset manual flag since it's auto-calculated
             };
           }
-          
+
           return item;
-        })
+        }),
       }));
     }
-  }, [formData.items.map(item => item.valueSalesExcludingST).join(','), fbrRegistrationStatus.shouldApplyFurtherTax]);
+  }, [
+    formData.items.map((item) => item.valueSalesExcludingST).join(","),
+    fbrRegistrationStatus.shouldApplyFurtherTax,
+  ]);
 
   // Effect to update form data when buyer is selected
   React.useEffect(() => {
     if (!selectedBuyerId || buyers.length === 0) return;
-    
+
     const buyer = buyers.find((b) => b.id === selectedBuyerId);
     if (buyer) {
       setFormData((prev) => ({
@@ -514,30 +559,36 @@ export default function CreateInvoice() {
     }
   }, [selectedProductIdByItem, products]);
 
-  // Load UoM options when product is selected
+  // Load UoM options when product is selected or HS Code is available
   React.useEffect(() => {
     const loadUomOptions = async (index) => {
       const productId = selectedProductIdByItem[index];
-      if (!productId || !products.length) {
-        setUomOptions((prev) => ({ ...prev, [index]: [] }));
-        return;
-      }
-
       const selectedProduct = products.find((p) => p.id === productId);
-      if (!selectedProduct || !selectedProduct.hsCode) {
+
+      // Use HS code from selected product or from form data
+      let rawHsCode = selectedProduct?.hsCode || formData.items[index]?.hsCode;
+
+      if (!rawHsCode) {
         setUomOptions((prev) => ({ ...prev, [index]: [] }));
         return;
       }
 
       // Extract HS code (remove description if present)
-      const hsCode = selectedProduct.hsCode.includes(" - ")
-        ? selectedProduct.hsCode.split(" - ")[0].trim()
-        : selectedProduct.hsCode;
+      const hsCode = rawHsCode.includes(" - ")
+        ? rawHsCode.split(" - ")[0].trim()
+        : rawHsCode.trim();
 
+      if (!hsCode) {
+        setUomOptions((prev) => ({ ...prev, [index]: [] }));
+        return;
+      }
+
+      console.log(`loadUomOptions for index ${index}, hsCode:`, hsCode);
       setLoadingUom((prev) => ({ ...prev, [index]: true }));
 
       try {
         const uomData = await hsCodeCache.getUOM(hsCode, "sandbox");
+        console.log(`loadUomOptions for index ${index} result:`, uomData);
         setUomOptions((prev) => ({ ...prev, [index]: uomData || [] }));
       } catch (error) {
         console.error("Error loading UoM options:", error);
@@ -547,13 +598,24 @@ export default function CreateInvoice() {
       }
     };
 
-    // Load UoM for all selected products
-    Object.keys(selectedProductIdByItem).forEach((index) => {
-      if (selectedProductIdByItem[index]) {
-        loadUomOptions(parseInt(index));
-      }
-    });
-  }, [selectedProductIdByItem, products]);
+    // Load UoM for all items in formData
+    if (formData.items) {
+      formData.items.forEach((_, index) => {
+        loadUomOptions(index);
+      });
+    }
+  }, [
+    selectedProductIdByItem,
+    products,
+    formData.items?.map((item) => item.hsCode).join(","),
+  ]);
+
+  // Debug effect to monitor UoM value in formData
+  React.useEffect(() => {
+    if (formData.items && formData.items[0]) {
+      console.log("Current item 0 UoM in formData:", formData.items[0].uoM);
+    }
+  }, [formData.items]);
 
   // Effect to sync buyer selection with form data when editing
   React.useEffect(() => {
@@ -596,21 +658,29 @@ export default function CreateInvoice() {
       console.log("Syncing product selection with form data during editing");
       const matchingProduct = products.find(
         (product) =>
-          product.hsCode === formData.items[0].hsCode &&
-          product.name === formData.items[0].name
+          normalizeHsCode(product.hsCode).toLowerCase() ===
+            normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
+          (product.name || "").trim().toLowerCase() ===
+            (formData.items[0].name || "").trim().toLowerCase()
       );
-      if (
-        matchingProduct &&
-        matchingProduct.id !== selectedProductIdByItem[0]
-      ) {
-        console.log(
-          "Updating product selection to match form data:",
-          matchingProduct.id
-        );
-        setSelectedProductIdByItem((prev) => ({
-          ...prev,
-          0: matchingProduct.id,
-        }));
+
+      if (matchingProduct) {
+        if (matchingProduct.id !== selectedProductIdByItem[0]) {
+          console.log(
+            "Updating product selection to match form data:",
+            matchingProduct.id
+          );
+          setSelectedProductIdByItem((prev) => ({
+            ...prev,
+            0: matchingProduct.id,
+          }));
+        }
+
+        // Only set input value if it's currently empty (initial load for editing)
+        // This prevents fighting with the user during typing/clearing
+        if (!productInputValue && matchingProduct.name) {
+          setProductInputValue(matchingProduct.name);
+        }
       }
     }
   }, [
@@ -1193,40 +1263,120 @@ export default function CreateInvoice() {
 
   // Handle setting buyer ID when editing and buyers are loaded
   useEffect(() => {
-    const editingBuyerData = localStorage.getItem("editingBuyerData");
-    if (editingBuyerData && buyers.length > 0) {
+    const checkAndRestoreBuyer = async () => {
+      const editingBuyerData = localStorage.getItem("editingBuyerData");
+      if (!editingBuyerData) return;
+
+      // Wait for any loading to complete to ensure we have the latest list
+      // This prevents race conditions where we search before the initial list is ready
+      if (loadingBuyers) return;
+
       try {
         const buyerData = JSON.parse(editingBuyerData);
 
-        // Find the buyer by matching NTN/CNIC and business name
-        const matchingBuyer = buyers.find(
-          (buyer) =>
-            buyer.buyerNTNCNIC === buyerData.buyerNTNCNIC &&
+        // Robust matching logic:
+        // 1. Try exact match on NTN/CNIC (most reliable)
+        // 2. Try match on Business Name
+        const matchingBuyer = buyers.find((buyer) => {
+          if (
+            buyerData.buyerNTNCNIC &&
+            buyer.buyerNTNCNIC === buyerData.buyerNTNCNIC
+          ) {
+            return true;
+          }
+          if (
+            !buyerData.buyerNTNCNIC &&
             buyer.buyerBusinessName === buyerData.buyerBusinessName
-        );
+          ) {
+            return true;
+          }
+          return false;
+        });
 
         if (matchingBuyer) {
+          console.log(
+            "Found buyer for restoration:",
+            matchingBuyer.buyerBusinessName
+          );
           setSelectedBuyerId(matchingBuyer.id);
-        }
+          // Sync Input Value Explicitly
+          if (matchingBuyer) {
+            const label = matchingBuyer.buyerBusinessName
+              ? `${matchingBuyer.buyerBusinessName} (${matchingBuyer.buyerNTNCNIC})`
+              : "";
+            setBuyerInputValue(label);
+          }
+          localStorage.removeItem("editingBuyerData");
+        } else if (selectedTenant) {
+          // If not found in current list, try to fetch it
+          console.log(
+            "Buyer not found in current list, searching API...",
+            buyerData
+          );
+          try {
+            // Search by NTN if available, otherwise name
+            const searchTerm =
+              buyerData.buyerNTNCNIC || buyerData.buyerBusinessName;
 
-        // Clear the editing buyer data
-        localStorage.removeItem("editingBuyerData");
+            const response = await api.get(
+              `/tenant/${selectedTenant.tenant_id}/buyers`,
+              {
+                params: {
+                  search: searchTerm,
+                },
+              }
+            );
+
+            if (response.data.success && response.data.data.buyers) {
+              const found = response.data.data.buyers.find((b) => {
+                if (
+                  buyerData.buyerNTNCNIC &&
+                  b.buyerNTNCNIC === buyerData.buyerNTNCNIC
+                )
+                  return true;
+                return b.buyerBusinessName === buyerData.buyerBusinessName;
+              });
+
+              if (found) {
+                console.log("Buyer found via API search:", found);
+                setBuyers((prev) => {
+                  if (prev.some((b) => b.id === found.id)) return prev;
+                  return [...prev, found];
+                });
+
+                // Immediately restore since we found the buyer
+                setSelectedBuyerId(found.id);
+                const label = found.buyerBusinessName
+                  ? `${found.buyerBusinessName} (${found.buyerNTNCNIC})`
+                  : "";
+                setBuyerInputValue(label);
+                localStorage.removeItem("editingBuyerData");
+              } else {
+                console.log("Buyer not found in API search either.");
+                // We should probably keep retrying or let the user manually select
+                // But to avoid infinite loops if data is truly gone:
+                // localStorage.removeItem("editingBuyerData");
+              }
+            }
+          } catch (err) {
+            console.error("Error searching buyer:", err);
+          }
+        }
       } catch (error) {
         console.error("Error parsing editing buyer data:", error);
         localStorage.removeItem("editingBuyerData");
       }
-    }
+    };
+
+    checkAndRestoreBuyer();
 
     // Also try to restore buyer information for items being edited when buyers are loaded
     if (editingItemIndex && buyers.length > 0) {
       console.log(
         "Buyers loaded, attempting to restore buyer for editing item"
       );
-      // This will trigger the buyer restoration logic in editAddedItem
-      // We don't need to do anything here as the buyer restoration is handled
-      // when the item is loaded for editing
     }
-  }, [buyers, editingItemIndex]);
+  }, [buyers, loadingBuyers, selectedTenant, editingItemIndex]);
 
   // NEW: Handle setting product IDs when editing and products are loaded
   // Only restore products when editing individual items, not when initially loading invoice
@@ -1251,47 +1401,18 @@ export default function CreateInvoice() {
           // Try multiple matching strategies
           let matchingProduct = null;
 
-          // Strategy 1: Match by exact name and HS Code
+          // Strategy 1: Match by Case-insensitive name and HS Code
           if (itemData.name && itemData.hsCode) {
             matchingProduct = products.find(
               (product) =>
-                product.name === itemData.name &&
-                product.hsCode === itemData.hsCode
+                (product.name || "").trim().toLowerCase() ===
+                  (itemData.name || "").trim().toLowerCase() &&
+                normalizeHsCode(product.hsCode).toLowerCase() ===
+                  normalizeHsCode(itemData.hsCode).toLowerCase()
             );
           }
 
-          // Strategy 2: Match by HS Code only (if name doesn't match)
-          if (!matchingProduct && itemData.hsCode) {
-            matchingProduct = products.find(
-              (product) => product.hsCode === itemData.hsCode
-            );
-          }
-
-          // Strategy 3: Match by name only (if HS Code doesn't match)
-          if (!matchingProduct && itemData.name) {
-            matchingProduct = products.find(
-              (product) => product.name === itemData.name
-            );
-          }
-
-          // Strategy 4: Match by product description (if available)
-          if (!matchingProduct && itemData.productDescription) {
-            matchingProduct = products.find(
-              (product) =>
-                product.description === itemData.productDescription ||
-                product.productDescription === itemData.productDescription
-            );
-          }
-
-          // Strategy 5: Match by UOM (Unit of Measure) if available
-          if (!matchingProduct && itemData.billOfLadingUoM) {
-            matchingProduct = products.find(
-              (product) =>
-                product.uom === itemData.billOfLadingUoM ||
-                product.unitOfMeasure === itemData.billOfLadingUoM ||
-                product.billOfLadingUoM === itemData.billOfLadingUoM
-            );
-          }
+          // Strict matching enforced. Loose strategies (HS Code only, Name only) removed to prevent incorrect prefill.
 
           if (matchingProduct) {
             console.log(`Found matching product for editing item:`, {
@@ -1306,6 +1427,9 @@ export default function CreateInvoice() {
               ...prev,
               0: matchingProduct.id,
             }));
+
+            // Set input value to match the product name
+            setProductInputValue(matchingProduct.name);
           } else {
             console.log(
               `No matching product found for editing item:`,
@@ -1688,6 +1812,42 @@ export default function CreateInvoice() {
     }
   }, [selectedTenant]);
 
+  const [selectedBuyer, setSelectedBuyer] = useState(null);
+  const [buyerInputValue, setBuyerInputValue] = useState("");
+
+  const getBuyerLabel = (option) => {
+    if (!option) return "";
+    return option.buyerBusinessName
+      ? `${option.buyerBusinessName} (${option.buyerNTNCNIC})`
+      : "";
+  };
+
+  // Sync selectedBuyer with selectedBuyerId
+  useEffect(() => {
+    if (!selectedBuyerId) {
+      setSelectedBuyer(null);
+      // Also clear input if ID is cleared
+      setBuyerInputValue("");
+      return;
+    }
+
+    // Try to find in current buyers list first
+    const found = buyers.find((b) => b.id === selectedBuyerId);
+    if (found) {
+      setSelectedBuyer(found);
+    }
+    // If not found in current list, keep the existing selectedBuyer if it matches the ID
+    else if (selectedBuyer && selectedBuyer.id === selectedBuyerId) {
+      // Do nothing, keep current
+    }
+  }, [selectedBuyerId, buyers]);
+
+  // Duplicated code removed
+
+  // Manual input sync useEffect removed to prevent fighting during search
+
+  // Duplicated code removed
+
   // BuyerModal functions
   const openBuyerModal = () => {
     setIsBuyerModalOpen(true);
@@ -1809,19 +1969,23 @@ export default function CreateInvoice() {
       });
     } catch (e) {
       console.error("Error saving product:", e);
-      
+
       let errorMessage = "Failed to save product. Please try again.";
-      
+
       if (e.response) {
         const { status, data } = e.response;
-        
+
         if (status === 400) {
           if (data.message && data.message.includes("HS Code is required")) {
             errorMessage = "HS Code is required for the product.";
-          } else if (data.message && data.message.includes("name is required")) {
+          } else if (
+            data.message &&
+            data.message.includes("name is required")
+          ) {
             errorMessage = "Product name is required.";
           } else {
-            errorMessage = data.message || "Invalid data provided. Please check all fields.";
+            errorMessage =
+              data.message || "Invalid data provided. Please check all fields.";
           }
         } else if (status === 409) {
           if (data.message && data.message.includes("HS Code")) {
@@ -1832,12 +1996,13 @@ export default function CreateInvoice() {
         } else if (status === 500) {
           errorMessage = "Server error occurred. Please try again later.";
         } else {
-          errorMessage = data.message || "An error occurred while saving the product.";
+          errorMessage =
+            data.message || "An error occurred while saving the product.";
         }
       } else if (e.message) {
         errorMessage = e.message;
       }
-      
+
       toast.error(errorMessage, {
         autoClose: 5000,
         hideProgressBar: false,
@@ -1864,6 +2029,10 @@ export default function CreateInvoice() {
   }, [selectedBuyerId, buyers]);
 
   const handleItemChange = (index, field, value) => {
+    console.log(
+      `handleItemChange called for index ${index}, field ${field}, value:`,
+      value
+    );
     setFormData((prev) => {
       const updatedItems = [...prev.items];
       const item = { ...updatedItems[index] };
@@ -2187,6 +2356,9 @@ export default function CreateInvoice() {
 
     // Clear the product selection for the new item
     setSelectedProductIdByItem((prev) => ({ ...prev, 0: undefined }));
+    setProductInputValue("");
+    setProductSearch("");
+    setBuyerSearch("");
 
     // Clear editing state
     setEditingItemIndex(null);
@@ -2256,11 +2428,20 @@ export default function CreateInvoice() {
       // Remove the item from addedItems
       setAddedItems((prev) => prev.filter((item) => item.id !== itemId));
 
+      console.log("editAddedItem: itemToEdit.uoM:", itemToEdit.uoM);
       // Set the form data with the item to edit
-      setFormData((prev) => ({
-        ...prev,
-        items: [itemToEdit],
-      }));
+      setFormData((prev) => {
+        console.log(
+          "editAddedItem: prev formData.items[0].uoM:",
+          prev.items[0]?.uoM
+        );
+        return {
+          ...prev,
+          items: [itemToEdit],
+        };
+      });
+
+      console.log("editAddedItem: itemToEdit details:", itemToEdit);
 
       // Wait for buyers and products to be loaded if they're not already available
       if (buyers.length === 0) {
@@ -2291,9 +2472,16 @@ export default function CreateInvoice() {
       });
 
       if (itemToEdit.buyerId) {
-        console.log("Setting buyer ID from item:", itemToEdit.buyerId);
+        console.log("Restoring buyer by ID:", itemToEdit.buyerId);
         setSelectedBuyerId(itemToEdit.buyerId);
+
+        // Find match to set input
+        const match = buyers.find((b) => b.id === itemToEdit.buyerId);
+        if (match && typeof getBuyerLabel === "function") {
+          setBuyerInputValue(getBuyerLabel(match));
+        }
       } else if (itemToEdit.buyerNTNCNIC && itemToEdit.buyerBusinessName) {
+        console.log("Restoring buyer by NTN/Name from item");
         // Try to find the buyer by NTN/CNIC and business name
         const matchingBuyer = buyers.find(
           (buyer) =>
@@ -2303,6 +2491,9 @@ export default function CreateInvoice() {
         if (matchingBuyer) {
           console.log("Found matching buyer by NTN/Name:", matchingBuyer.id);
           setSelectedBuyerId(matchingBuyer.id);
+          if (typeof getBuyerLabel === "function") {
+            setBuyerInputValue(getBuyerLabel(matchingBuyer));
+          }
         } else {
           console.log("No matching buyer found by NTN/Name");
         }
@@ -2313,6 +2504,7 @@ export default function CreateInvoice() {
           formData.buyerBusinessName &&
           buyers.length > 0
         ) {
+          console.log("Restoring buyer by form properties");
           const matchingBuyer = buyers.find(
             (buyer) =>
               buyer.buyerNTNCNIC === formData.buyerNTNCNIC &&
@@ -2324,6 +2516,9 @@ export default function CreateInvoice() {
               matchingBuyer.id
             );
             setSelectedBuyerId(matchingBuyer.id);
+            if (typeof getBuyerLabel === "function") {
+              setBuyerInputValue(getBuyerLabel(matchingBuyer));
+            }
           } else {
             console.log("No matching buyer found from form state");
           }
@@ -2359,100 +2554,127 @@ export default function CreateInvoice() {
       }
 
       // Restore product information if available in the item
+      // Restore product information
+      let targetProduct = null;
+
+      // 1. Try to find the product in the current loaded list
       if (itemToEdit.productId) {
-        console.log("Setting product ID from item:", itemToEdit.productId);
+        // Priority: ID match
+        targetProduct = products.find((p) => p.id === itemToEdit.productId);
+      }
+
+      if (!targetProduct && itemToEdit.hsCode && itemToEdit.name) {
+        // Fallback: Case-insensitive Name + HS Code match in current list
+        targetProduct = products.find(
+          (p) =>
+            normalizeHsCode(p.hsCode).toLowerCase() ===
+              normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+            (p.name || "").trim().toLowerCase() ===
+              (itemToEdit.name || "").trim().toLowerCase()
+        );
+      }
+
+      // 2. If not found in current list, but we have info to fetch it
+      if (!targetProduct && (itemToEdit.name || itemToEdit.hsCode)) {
+        // Prepare the UI by setting the input value to the product name if we have it
+        if (itemToEdit.name) {
+          setProductInputValue(itemToEdit.name);
+        }
+
+        console.log("Product not in list, fetching specifically for:", {
+          name: itemToEdit.name,
+          hsCode: itemToEdit.hsCode,
+        });
+
+        try {
+          // Prefer Name for search as it matches the user intent better, fallback to HS Code
+          const searchTerm = itemToEdit.name || itemToEdit.hsCode;
+          const response = await api.get(
+            `/tenant/${selectedTenant.tenant_id}/products`,
+            {
+              params: {
+                search: searchTerm,
+                limit: 100,
+              },
+            }
+          );
+
+          if (response.data.success && response.data.data) {
+            const fetchedList = response.data.data;
+
+            // Priority A: Strict ID match (if we had an ID)
+            if (itemToEdit.productId) {
+              targetProduct = fetchedList.find(
+                (p) => p.id === itemToEdit.productId
+              );
+            }
+
+            // Priority B: Strict Name + HS Code match
+            if (!targetProduct && itemToEdit.hsCode && itemToEdit.name) {
+              targetProduct = fetchedList.find(
+                (p) =>
+                  normalizeHsCode(p.hsCode).toLowerCase() ===
+                    normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+                  (p.name || "").trim().toLowerCase() ===
+                    (itemToEdit.name || "").trim().toLowerCase()
+              );
+            }
+
+            // If found, ensure it's added to the products list so Autocomplete can see it
+            if (targetProduct) {
+              console.log("Found missing product via API:", targetProduct.id);
+              setProducts((prev) => {
+                if (prev.some((p) => p.id === targetProduct.id)) return prev;
+                return [...prev, targetProduct];
+              });
+            } else {
+              console.log("Product not found in API results even after fetch.");
+            }
+          }
+        } catch (error) {
+          console.error(
+            "Error fetching specific product for restoration:",
+            error
+          );
+        }
+      } else if (targetProduct) {
+        console.log("Product found in current list:", targetProduct.id);
+      }
+
+      // 3. Set the selection if we have a target product or at least an ID/Name
+      if (itemToEdit.name) {
+        setProductInputValue(itemToEdit.name);
+      } else if (targetProduct) {
+        setProductInputValue(targetProduct.name);
+      }
+
+      if (targetProduct) {
+        setSelectedProductIdByItem((prev) => ({
+          ...prev,
+          0: targetProduct.id,
+        }));
+
+        // RE-RESTORE UoM and billOfLadingUoM in case they were cleared by effects
+        if (itemToEdit.uoM) {
+          console.log("Re-restoring UoM in formData:", itemToEdit.uoM);
+          setFormData((prev) => {
+            const items = [...prev.items];
+            if (items[0]) {
+              items[0] = { ...items[0], uoM: itemToEdit.uoM };
+            }
+            return { ...prev, items };
+          });
+        }
+      } else if (itemToEdit.productId) {
         setSelectedProductIdByItem((prev) => ({
           ...prev,
           0: itemToEdit.productId,
         }));
-      } else if (products.length > 0) {
-        // Enhanced product matching with multiple strategies
-        let matchingProduct = null;
-
-        // Strategy 1: Match by exact name and HS Code
-        if (itemToEdit.hsCode && itemToEdit.name) {
-          matchingProduct = products.find(
-            (product) =>
-              product.hsCode === itemToEdit.hsCode &&
-              product.name === itemToEdit.name
-          );
-          if (matchingProduct) {
-            console.log(
-              "Found matching product by HS Code/Name:",
-              matchingProduct.id
-            );
-          }
-        }
-
-        // Strategy 2: Match by HS Code only (if name doesn't match)
-        if (!matchingProduct && itemToEdit.hsCode) {
-          matchingProduct = products.find(
-            (product) => product.hsCode === itemToEdit.hsCode
-          );
-          if (matchingProduct) {
-            console.log(
-              "Found matching product by HS Code only:",
-              matchingProduct.id
-            );
-          }
-        }
-
-        // Strategy 3: Match by name only (if HS Code doesn't match)
-        if (!matchingProduct && itemToEdit.name) {
-          matchingProduct = products.find(
-            (product) => product.name === itemToEdit.name
-          );
-          if (matchingProduct) {
-            console.log(
-              "Found matching product by name only:",
-              matchingProduct.id
-            );
-          }
-        }
-
-        // Strategy 4: Match by product description (if available)
-        if (!matchingProduct && itemToEdit.productDescription) {
-          matchingProduct = products.find(
-            (product) =>
-              product.description === itemToEdit.productDescription ||
-              product.productDescription === itemToEdit.productDescription
-          );
-          if (matchingProduct) {
-            console.log(
-              "Found matching product by description:",
-              matchingProduct.id
-            );
-          }
-        }
-
-        // Strategy 5: Match by UOM (Unit of Measure) if available
-        if (!matchingProduct && itemToEdit.billOfLadingUoM) {
-          matchingProduct = products.find(
-            (product) =>
-              product.uom === itemToEdit.billOfLadingUoM ||
-              product.unitOfMeasure === itemToEdit.billOfLadingUoM ||
-              product.billOfLadingUoM === itemToEdit.billOfLadingUoM
-          );
-          if (matchingProduct) {
-            console.log("Found matching product by UOM:", matchingProduct.id);
-          }
-        }
-
-        if (matchingProduct) {
-          setSelectedProductIdByItem((prev) => ({
-            ...prev,
-            0: matchingProduct.id,
-          }));
-        } else {
-          console.log("No matching product found with any strategy for:", {
-            name: itemToEdit.name,
-            hsCode: itemToEdit.hsCode,
-            productDescription: itemToEdit.productDescription,
-          });
-        }
-      } else {
-        console.log("No products available for matching");
       }
+
+      // Reset search terms to ensure full list is available when user clears the input
+      setProductSearch("");
+      setBuyerSearch("");
 
       // Prefill Transaction Type based on item's saleType
       try {
@@ -3793,6 +4015,9 @@ export default function CreateInvoice() {
     setTransactionTypeId(null);
     setAddedItems([]);
     setEditingItemIndex(null);
+    setProductInputValue("");
+    setProductSearch("");
+    setBuyerSearch("");
   };
 
   // Show loading state when tokens are not loaded
@@ -4189,15 +4414,63 @@ export default function CreateInvoice() {
                       ]
                     : []),
                 ]}
+                filterOptions={(x) => x}
                 getOptionLabel={(option) =>
                   option.buyerBusinessName
                     ? `${option.buyerBusinessName} (${option.buyerNTNCNIC})`
                     : ""
                 }
-                value={buyers.find((b) => b.id === selectedBuyerId) || null}
-                onInputChange={(_, inputValue, reason) => {
+                value={(() => {
+                  const currentSelected = buyers.find(
+                    (b) => b.id === selectedBuyerId
+                  );
+                  // Only pass value if the input text actually matches the selected buyer's label
+                  // This prevents the text from being forced back to the full name while typing/searching
+                  if (currentSelected) {
+                    const label = currentSelected.buyerBusinessName
+                      ? `${currentSelected.buyerBusinessName} (${currentSelected.buyerNTNCNIC})`
+                      : "";
+                    if (buyerInputValue === label) return currentSelected;
+                  }
+                  return null;
+                })()}
+                inputValue={buyerInputValue}
+                onInputChange={(_, newInputValue, reason) => {
+                  console.log("onInputChange", {
+                    newInputValue,
+                    reason,
+                    current: buyerInputValue,
+                  });
+
+                  // CRITICAL FIX: Prevent Autocomplete from auto-clearing text when value switches to null
+                  // When we backspace to search, value becomes null (mismatch), which triggers 'reset' with empty string
+                  // We must ignore this specific reset to preserve the user's search text
+                  if (reason === "reset" && newInputValue === "") {
+                    // Only allow reset to empty if we really want it (e.g. current input is already empty or clearing)
+                    // But if we have text, this is likely an unwanted side-effect of the value prop change
+                    if (buyerInputValue.length > 0) {
+                      console.log("Blocking unwanted reset");
+                      return;
+                    }
+                  }
+
+                  // always update input value to reflect user typing (or valid resets)
+                  setBuyerInputValue(newInputValue);
+
+                  // If user clears the input manually, we must force clear the selection
+                  if (newInputValue === "" && reason === "input") {
+                    console.log("Input cleared by user, clearing selection");
+                    setSelectedBuyer(null);
+                    setSelectedBuyerId("");
+                    setBuyerSearch("");
+                    setBuyers([]);
+                    // Don't triggering search fetch for empty string immediately or let it be handled by existing empty check?
+                    // Existing logic sets search to "" but might trigger empty search?
+                    // Let's rely on standard search debounce below but clearing ID is key.
+                  }
+
                   if (reason === "input") {
-                    setBuyerSearch(inputValue);
+                    setBuyerSearch(newInputValue);
                     if (buyerSearchDebounceRef.current) {
                       clearTimeout(buyerSearchDebounceRef.current);
                     }
@@ -4205,8 +4478,32 @@ export default function CreateInvoice() {
                       setBuyers([]);
                       setBuyerPage(1);
                       setBuyerHasMore(true);
-                      createInvoiceFormFetchers.buyer?.(1, inputValue, false);
+                      createInvoiceFormFetchers.buyer?.(
+                        1,
+                        newInputValue,
+                        false
+                      );
                     }, 300);
+                  }
+
+                  if (reason === "blur") {
+                    const selectedBuyer = buyers.find(
+                      (b) => b.id === selectedBuyerId
+                    );
+                    const getBuyerLabel = (option) =>
+                      option.buyerBusinessName
+                        ? `${option.buyerBusinessName} (${option.buyerNTNCNIC})`
+                        : "";
+
+                    if (selectedBuyer && !newInputValue) {
+                      setSelectedBuyerId(""); // Clear selected buyer if input is empty on blur
+                    } else if (
+                      selectedBuyer &&
+                      newInputValue !== getBuyerLabel(selectedBuyer)
+                    ) {
+                      // Restore label on blur if mismatch (and not empty)
+                      setBuyerInputValue(getBuyerLabel(selectedBuyer));
+                    }
                   }
                 }}
                 ListboxProps={{
@@ -4228,7 +4525,22 @@ export default function CreateInvoice() {
                 onChange={(_, newValue) => {
                   console.log("Buyer selection changed:", newValue);
                   if (newValue?.id === "__loading__") return;
-                  setSelectedBuyerId(newValue ? newValue.id : "");
+
+                  if (!newValue) {
+                    setSelectedBuyer(null);
+                    setSelectedBuyerId("");
+                    return;
+                  }
+
+                  // Update both ID and Object immediately
+                  setSelectedBuyer(newValue);
+                  setSelectedBuyerId(newValue.id);
+
+                  // Force input sync immediately
+                  const label = newValue.buyerBusinessName
+                    ? `${newValue.buyerBusinessName} (${newValue.buyerNTNCNIC})`
+                    : "";
+                  setBuyerInputValue(label);
                 }}
                 renderInput={(params) => (
                   <TextField
@@ -4568,8 +4880,19 @@ export default function CreateInvoice() {
 
           {/* FBR Registration Status Indicator */}
           {selectedBuyerId && (
-            <Box sx={{ mt: 2, p: 2, borderRadius: 2, backgroundColor: "#f8f9fa", border: "1px solid #e9ecef" }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: "#495057" }}>
+            <Box
+              sx={{
+                mt: 2,
+                p: 2,
+                borderRadius: 2,
+                backgroundColor: "#f8f9fa",
+                border: "1px solid #e9ecef",
+              }}
+            >
+              <Typography
+                variant="subtitle2"
+                sx={{ mb: 1, fontWeight: 600, color: "#495057" }}
+              >
                 FBR Registration Status
               </Typography>
               {fbrRegistrationStatus.loading ? (
@@ -4582,20 +4905,26 @@ export default function CreateInvoice() {
               ) : fbrRegistrationStatus.error ? (
                 <Alert severity="warning" sx={{ py: 1 }}>
                   <Typography variant="body2">
-                    Unable to verify registration status: {fbrRegistrationStatus.error}
+                    Unable to verify registration status:{" "}
+                    {fbrRegistrationStatus.error}
                   </Typography>
                 </Alert>
               ) : fbrRegistrationStatus.isActive !== null ? (
                 <Box>
-                  <Alert 
-                    severity={fbrRegistrationStatus.isActive ? "success" : "info"} 
+                  <Alert
+                    severity={
+                      fbrRegistrationStatus.isActive ? "success" : "info"
+                    }
                     sx={{ py: 1, mb: 1 }}
                   >
                     <Typography variant="body2">
                       <strong>Status:</strong> {fbrRegistrationStatus.status}
                     </Typography>
                     <Typography variant="body2">
-                      <strong>Further Tax:</strong> {fbrRegistrationStatus.shouldApplyFurtherTax ? "4% (Applied - Registration Inactive)" : "0% (Not Applied - Registration Active)"}
+                      <strong>Further Tax:</strong>{" "}
+                      {fbrRegistrationStatus.shouldApplyFurtherTax
+                        ? "4% (Applied - Registration Inactive)"
+                        : "0% (Not Applied - Registration Active)"}
                     </Typography>
                   </Alert>
                 </Box>
@@ -4675,22 +5004,100 @@ export default function CreateInvoice() {
                       key={`product-autocomplete-${index}`}
                       fullWidth
                       size="small"
-                      options={[
-                        { id: "__add__", name: "Add Product" },
-                        ...products,
-                        ...(loadingProducts && productHasMore
-                          ? [{ id: "__loading__", name: "Loading more..." }]
-                          : []),
-                      ]}
+                      options={(() => {
+                        const currentId = selectedProductIdByItem[index];
+                        const itemName = formData.items[index]?.name || "";
+
+                        // Find by ID or Name
+                        let foundOption = products.find(
+                          (p) => String(p.id) === String(currentId)
+                        );
+                        if (!foundOption && itemName) {
+                          foundOption = products.find(
+                            (p) => p.name === itemName
+                          );
+                        }
+
+                        // Synthesize selected product if not in list
+                        const selectedProduct =
+                          foundOption ||
+                          (currentId || itemName
+                            ? {
+                                id: currentId || `temp-${itemName}`,
+                                name: itemName || "Selected Product",
+                                hsCode: formData.items[index]?.hsCode || "",
+                                description:
+                                  formData.items[index]?.productDescription ||
+                                  "",
+                              }
+                            : null);
+
+                        const opts = [{ id: "__add__", name: "Add Product" }];
+                        if (selectedProduct) {
+                          opts.push(selectedProduct);
+                        }
+
+                        // Add other products, avoiding duplicates with selectedProduct
+                        products.forEach((p) => {
+                          if (
+                            !selectedProduct ||
+                            String(p.id) !== String(selectedProduct.id)
+                          ) {
+                            opts.push(p);
+                          }
+                        });
+
+                        if (loadingProducts && productHasMore) {
+                          opts.push({
+                            id: "__loading__",
+                            name: "Loading more...",
+                          });
+                        }
+                        return opts;
+                      })()}
+                      filterOptions={(x) => x}
                       getOptionLabel={(option) => option?.name || ""}
-                      value={
-                        products.find(
-                          (p) => p.id === selectedProductIdByItem[index]
-                        ) || null
-                      }
-                      onInputChange={(_, inputValue, reason) => {
+                      value={(() => {
+                        const currentId = selectedProductIdByItem[index];
+                        const itemName = formData.items[index]?.name || "";
+
+                        const found = products.find(
+                          (p) => String(p.id) === String(currentId)
+                        );
+                        if (found) return found;
+
+                        if (currentId || itemName) {
+                          return {
+                            id: currentId || `temp-${itemName}`,
+                            name: itemName || "Selected Product",
+                            hsCode: formData.items[index]?.hsCode || "",
+                            description:
+                              formData.items[index]?.productDescription || "",
+                          };
+                        }
+                        return null;
+                      })()}
+                      inputValue={productInputValue}
+                      onInputChange={(_, newValue, reason) => {
+                        console.log("Product Autocomplete onInputChange", {
+                          newValue,
+                          reason,
+                          index,
+                        });
+
+                        // Ignore unwanted resets that clear the text when value mismatches during typing
+                        // BUT allow if reason is "clear" (user clicked X)
+                        if (reason === "reset" && newValue === "") {
+                          if (productInputValue.length > 0) {
+                            console.log("Blocking unwanted product reset");
+                            return;
+                          }
+                        }
+
+                        setProductInputValue(newValue);
+
                         if (reason === "input") {
-                          setProductSearch(inputValue);
+                          setProductSearch(newValue);
                           if (searchDebounceRef.current) {
                             clearTimeout(searchDebounceRef.current);
                           }
@@ -4698,8 +5105,25 @@ export default function CreateInvoice() {
                             setProducts([]);
                             setProductPage(1);
                             setProductHasMore(true);
-                            fetchProductsPage(1, inputValue, false);
+                            fetchProductsPage(1, newValue, false);
                           }, 300);
+                        }
+                      }}
+                      onBlur={() => {
+                        // If input is empty on blur AND no selection exists, clear selection
+                        if (
+                          !productInputValue &&
+                          !selectedProductIdByItem[index]
+                        ) {
+                          setSelectedProductIdByItem((prev) => ({
+                            ...prev,
+                            [index]: undefined,
+                          }));
+                          handleItemChange(index, "name", "");
+                          handleItemChange(index, "hsCode", "");
+                          handleItemChange(index, "productDescription", "");
+                          handleItemChange(index, "uoM", "");
+                          handleItemChange(index, "billOfLadingUoM", "");
                         }
                       }}
                       ListboxProps={{
@@ -4718,11 +5142,15 @@ export default function CreateInvoice() {
                           }
                         },
                       }}
-                      onChange={(_, newVal) => {
-                        console.log("Product selection changed:", {
-                          newVal,
-                          index,
-                        });
+                      onChange={(event, newVal, reason) => {
+                        console.log(
+                          "Product Autocomplete onChange triggered:",
+                          {
+                            newVal,
+                            reason,
+                            index,
+                          }
+                        );
                         if (newVal?.id === "__add__") {
                           openProductModal();
                           return;
@@ -4735,9 +5163,17 @@ export default function CreateInvoice() {
                           [index]: newVal?.id || undefined,
                         }));
 
-                        // Clear UoM fields when product changes
-                        handleItemChange(index, "uoM", "");
-                        handleItemChange(index, "billOfLadingUoM", "");
+                        // Only clear UoM fields if the product was explicitly changed by the user to a DIFFERENT product
+                        if (
+                          (reason === "selectOption" || reason === "clear") &&
+                          newVal?.id !== selectedProductIdByItem[index]
+                        ) {
+                          console.log(
+                            "Product changed via user interaction, clearing UoM"
+                          );
+                          handleItemChange(index, "uoM", "");
+                          handleItemChange(index, "billOfLadingUoM", "");
+                        }
 
                         if (newVal) {
                           handleItemChange(index, "name", newVal.name || "");
@@ -4751,6 +5187,11 @@ export default function CreateInvoice() {
                             "productDescription",
                             newVal.description || ""
                           );
+                        } else {
+                          // Clear product fields if selection is cleared
+                          handleItemChange(index, "name", "");
+                          handleItemChange(index, "hsCode", "");
+                          handleItemChange(index, "productDescription", "");
                         }
                       }}
                       renderInput={(params) => (
@@ -4782,7 +5223,9 @@ export default function CreateInvoice() {
                           </li>
                         );
                       }}
-                      isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                      isOptionEqualToValue={(opt, val) =>
+                        String(opt.id) === String(val.id)
+                      }
                     />
 
                     {/* UoM Dropdown */}
@@ -4808,19 +5251,22 @@ export default function CreateInvoice() {
                           ) : null
                         }
                       >
-                        {!selectedProductIdByItem[index] ? (
+                        {!(
+                          selectedProductIdByItem[index] ||
+                          formData.items[index]?.hsCode
+                        ) ? (
                           <MenuItem value="select_product_first" disabled>
                             Select Product first
                           </MenuItem>
                         ) : uomOptions[index]?.length > 0 ? (
-                          uomOptions[index].map((uom, uomIndex) => (
-                            <MenuItem
-                              key={uomIndex}
-                              value={uom.description || uom.uoM_ID}
-                            >
-                              {uom.description || uom.uoM_ID}
-                            </MenuItem>
-                          ))
+                          uomOptions[index].map((uom, uomIndex) => {
+                            const uomValue = uom.description || uom.uoM_ID;
+                            return (
+                              <MenuItem key={uomIndex} value={uomValue}>
+                                {uom.description || uom.uoM_ID}
+                              </MenuItem>
+                            );
+                          })
                         ) : (
                           <MenuItem value="no_uom_available" disabled>
                             No UoM available
