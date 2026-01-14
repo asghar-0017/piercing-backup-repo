@@ -23,7 +23,10 @@ import Tenant from "../../model/mysql/Tenant.js";
 import hsCodeCacheService from "../../service/HSCodeCacheService.js";
 import { logAuditEvent } from "../../middleWare/auditMiddleware.js";
 import InvoiceBackupService from "../../service/InvoiceBackupService.js";
-import { validateInvoiceData, submitInvoiceData } from "../../service/FBRService.js";
+import {
+  validateInvoiceData,
+  submitInvoiceData,
+} from "../../service/FBRService.js";
 
 const { toWords } = numberToWords;
 
@@ -249,9 +252,11 @@ export const createInvoice = async (req, res) => {
             created_by_user_id: req.user?.userId || req.user?.id || null,
             created_by_email: req.user?.email || null,
             created_by_name:
-              (req.user?.firstName || req.user?.lastName)
+              req.user?.firstName || req.user?.lastName
                 ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : (req.user?.role === "admin" ? "Admin" : null),
+                : req.user?.role === "admin"
+                  ? "Admin"
+                  : null,
           });
         }
       }
@@ -375,9 +380,11 @@ export const createInvoice = async (req, res) => {
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
-            (req.user?.firstName || req.user?.lastName)
+            req.user?.firstName || req.user?.lastName
               ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-              : (req.user?.role === "admin" ? `Admin (${req.user?.id || "Unknown"})` : null),
+              : req.user?.role === "admin"
+                ? `Admin (${req.user?.id || "Unknown"})`
+                : null,
         },
 
         { transaction: t }
@@ -554,9 +561,9 @@ export const createInvoice = async (req, res) => {
     try {
       // Fetch the invoice items for backup
       const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id }
+        where: { invoice_id: result.id },
       });
-      
+
       await InvoiceBackupService.createPostBackup({
         tenantDb: req.tenantDb,
         tenantModels: req.tenantModels,
@@ -567,8 +574,8 @@ export const createInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating post backup:", backupError);
@@ -595,7 +602,7 @@ export const createInvoice = async (req, res) => {
         companyInvoiceRefNo: result.companyInvoiceRefNo,
         internal_invoice_no: result.internal_invoice_no,
         transctypeId: result.transctypeId,
-        
+
         // Complete Seller Information
         sellerNTNCNIC: result.sellerNTNCNIC,
         sellerFullNTN: result.sellerFullNTN,
@@ -603,42 +610,45 @@ export const createInvoice = async (req, res) => {
         sellerProvince: result.sellerProvince,
         sellerAddress: result.sellerAddress,
         sellerCity: result.sellerCity,
-        
+
         // Complete Buyer Information
         buyerNTNCNIC: result.buyerNTNCNIC,
         buyerBusinessName: result.buyerBusinessName,
         buyerProvince: result.buyerProvince,
         buyerAddress: result.buyerAddress,
         buyerRegistrationType: result.buyerRegistrationType,
-        
+
         // Financial Information
         totalAmount: result.totalAmount,
-        
+
         // Complete Invoice Items with All Details
-        invoice_items: items ? items.map(item => ({
-          id: item.id,
-          product_name: item.name,
-          hsCode: item.hsCode,
-          productDescription: item.productDescription,
-          quantity: item.quantity,
-          rate: item.rate,
-          uoM: item.uoM,
-          unitPrice: item.unitPrice,
-          totalValues: item.totalValues,
-          valueSalesExcludingST: item.valueSalesExcludingST,
-          fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
-          salesTaxApplicable: item.salesTaxApplicable,
-          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-          extraTax: item.extraTax,
-          furtherTax: item.furtherTax,
-          sroScheduleNo: item.sroScheduleNo,
-          fedPayable: item.fedPayable,
-          advanceIncomeTax: item.advanceIncomeTax,
-          discount: item.discount,
-          saleType: item.saleType,
-          sroItemSerialNo: item.sroItemSerialNo,
-          billOfLadingUoM: item.billOfLadingUoM
-        })) : []
+        invoice_items: items
+          ? items.map((item) => ({
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
+          : [],
       }, // newValues
       {
         entityName: result.invoice_number || result.system_invoice_id,
@@ -742,11 +752,17 @@ export const saveInvoice = async (req, res) => {
         let updatedInvoiceNumber = invoice.invoice_number;
 
         // If changing from SAVED to DRAFT, generate new DRAFT number
-        if (invoice.invoice_number && invoice.invoice_number.startsWith("SAVED_")) {
+        if (
+          invoice.invoice_number &&
+          invoice.invoice_number.startsWith("SAVED_")
+        ) {
           updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "DRAFT");
         }
         // If changing from DRAFT to DRAFT, keep the same DRAFT number
-        else if (invoice.invoice_number && invoice.invoice_number.startsWith("DRAFT_")) {
+        else if (
+          invoice.invoice_number &&
+          invoice.invoice_number.startsWith("DRAFT_")
+        ) {
           updatedInvoiceNumber = invoice.invoice_number; // Keep existing DRAFT number
         }
         // If no invoice number or other format, generate new DRAFT number
@@ -868,9 +884,11 @@ export const saveInvoice = async (req, res) => {
             created_by_user_id: req.user?.userId || req.user?.id || null,
             created_by_email: req.user?.email || null,
             created_by_name:
-              (req.user?.firstName || req.user?.lastName)
+              req.user?.firstName || req.user?.lastName
                 ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : (req.user?.role === "admin" ? `Admin (${req.user?.id || "Unknown"})` : null),
+                : req.user?.role === "admin"
+                  ? `Admin (${req.user?.id || "Unknown"})`
+                  : null,
           },
 
           { transaction: t }
@@ -991,9 +1009,9 @@ export const saveInvoice = async (req, res) => {
     try {
       // Fetch the invoice items for backup
       const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id }
+        where: { invoice_id: result.id },
       });
-      
+
       await InvoiceBackupService.createDraftBackup({
         tenantDb: req.tenantDb,
         tenantModels: req.tenantModels,
@@ -1005,8 +1023,8 @@ export const saveInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating draft backup:", backupError);
@@ -1033,7 +1051,7 @@ export const saveInvoice = async (req, res) => {
         companyInvoiceRefNo: result.companyInvoiceRefNo,
         internal_invoice_no: result.internal_invoice_no,
         transctypeId: result.transctypeId,
-        
+
         // Complete Seller Information
         sellerNTNCNIC: result.sellerNTNCNIC,
         sellerFullNTN: result.sellerFullNTN,
@@ -1041,42 +1059,45 @@ export const saveInvoice = async (req, res) => {
         sellerProvince: result.sellerProvince,
         sellerAddress: result.sellerAddress,
         sellerCity: result.sellerCity,
-        
+
         // Complete Buyer Information
         buyerNTNCNIC: result.buyerNTNCNIC,
         buyerBusinessName: result.buyerBusinessName,
         buyerProvince: result.buyerProvince,
         buyerAddress: result.buyerAddress,
         buyerRegistrationType: result.buyerRegistrationType,
-        
+
         // Financial Information
         totalAmount: result.totalAmount,
-        
+
         // Complete Invoice Items with All Details
-        invoice_items: items ? items.map(item => ({
-          id: item.id,
-          product_name: item.name,
-          hsCode: item.hsCode,
-          productDescription: item.productDescription,
-          quantity: item.quantity,
-          rate: item.rate,
-          uoM: item.uoM,
-          unitPrice: item.unitPrice,
-          totalValues: item.totalValues,
-          valueSalesExcludingST: item.valueSalesExcludingST,
-          fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
-          salesTaxApplicable: item.salesTaxApplicable,
-          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-          extraTax: item.extraTax,
-          furtherTax: item.furtherTax,
-          sroScheduleNo: item.sroScheduleNo,
-          fedPayable: item.fedPayable,
-          advanceIncomeTax: item.advanceIncomeTax,
-          discount: item.discount,
-          saleType: item.saleType,
-          sroItemSerialNo: item.sroItemSerialNo,
-          billOfLadingUoM: item.billOfLadingUoM
-        })) : []
+        invoice_items: items
+          ? items.map((item) => ({
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
+          : [],
       }, // newValues
       {
         entityName: result.invoice_number || result.system_invoice_id,
@@ -1162,7 +1183,7 @@ export const saveAndValidateInvoice = async (req, res) => {
 
     // Generate appropriate invoice number based on whether it's a new invoice or update
     let tempInvoiceNumber;
-    
+
     if (id) {
       // For updates, we'll determine the invoice number based on current status
       tempInvoiceNumber = null; // Will be set in the update logic
@@ -1221,14 +1242,16 @@ export const saveAndValidateInvoice = async (req, res) => {
 
     // FBR Validation before saving
     let fbrValidationResult = null;
-    
+
     if (req.tenant?.sandboxProductionToken) {
       try {
         console.log("🔍 Starting FBR validation for invoice...");
-        
+
         // Import FBR validation function
-        const { validateInvoiceData } = await import("../../service/FBRService.js");
-        
+        const { validateInvoiceData } = await import(
+          "../../service/FBRService.js"
+        );
+
         // Prepare invoice data for FBR validation
         const fbrInvoiceData = {
           invoiceType,
@@ -1242,14 +1265,19 @@ export const saveAndValidateInvoice = async (req, res) => {
           buyerNTNCNIC,
           buyerBusinessName,
           buyerProvince,
-          buyerAddress,
+          buyerAddress: buyerAddress
+            ? buyerAddress.replace(/\n/g, " ")
+            : buyerAddress,
           buyerRegistrationType,
           invoiceRefNo,
           companyInvoiceRefNo,
           internal_invoice_no: internalInvoiceNo,
           transctypeId,
-          items: items.map(item => ({
+          items: items.map((item) => ({
             productName: item.name || item.productName,
+            productDescription: item.productDescription
+              ? item.productDescription.replace(/\n/g, " ")
+              : item.productDescription,
             hsCode: item.hsCode,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
@@ -1258,8 +1286,8 @@ export const saveAndValidateInvoice = async (req, res) => {
             salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
             totalValues: item.totalValues,
             sroScheduleNo: item.sroScheduleNo,
-            sroItemSerialNo: item.sroItemSerialNo
-          }))
+            sroItemSerialNo: item.sroItemSerialNo,
+          })),
         };
 
         fbrValidationResult = await validateInvoiceData(
@@ -1267,7 +1295,7 @@ export const saveAndValidateInvoice = async (req, res) => {
           "sandbox",
           req.tenant.sandboxProductionToken
         );
-        
+
         console.log("✅ FBR validation successful");
       } catch (fbrError) {
         console.error("❌ FBR validation failed:", fbrError);
@@ -1278,7 +1306,9 @@ export const saveAndValidateInvoice = async (req, res) => {
         });
       }
     } else {
-      console.log("⚠️ Skipping FBR validation - no tenant FBR credentials available");
+      console.log(
+        "⚠️ Skipping FBR validation - no tenant FBR credentials available"
+      );
     }
 
     // Save as saved (validated with FBR) - upsert behavior like saveInvoice
@@ -1301,11 +1331,17 @@ export const saveAndValidateInvoice = async (req, res) => {
         let updatedInvoiceNumber = invoice.invoice_number;
 
         // If changing from DRAFT to SAVED, generate new SAVED number
-        if (invoice.invoice_number && invoice.invoice_number.startsWith("DRAFT_")) {
+        if (
+          invoice.invoice_number &&
+          invoice.invoice_number.startsWith("DRAFT_")
+        ) {
           updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
         }
         // If already SAVED, keep the same SAVED number
-        else if (invoice.invoice_number && invoice.invoice_number.startsWith("SAVED_")) {
+        else if (
+          invoice.invoice_number &&
+          invoice.invoice_number.startsWith("SAVED_")
+        ) {
           updatedInvoiceNumber = invoice.invoice_number; // Keep existing SAVED number
         }
         // If no invoice number or other format, generate new SAVED number
@@ -1357,9 +1393,11 @@ export const saveAndValidateInvoice = async (req, res) => {
             created_by_user_id: req.user?.userId || req.user?.id || null,
             created_by_email: req.user?.email || null,
             created_by_name:
-              (req.user?.firstName || req.user?.lastName)
+              req.user?.firstName || req.user?.lastName
                 ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : (req.user?.role === "admin" ? `Admin (${req.user?.id || "Unknown"})` : null),
+                : req.user?.role === "admin"
+                  ? `Admin (${req.user?.id || "Unknown"})`
+                  : null,
           },
 
           { transaction: t }
@@ -1421,9 +1459,11 @@ export const saveAndValidateInvoice = async (req, res) => {
             created_by_user_id: req.user?.userId || req.user?.id || null,
             created_by_email: req.user?.email || null,
             created_by_name:
-              (req.user?.firstName || req.user?.lastName)
+              req.user?.firstName || req.user?.lastName
                 ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : (req.user?.role === "admin" ? `Admin (${req.user?.id || "Unknown"})` : null),
+                : req.user?.role === "admin"
+                  ? `Admin (${req.user?.id || "Unknown"})`
+                  : null,
           },
 
           { transaction: t }
@@ -1542,9 +1582,9 @@ export const saveAndValidateInvoice = async (req, res) => {
     try {
       // Fetch the invoice items for backup
       const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id }
+        where: { invoice_id: result.id },
       });
-      
+
       await InvoiceBackupService.createSavedBackup({
         tenantDb: req.tenantDb,
         tenantModels: req.tenantModels,
@@ -1556,8 +1596,8 @@ export const saveAndValidateInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating saved backup:", backupError);
@@ -1584,7 +1624,7 @@ export const saveAndValidateInvoice = async (req, res) => {
         companyInvoiceRefNo: result.companyInvoiceRefNo,
         internal_invoice_no: result.internal_invoice_no,
         transctypeId: result.transctypeId,
-        
+
         // Complete Seller Information
         sellerNTNCNIC: result.sellerNTNCNIC,
         sellerFullNTN: result.sellerFullNTN,
@@ -1592,43 +1632,46 @@ export const saveAndValidateInvoice = async (req, res) => {
         sellerProvince: result.sellerProvince,
         sellerAddress: result.sellerAddress,
         sellerCity: result.sellerCity,
-        
+
         // Complete Buyer Information
         buyerNTNCNIC: result.buyerNTNCNIC,
         buyerBusinessName: result.buyerBusinessName,
         buyerProvince: result.buyerProvince,
         buyerAddress: result.buyerAddress,
         buyerRegistrationType: result.buyerRegistrationType,
-        
+
         // Financial Information
         totalAmount: result.totalAmount,
         fbrValidation: fbrValidationResult ? "success" : "skipped",
-        
+
         // Complete Invoice Items with All Details
-        invoice_items: items ? items.map(item => ({
-          id: item.id,
-          product_name: item.name,
-          hsCode: item.hsCode,
-          productDescription: item.productDescription,
-          quantity: item.quantity,
-          rate: item.rate,
-          uoM: item.uoM,
-          unitPrice: item.unitPrice,
-          totalValues: item.totalValues,
-          valueSalesExcludingST: item.valueSalesExcludingST,
-          fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
-          salesTaxApplicable: item.salesTaxApplicable,
-          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-          extraTax: item.extraTax,
-          furtherTax: item.furtherTax,
-          sroScheduleNo: item.sroScheduleNo,
-          fedPayable: item.fedPayable,
-          advanceIncomeTax: item.advanceIncomeTax,
-          discount: item.discount,
-          saleType: item.saleType,
-          sroItemSerialNo: item.sroItemSerialNo,
-          billOfLadingUoM: item.billOfLadingUoM
-        })) : []
+        invoice_items: items
+          ? items.map((item) => ({
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
+          : [],
       }, // newValues
       {
         entityName: result.invoice_number || result.system_invoice_id,
@@ -1642,7 +1685,9 @@ export const saveAndValidateInvoice = async (req, res) => {
     res.status(201).json({
       success: true,
 
-      message: fbrValidationResult ? "Invoice validated with FBR and saved successfully" : "Invoice saved successfully (FBR validation skipped)",
+      message: fbrValidationResult
+        ? "Invoice validated with FBR and saved successfully"
+        : "Invoice saved successfully (FBR validation skipped)",
 
       data: {
         invoice_id: result.id,
@@ -1652,13 +1697,15 @@ export const saveAndValidateInvoice = async (req, res) => {
         system_invoice_id: result.system_invoice_id,
 
         status: result.status,
-        fbrValidation: fbrValidationResult ? {
-          success: true,
-          result: fbrValidationResult
-        } : {
-          success: false,
-          reason: "No FBR token or credentials available"
-        }
+        fbrValidation: fbrValidationResult
+          ? {
+              success: true,
+              result: fbrValidationResult,
+            }
+          : {
+              success: false,
+              reason: "No FBR token or credentials available",
+            },
       },
     });
   } catch (error) {
@@ -1703,19 +1750,24 @@ export const getAllInvoices = async (req, res) => {
     const whereClause = {};
 
     // Restrict invoice visibility for regular users to only their own
-    console.log('User filtering - userType:', req.userType, 'user:', req.user);
+    console.log("User filtering - userType:", req.userType, "user:", req.user);
     if (req.userType === "user" && req.user?.role !== "admin") {
       const creatorId = req.user?.userId || req.user?.id;
-      console.log('Regular user - creatorId:', creatorId, 'email:', req.user?.email);
+      console.log(
+        "Regular user - creatorId:",
+        creatorId,
+        "email:",
+        req.user?.email
+      );
       if (creatorId) {
         whereClause.created_by_user_id = creatorId;
-        console.log('Filtering by created_by_user_id:', creatorId);
+        console.log("Filtering by created_by_user_id:", creatorId);
       } else if (req.user?.email) {
         whereClause.created_by_email = req.user.email;
-        console.log('Filtering by created_by_email:', req.user.email);
+        console.log("Filtering by created_by_email:", req.user.email);
       }
     } else {
-      console.log('Admin user or no user restrictions applied');
+      console.log("Admin user or no user restrictions applied");
     }
 
     // Add search functionality
@@ -1767,430 +1819,606 @@ export const getAllInvoices = async (req, res) => {
       try {
         let buyerIds = [];
         if (buyer_ids) {
-          buyerIds = buyer_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+          buyerIds = buyer_ids
+            .split(",")
+            .map((id) => parseInt(id.trim()))
+            .filter((id) => !isNaN(id));
         } else if (buyer_id) {
-          buyerIds = [parseInt(buyer_id)].filter(id => !isNaN(id));
+          buyerIds = [parseInt(buyer_id)].filter((id) => !isNaN(id));
         }
-        console.log('Filtering by buyer_ids:', buyerIds);
-        
+        console.log("Filtering by buyer_ids:", buyerIds);
+
         // First get the buyers' NTN/CNIC from the buyer IDs
         const { Buyer } = req.tenantModels;
         const buyers = await Buyer.findAll({
           where: {
             id: {
-              [req.tenantDb.Sequelize.Op.in]: buyerIds
-            }
-          }
+              [req.tenantDb.Sequelize.Op.in]: buyerIds,
+            },
+          },
         });
-        
-        console.log('Found buyers:', buyers.map(buyer => ({
-          id: buyer.id,
-          buyerBusinessName: buyer.buyerBusinessName,
-          buyerNTNCNIC: buyer.buyerNTNCNIC
-        })));
-        
+
+        console.log(
+          "Found buyers:",
+          buyers.map((buyer) => ({
+            id: buyer.id,
+            buyerBusinessName: buyer.buyerBusinessName,
+            buyerNTNCNIC: buyer.buyerNTNCNIC,
+          }))
+        );
+
         if (buyers.length > 0) {
           const buyerNTNCNICs = buyers
-            .filter(buyer => buyer.buyerNTNCNIC)
-            .map(buyer => buyer.buyerNTNCNIC);
-          
-          console.log('Buyer NTN/CNICs found:', buyerNTNCNICs);
-          
+            .filter((buyer) => buyer.buyerNTNCNIC)
+            .map((buyer) => buyer.buyerNTNCNIC);
+
+          console.log("Buyer NTN/CNICs found:", buyerNTNCNICs);
+
           if (buyerNTNCNICs.length > 0) {
             whereClause.buyerNTNCNIC = {
-              [req.tenantDb.Sequelize.Op.in]: buyerNTNCNICs
+              [req.tenantDb.Sequelize.Op.in]: buyerNTNCNICs,
             };
-            console.log('Filtering invoices by buyerNTNCNICs:', buyerNTNCNICs);
+            console.log("Filtering invoices by buyerNTNCNICs:", buyerNTNCNICs);
           } else {
-            console.log('No valid NTN/CNIC found for buyers, returning empty results');
+            console.log(
+              "No valid NTN/CNIC found for buyers, returning empty results"
+            );
             whereClause.id = -1; // This will return no results
           }
         } else {
-          console.log('No buyers found for IDs:', buyerIds, 'returning empty results');
+          console.log(
+            "No buyers found for IDs:",
+            buyerIds,
+            "returning empty results"
+          );
           whereClause.id = -1; // This will return no results
         }
       } catch (error) {
-        console.error('Error fetching buyers for filter:', error);
+        console.error("Error fetching buyers for filter:", error);
         // If there's an error, return empty results
         whereClause.id = -1; // This will return no results
       }
     }
 
-        // Add product filter - use subquery approach to avoid WHERE clause issues
-        if (product_ids) {
-          try {
-            const productIds = product_ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-            console.log('Filtering by product_ids:', productIds);
-            
-            if (productIds.length > 0) {
-              // First get the product names/HS codes from the product IDs
-              const { Product } = req.tenantModels;
-              const products = await Product.findAll({
-                where: {
-                  id: {
-                    [req.tenantDb.Sequelize.Op.in]: productIds
-                  }
-                }
-              });
-              
-              console.log('🔍 Found products for filter:', products.map(p => ({ id: p.id, name: p.name, hsCode: p.hsCode })));
-              
-              if (products.length > 0) {
-                const productNames = products.map(p => p.name).filter(Boolean);
-                const productHsCodes = products.map(p => p.hsCode).filter(Boolean);
-                
-                console.log('🔍 Product names found:', productNames);
-                console.log('🔍 Product HS codes found:', productHsCodes);
-                
-                // Debug: Let's also check what invoice items exist for these HS codes
-                if (productHsCodes.length > 0) {
-                  try {
-                    const { InvoiceItem } = req.tenantModels;
-                    
-                    // First, let's see all invoice items in the date range
-                    const allItemsInDateRange = await InvoiceItem.findAll({
-                      include: [{
-                        model: req.tenantModels.Invoice,
-                        where: {
-                          [req.tenantDb.Sequelize.Op.or]: [
-                            // Handle YYYY-MM-DD format
-                            {
-                              invoiceDate: {
-                                [req.tenantDb.Sequelize.Op.between]: [start_date, end_date]
-                              }
-                            },
-                            // Handle DD-MM-YYYY format (convert and compare)
-                            {
-                              invoiceDate: {
-                                [req.tenantDb.Sequelize.Op.and]: [
-                                  req.tenantDb.Sequelize.where(
-                                    req.tenantDb.Sequelize.fn('STR_TO_DATE', 
-                                      req.tenantDb.Sequelize.col('invoiceDate'), 
-                                      '%d-%m-%Y'
-                                    ),
-                                    {
-                                      [req.tenantDb.Sequelize.Op.between]: [start_date, end_date]
-                                    }
-                                  )
-                                ]
-                              }
-                            }
-                          ]
-                        },
-                        attributes: ['id', 'invoiceDate']
-                      }],
-                      attributes: ['id', 'invoice_id', 'name', 'hsCode', 'productDescription'],
-                      limit: 20
-                    });
-                    console.log('🔍 All invoice items in date range:', allItemsInDateRange.map(item => ({
-                      id: item.id,
-                      invoice_id: item.invoice_id,
-                      name: item.name,
-                      hsCode: item.hsCode,
-                      productDescription: item.productDescription,
-                      invoice_date: item.Invoice?.invoiceDate
-                    })));
-                    
-                    // Now check for specific HS codes
-                    const sampleItems = await InvoiceItem.findAll({
+    // Add product filter - use subquery approach to avoid WHERE clause issues
+    if (product_ids) {
+      try {
+        const productIds = product_ids
+          .split(",")
+          .map((id) => parseInt(id.trim()))
+          .filter((id) => !isNaN(id));
+        console.log("Filtering by product_ids:", productIds);
+
+        if (productIds.length > 0) {
+          // First get the product names/HS codes from the product IDs
+          const { Product } = req.tenantModels;
+          const products = await Product.findAll({
+            where: {
+              id: {
+                [req.tenantDb.Sequelize.Op.in]: productIds,
+              },
+            },
+          });
+
+          console.log(
+            "🔍 Found products for filter:",
+            products.map((p) => ({ id: p.id, name: p.name, hsCode: p.hsCode }))
+          );
+
+          if (products.length > 0) {
+            const productNames = products.map((p) => p.name).filter(Boolean);
+            const productHsCodes = products
+              .map((p) => p.hsCode)
+              .filter(Boolean);
+
+            console.log("🔍 Product names found:", productNames);
+            console.log("🔍 Product HS codes found:", productHsCodes);
+
+            // Debug: Let's also check what invoice items exist for these HS codes
+            if (productHsCodes.length > 0) {
+              try {
+                const { InvoiceItem } = req.tenantModels;
+
+                // First, let's see all invoice items in the date range
+                const allItemsInDateRange = await InvoiceItem.findAll({
+                  include: [
+                    {
+                      model: req.tenantModels.Invoice,
                       where: {
-                        hsCode: {
-                          [req.tenantDb.Sequelize.Op.in]: productHsCodes
-                        }
+                        [req.tenantDb.Sequelize.Op.or]: [
+                          // Handle YYYY-MM-DD format
+                          {
+                            invoiceDate: {
+                              [req.tenantDb.Sequelize.Op.between]: [
+                                start_date,
+                                end_date,
+                              ],
+                            },
+                          },
+                          // Handle DD-MM-YYYY format (convert and compare)
+                          {
+                            invoiceDate: {
+                              [req.tenantDb.Sequelize.Op.and]: [
+                                req.tenantDb.Sequelize.where(
+                                  req.tenantDb.Sequelize.fn(
+                                    "STR_TO_DATE",
+                                    req.tenantDb.Sequelize.col("invoiceDate"),
+                                    "%d-%m-%Y"
+                                  ),
+                                  {
+                                    [req.tenantDb.Sequelize.Op.between]: [
+                                      start_date,
+                                      end_date,
+                                    ],
+                                  }
+                                ),
+                              ],
+                            },
+                          },
+                        ],
                       },
-                      attributes: ['id', 'invoice_id', 'name', 'hsCode', 'productDescription'],
-                      limit: 10
+                      attributes: ["id", "invoiceDate"],
+                    },
+                  ],
+                  attributes: [
+                    "id",
+                    "invoice_id",
+                    "name",
+                    "hsCode",
+                    "productDescription",
+                  ],
+                  limit: 20,
+                });
+                console.log(
+                  "🔍 All invoice items in date range:",
+                  allItemsInDateRange.map((item) => ({
+                    id: item.id,
+                    invoice_id: item.invoice_id,
+                    name: item.name,
+                    hsCode: item.hsCode,
+                    productDescription: item.productDescription,
+                    invoice_date: item.Invoice?.invoiceDate,
+                  }))
+                );
+
+                // Now check for specific HS codes
+                const sampleItems = await InvoiceItem.findAll({
+                  where: {
+                    hsCode: {
+                      [req.tenantDb.Sequelize.Op.in]: productHsCodes,
+                    },
+                  },
+                  attributes: [
+                    "id",
+                    "invoice_id",
+                    "name",
+                    "hsCode",
+                    "productDescription",
+                  ],
+                  limit: 10,
+                });
+                console.log(
+                  "🔍 Sample invoice items with matching HS codes:",
+                  sampleItems.map((item) => ({
+                    id: item.id,
+                    invoice_id: item.invoice_id,
+                    name: item.name,
+                    hsCode: item.hsCode,
+                    productDescription: item.productDescription,
+                  }))
+                );
+              } catch (error) {
+                console.log("🔍 Error checking sample items:", error.message);
+              }
+            }
+
+            // Use a different approach - get invoice IDs that have matching products first
+            if (productNames.length > 0 || productHsCodes.length > 0) {
+              try {
+                // First, find all invoice IDs that have items matching our products
+                const { InvoiceItem } = req.tenantModels;
+
+                // Debug: Check if we can find any invoice items at all
+                const totalItems = await InvoiceItem.count();
+                console.log("Total invoice items in database:", totalItems);
+
+                // Debug: Check a sample item to see what columns exist
+                const sampleItem = await InvoiceItem.findOne({
+                  attributes: [
+                    "id",
+                    "invoice_id",
+                    "name",
+                    "hsCode",
+                    "productDescription",
+                  ],
+                });
+                console.log(
+                  "Sample invoice item:",
+                  sampleItem ? sampleItem.toJSON() : "No items found"
+                );
+
+                // Debug: Try to find items with the specific HS code we're looking for
+                const testHsCode = productHsCodes[0];
+                if (testHsCode) {
+                  try {
+                    const testItems = await InvoiceItem.findAll({
+                      where: {
+                        hsCode: testHsCode,
+                      },
+                      limit: 5,
                     });
-                    console.log('🔍 Sample invoice items with matching HS codes:', sampleItems.map(item => ({
-                      id: item.id,
-                      invoice_id: item.invoice_id,
-                      name: item.name,
-                      hsCode: item.hsCode,
-                      productDescription: item.productDescription
-                    })));
+                    console.log(
+                      `Test items with HS code ${testHsCode}:`,
+                      testItems.map((item) => ({
+                        id: item.id,
+                        invoice_id: item.invoice_id,
+                        name: item.name,
+                        hsCode: item.hsCode,
+                        productDescription: item.productDescription,
+                      }))
+                    );
                   } catch (error) {
-                    console.log('🔍 Error checking sample items:', error.message);
+                    console.log(
+                      `Error searching for HS code ${testHsCode}:`,
+                      error.message
+                    );
+
+                    // Try with raw SQL to see what columns exist
+                    try {
+                      const [results] = await req.tenantDb.query(
+                        "DESCRIBE invoice_items"
+                      );
+                      console.log(
+                        "Available columns in invoice_items:",
+                        results.map((col) => col.Field)
+                      );
+                    } catch (descError) {
+                      console.log("Error describing table:", descError.message);
+                    }
                   }
                 }
-                
-                // Use a different approach - get invoice IDs that have matching products first
-                if (productNames.length > 0 || productHsCodes.length > 0) {
-                  try {
-                    // First, find all invoice IDs that have items matching our products
-                    const { InvoiceItem } = req.tenantModels;
-                    
-                    // Debug: Check if we can find any invoice items at all
-                    const totalItems = await InvoiceItem.count();
-                    console.log('Total invoice items in database:', totalItems);
-                    
-                    // Debug: Check a sample item to see what columns exist
-                    const sampleItem = await InvoiceItem.findOne({
-                      attributes: ['id', 'invoice_id', 'name', 'hsCode', 'productDescription']
-                    });
-                    console.log('Sample invoice item:', sampleItem ? sampleItem.toJSON() : 'No items found');
-                    
-                    // Debug: Try to find items with the specific HS code we're looking for
-                    const testHsCode = productHsCodes[0];
-                    if (testHsCode) {
-                      try {
-                        const testItems = await InvoiceItem.findAll({
-                          where: {
-                            hsCode: testHsCode
+
+                const invoiceItemConditions = [];
+
+                // Prioritize exact product name matching first
+                if (productNames.length > 0) {
+                  // Use exact matching for product names first
+                  const nameConditions = [];
+                  productNames.forEach((productName) => {
+                    // Clean the product name for better matching
+                    const cleanProductName = productName.trim();
+                    if (cleanProductName) {
+                      nameConditions.push({
+                        [req.tenantDb.Sequelize.Op.or]: [
+                          {
+                            name: {
+                              [req.tenantDb.Sequelize.Op.eq]: cleanProductName,
+                            },
                           },
-                          limit: 5
-                        });
-                        console.log(`Test items with HS code ${testHsCode}:`, testItems.map(item => ({
-                          id: item.id,
-                          invoice_id: item.invoice_id,
-                          name: item.name,
-                          hsCode: item.hsCode,
-                          productDescription: item.productDescription
-                        })));
-                      } catch (error) {
-                        console.log(`Error searching for HS code ${testHsCode}:`, error.message);
-                        
-                        // Try with raw SQL to see what columns exist
-                        try {
-                          const [results] = await req.tenantDb.query('DESCRIBE invoice_items');
-                          console.log('Available columns in invoice_items:', results.map(col => col.Field));
-                        } catch (descError) {
-                          console.log('Error describing table:', descError.message);
-                        }
-                      }
-                    }
-                    
-                    const invoiceItemConditions = [];
-                    
-                    // Prioritize exact product name matching first
-                    if (productNames.length > 0) {
-                      // Use exact matching for product names first
-                      const nameConditions = [];
-                      productNames.forEach(productName => {
-                        // Clean the product name for better matching
-                        const cleanProductName = productName.trim();
-                        if (cleanProductName) {
-                          nameConditions.push({
-                            [req.tenantDb.Sequelize.Op.or]: [
-                              {
-                                name: {
-                                  [req.tenantDb.Sequelize.Op.eq]: cleanProductName
-                                }
-                              },
-                              {
-                                productDescription: {
-                                  [req.tenantDb.Sequelize.Op.eq]: cleanProductName
-                                }
-                              }
-                            ]
-                          });
-                        }
-                      });
-                      
-                      invoiceItemConditions.push({
-                        [req.tenantDb.Sequelize.Op.or]: nameConditions
+                          {
+                            productDescription: {
+                              [req.tenantDb.Sequelize.Op.eq]: cleanProductName,
+                            },
+                          },
+                        ],
                       });
                     }
-                    
-                    // Add HS code matching as secondary criteria (only if no exact name matches)
-                    if (productHsCodes.length > 0 && productNames.length === 0) {
-                      // Use partial matching for HS codes only if no product names specified
-                      const hsCodeConditions = [];
-                      productHsCodes.forEach(hsCode => {
-                        // Clean the HS code for better matching
-                        const cleanHsCode = hsCode.trim();
-                        if (cleanHsCode) {
-                          hsCodeConditions.push({
-                            hsCode: {
-                              [req.tenantDb.Sequelize.Op.like]: `%${cleanHsCode}%`
-                            }
-                          });
-                        }
-                      });
-                      
-                      invoiceItemConditions.push({
-                        [req.tenantDb.Sequelize.Op.or]: hsCodeConditions
+                  });
+
+                  invoiceItemConditions.push({
+                    [req.tenantDb.Sequelize.Op.or]: nameConditions,
+                  });
+                }
+
+                // Add HS code matching as secondary criteria (only if no exact name matches)
+                if (productHsCodes.length > 0 && productNames.length === 0) {
+                  // Use partial matching for HS codes only if no product names specified
+                  const hsCodeConditions = [];
+                  productHsCodes.forEach((hsCode) => {
+                    // Clean the HS code for better matching
+                    const cleanHsCode = hsCode.trim();
+                    if (cleanHsCode) {
+                      hsCodeConditions.push({
+                        hsCode: {
+                          [req.tenantDb.Sequelize.Op.like]: `%${cleanHsCode}%`,
+                        },
                       });
                     }
-                    
-                    console.log('🔍 Product Filter Debug Info:');
-                    console.log('🔍 Product names we are searching for:', productNames);
-                    console.log('🔍 HS codes we are searching for:', productHsCodes);
-                    console.log('🔍 Invoice item search conditions:', JSON.stringify(invoiceItemConditions, null, 2));
-                    
-                    // Debug: Show what products were selected from the frontend
-                    console.log('🔍 Selected products from frontend:', products.map(p => ({ 
-                      id: p.id, 
-                      name: p.name, 
-                      hsCode: p.hsCode 
-                    })));
-                    
-                    // Try to find matching items with the conditions
-                    let matchingItems = [];
-                    
-                    if (invoiceItemConditions.length > 0) {
+                  });
+
+                  invoiceItemConditions.push({
+                    [req.tenantDb.Sequelize.Op.or]: hsCodeConditions,
+                  });
+                }
+
+                console.log("🔍 Product Filter Debug Info:");
+                console.log(
+                  "🔍 Product names we are searching for:",
+                  productNames
+                );
+                console.log(
+                  "🔍 HS codes we are searching for:",
+                  productHsCodes
+                );
+                console.log(
+                  "🔍 Invoice item search conditions:",
+                  JSON.stringify(invoiceItemConditions, null, 2)
+                );
+
+                // Debug: Show what products were selected from the frontend
+                console.log(
+                  "🔍 Selected products from frontend:",
+                  products.map((p) => ({
+                    id: p.id,
+                    name: p.name,
+                    hsCode: p.hsCode,
+                  }))
+                );
+
+                // Try to find matching items with the conditions
+                let matchingItems = [];
+
+                if (invoiceItemConditions.length > 0) {
+                  matchingItems = await InvoiceItem.findAll({
+                    where: {
+                      [req.tenantDb.Sequelize.Op.or]: invoiceItemConditions,
+                    },
+                    attributes: [
+                      "invoice_id",
+                      "name",
+                      "hsCode",
+                      "productDescription",
+                    ],
+                    group: [
+                      "invoice_id",
+                      "name",
+                      "hsCode",
+                      "productDescription",
+                    ],
+                  });
+                }
+
+                console.log(
+                  "🔍 Initial matching items found:",
+                  matchingItems.length
+                );
+
+                // If no items found with exact name search, try word boundary matching
+                if (matchingItems.length === 0 && productNames.length > 0) {
+                  console.log(
+                    "🔍 No items found with exact name search, trying word boundary matching..."
+                  );
+
+                  const nameConditions = [];
+                  productNames.forEach((productName) => {
+                    const cleanProductName = productName.trim();
+                    if (cleanProductName) {
+                      // Use word boundary matching to avoid partial matches
+                      nameConditions.push({
+                        [req.tenantDb.Sequelize.Op.or]: [
+                          {
+                            name: {
+                              [req.tenantDb.Sequelize.Op.regexp]:
+                                `\\b${cleanProductName}\\b`,
+                            },
+                          },
+                          {
+                            productDescription: {
+                              [req.tenantDb.Sequelize.Op.regexp]:
+                                `\\b${cleanProductName}\\b`,
+                            },
+                          },
+                        ],
+                      });
+                    }
+                  });
+
+                  if (nameConditions.length > 0) {
+                    try {
                       matchingItems = await InvoiceItem.findAll({
                         where: {
-                          [req.tenantDb.Sequelize.Op.or]: invoiceItemConditions
+                          [req.tenantDb.Sequelize.Op.or]: nameConditions,
                         },
-                        attributes: ['invoice_id', 'name', 'hsCode', 'productDescription'],
-                        group: ['invoice_id', 'name', 'hsCode', 'productDescription']
+                        attributes: [
+                          "invoice_id",
+                          "name",
+                          "hsCode",
+                          "productDescription",
+                        ],
+                        group: [
+                          "invoice_id",
+                          "name",
+                          "hsCode",
+                          "productDescription",
+                        ],
                       });
-                    }
-                    
-                    console.log('🔍 Initial matching items found:', matchingItems.length);
-                    
-                    // If no items found with exact name search, try word boundary matching
-                    if (matchingItems.length === 0 && productNames.length > 0) {
-                      console.log('🔍 No items found with exact name search, trying word boundary matching...');
-                      
-                      const nameConditions = [];
-                      productNames.forEach(productName => {
+                      console.log(
+                        "🔍 Word boundary search found:",
+                        matchingItems.length,
+                        "items"
+                      );
+                    } catch (error) {
+                      console.log(
+                        "🔍 Word boundary search failed, trying partial matching as fallback..."
+                      );
+                      // Fallback to partial matching if regex fails
+                      const partialConditions = [];
+                      productNames.forEach((productName) => {
                         const cleanProductName = productName.trim();
                         if (cleanProductName) {
-                          // Use word boundary matching to avoid partial matches
-                          nameConditions.push({
+                          partialConditions.push({
                             [req.tenantDb.Sequelize.Op.or]: [
                               {
                                 name: {
-                                  [req.tenantDb.Sequelize.Op.regexp]: `\\b${cleanProductName}\\b`
-                                }
+                                  [req.tenantDb.Sequelize.Op.like]:
+                                    `%${cleanProductName}%`,
+                                },
                               },
                               {
                                 productDescription: {
-                                  [req.tenantDb.Sequelize.Op.regexp]: `\\b${cleanProductName}\\b`
-                                }
-                              }
-                            ]
-                          });
-                        }
-                      });
-                      
-                      if (nameConditions.length > 0) {
-                        try {
-                          matchingItems = await InvoiceItem.findAll({
-                            where: {
-                              [req.tenantDb.Sequelize.Op.or]: nameConditions
-                            },
-                            attributes: ['invoice_id', 'name', 'hsCode', 'productDescription'],
-                            group: ['invoice_id', 'name', 'hsCode', 'productDescription']
-                          });
-                          console.log('🔍 Word boundary search found:', matchingItems.length, 'items');
-                        } catch (error) {
-                          console.log('🔍 Word boundary search failed, trying partial matching as fallback...');
-                          // Fallback to partial matching if regex fails
-                          const partialConditions = [];
-                          productNames.forEach(productName => {
-                            const cleanProductName = productName.trim();
-                            if (cleanProductName) {
-                              partialConditions.push({
-                                [req.tenantDb.Sequelize.Op.or]: [
-                                  {
-                                    name: {
-                                      [req.tenantDb.Sequelize.Op.like]: `%${cleanProductName}%`
-                                    }
-                                  },
-                                  {
-                                    productDescription: {
-                                      [req.tenantDb.Sequelize.Op.like]: `%${cleanProductName}%`
-                                    }
-                                  }
-                                ]
-                              });
-                            }
-                          });
-                          
-                          if (partialConditions.length > 0) {
-                            matchingItems = await InvoiceItem.findAll({
-                              where: {
-                                [req.tenantDb.Sequelize.Op.or]: partialConditions
+                                  [req.tenantDb.Sequelize.Op.like]:
+                                    `%${cleanProductName}%`,
+                                },
                               },
-                              attributes: ['invoice_id', 'name', 'hsCode', 'productDescription'],
-                              group: ['invoice_id', 'name', 'hsCode', 'productDescription']
-                            });
-                            console.log('🔍 Partial name search found:', matchingItems.length, 'items');
-                          }
-                        }
-                      }
-                    }
-                    
-                    // Only try HS code search if no product names were specified
-                    if (matchingItems.length === 0 && productHsCodes.length > 0 && productNames.length === 0) {
-                      console.log('🔍 No product names specified, trying HS code only search...');
-                      
-                      const hsCodeConditions = [];
-                      productHsCodes.forEach(hsCode => {
-                        const cleanHsCode = hsCode.trim();
-                        if (cleanHsCode) {
-                          hsCodeConditions.push({
-                            hsCode: {
-                              [req.tenantDb.Sequelize.Op.eq]: cleanHsCode
-                            }
+                            ],
                           });
                         }
                       });
-                      
-                      if (hsCodeConditions.length > 0) {
+
+                      if (partialConditions.length > 0) {
                         matchingItems = await InvoiceItem.findAll({
                           where: {
-                            [req.tenantDb.Sequelize.Op.or]: hsCodeConditions
+                            [req.tenantDb.Sequelize.Op.or]: partialConditions,
                           },
-                          attributes: ['invoice_id', 'name', 'hsCode', 'productDescription'],
-                          group: ['invoice_id', 'name', 'hsCode', 'productDescription']
+                          attributes: [
+                            "invoice_id",
+                            "name",
+                            "hsCode",
+                            "productDescription",
+                          ],
+                          group: [
+                            "invoice_id",
+                            "name",
+                            "hsCode",
+                            "productDescription",
+                          ],
                         });
-                        console.log('🔍 HS code only search found:', matchingItems.length, 'items');
+                        console.log(
+                          "🔍 Partial name search found:",
+                          matchingItems.length,
+                          "items"
+                        );
                       }
                     }
-                    
-                    console.log('🔍 Final matching items found:', matchingItems.length);
-                    console.log('🔍 Sample matching items:', matchingItems.slice(0, 5).map(item => ({
-                      invoice_id: item.invoice_id,
-                      name: item.name,
-                      hsCode: item.hsCode,
-                      productDescription: item.productDescription
-                    })));
-                    
-                    // Debug: Show all matching items to understand what's being returned
-                    console.log('🔍 All matching items details:', matchingItems.map(item => ({
-                      invoice_id: item.invoice_id,
-                      name: item.name,
-                      hsCode: item.hsCode,
-                      productDescription: item.productDescription,
-                      matches_search: productNames.includes(item.name) || productNames.includes(item.productDescription)
-                    })));
-                    
-                    const matchingInvoiceIds = matchingItems.map(item => item.invoice_id);
-                    console.log('🔍 Found matching invoice IDs:', matchingInvoiceIds);
-                    
-                    if (matchingInvoiceIds.length > 0) {
-                      whereClause.id = {
-                        [req.tenantDb.Sequelize.Op.in]: matchingInvoiceIds
-                      };
-                      console.log('🔍 Filtering invoices by matching invoice IDs:', matchingInvoiceIds.length, 'invoices');
-                    } else {
-                      console.log('🔍 No matching invoice items found, returning empty results');
-                      whereClause.id = -1; // This will return no results
-                    }
-                  } catch (error) {
-                    console.error('Error finding matching invoice items:', error);
-                    whereClause.id = -1; // This will return no results
                   }
+                }
+
+                // Only try HS code search if no product names were specified
+                if (
+                  matchingItems.length === 0 &&
+                  productHsCodes.length > 0 &&
+                  productNames.length === 0
+                ) {
+                  console.log(
+                    "🔍 No product names specified, trying HS code only search..."
+                  );
+
+                  const hsCodeConditions = [];
+                  productHsCodes.forEach((hsCode) => {
+                    const cleanHsCode = hsCode.trim();
+                    if (cleanHsCode) {
+                      hsCodeConditions.push({
+                        hsCode: {
+                          [req.tenantDb.Sequelize.Op.eq]: cleanHsCode,
+                        },
+                      });
+                    }
+                  });
+
+                  if (hsCodeConditions.length > 0) {
+                    matchingItems = await InvoiceItem.findAll({
+                      where: {
+                        [req.tenantDb.Sequelize.Op.or]: hsCodeConditions,
+                      },
+                      attributes: [
+                        "invoice_id",
+                        "name",
+                        "hsCode",
+                        "productDescription",
+                      ],
+                      group: [
+                        "invoice_id",
+                        "name",
+                        "hsCode",
+                        "productDescription",
+                      ],
+                    });
+                    console.log(
+                      "🔍 HS code only search found:",
+                      matchingItems.length,
+                      "items"
+                    );
+                  }
+                }
+
+                console.log(
+                  "🔍 Final matching items found:",
+                  matchingItems.length
+                );
+                console.log(
+                  "🔍 Sample matching items:",
+                  matchingItems.slice(0, 5).map((item) => ({
+                    invoice_id: item.invoice_id,
+                    name: item.name,
+                    hsCode: item.hsCode,
+                    productDescription: item.productDescription,
+                  }))
+                );
+
+                // Debug: Show all matching items to understand what's being returned
+                console.log(
+                  "🔍 All matching items details:",
+                  matchingItems.map((item) => ({
+                    invoice_id: item.invoice_id,
+                    name: item.name,
+                    hsCode: item.hsCode,
+                    productDescription: item.productDescription,
+                    matches_search:
+                      productNames.includes(item.name) ||
+                      productNames.includes(item.productDescription),
+                  }))
+                );
+
+                const matchingInvoiceIds = matchingItems.map(
+                  (item) => item.invoice_id
+                );
+                console.log(
+                  "🔍 Found matching invoice IDs:",
+                  matchingInvoiceIds
+                );
+
+                if (matchingInvoiceIds.length > 0) {
+                  whereClause.id = {
+                    [req.tenantDb.Sequelize.Op.in]: matchingInvoiceIds,
+                  };
+                  console.log(
+                    "🔍 Filtering invoices by matching invoice IDs:",
+                    matchingInvoiceIds.length,
+                    "invoices"
+                  );
                 } else {
-                  console.log('No valid product names or HS codes found, returning empty results');
+                  console.log(
+                    "🔍 No matching invoice items found, returning empty results"
+                  );
                   whereClause.id = -1; // This will return no results
                 }
-              } else {
-                console.log('No products found for IDs:', productIds, 'returning empty results');
+              } catch (error) {
+                console.error("Error finding matching invoice items:", error);
                 whereClause.id = -1; // This will return no results
               }
             } else {
-              console.log('No valid product IDs found, returning empty results');
+              console.log(
+                "No valid product names or HS codes found, returning empty results"
+              );
               whereClause.id = -1; // This will return no results
             }
-          } catch (error) {
-            console.error('Error processing product filter:', error);
+          } else {
+            console.log(
+              "No products found for IDs:",
+              productIds,
+              "returning empty results"
+            );
             whereClause.id = -1; // This will return no results
           }
+        } else {
+          console.log("No valid product IDs found, returning empty results");
+          whereClause.id = -1; // This will return no results
         }
+      } catch (error) {
+        console.error("Error processing product filter:", error);
+        whereClause.id = -1; // This will return no results
+      }
+    }
 
     // Removed default filter to show all invoices (draft, saved, validated, posted, etc.)
 
@@ -2200,15 +2428,15 @@ export const getAllInvoices = async (req, res) => {
       // Since invoiceDate is stored as STRING in database, we need to handle string comparison
       // Convert the date strings to proper format for comparison
       const startDateStr = start_date; // Already in YYYY-MM-DD format from frontend
-      const endDateStr = end_date;     // Already in YYYY-MM-DD format from frontend
-      
-      console.log('Invoice List Date Range Filter:', {
+      const endDateStr = end_date; // Already in YYYY-MM-DD format from frontend
+
+      console.log("Invoice List Date Range Filter:", {
         start_date,
         end_date,
         startDateStr,
-        endDateStr
+        endDateStr,
       });
-      
+
       // Filter by invoiceDate using string comparison since it's stored as STRING
       // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
       whereClause[req.tenantDb.Sequelize.Op.or] = [
@@ -2216,7 +2444,7 @@ export const getAllInvoices = async (req, res) => {
         {
           invoiceDate: {
             [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr],
-          }
+          },
         },
         // Handle DD-MM-YYYY format (convert and compare)
         {
@@ -2224,99 +2452,122 @@ export const getAllInvoices = async (req, res) => {
             [req.tenantDb.Sequelize.Op.and]: [
               // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
               req.tenantDb.Sequelize.where(
-                req.tenantDb.Sequelize.fn('STR_TO_DATE', 
-                  req.tenantDb.Sequelize.col('invoiceDate'), 
-                  '%d-%m-%Y'
+                req.tenantDb.Sequelize.fn(
+                  "STR_TO_DATE",
+                  req.tenantDb.Sequelize.col("invoiceDate"),
+                  "%d-%m-%Y"
                 ),
                 {
-                  [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+                  [req.tenantDb.Sequelize.Op.between]: [
+                    startDateStr,
+                    endDateStr,
+                  ],
                 }
-              )
-            ]
-          }
-        }
+              ),
+            ],
+          },
+        },
       ];
     }
 
+    console.log("🔍 Final whereClause:", JSON.stringify(whereClause, null, 2));
 
-    console.log('🔍 Final whereClause:', JSON.stringify(whereClause, null, 2));
-    
     // Debug: Check total invoices in database
     const totalInvoices = await Invoice.count();
-    console.log('🔍 Total invoices in database:', totalInvoices);
-    
+    console.log("🔍 Total invoices in database:", totalInvoices);
+
     // Debug: Check invoices without any filters to see what we have
     const allInvoices = await Invoice.findAll({
       limit: 5,
-      attributes: ['id', 'invoiceDate', 'buyerBusinessName', 'status'],
-      order: [['created_at', 'DESC']]
+      attributes: ["id", "invoiceDate", "buyerBusinessName", "status"],
+      order: [["created_at", "DESC"]],
     });
-    console.log('🔍 Sample invoices in database:', allInvoices.map(inv => ({
-      id: inv.id,
-      invoiceDate: inv.invoiceDate,
-      buyerBusinessName: inv.buyerBusinessName,
-      status: inv.status
-    })));
-    
+    console.log(
+      "🔍 Sample invoices in database:",
+      allInvoices.map((inv) => ({
+        id: inv.id,
+        invoiceDate: inv.invoiceDate,
+        buyerBusinessName: inv.buyerBusinessName,
+        status: inv.status,
+      }))
+    );
+
     // Debug: Check invoices without any filters
     const sampleInvoices = await Invoice.findAll({
       limit: 5,
-      attributes: ['id', 'invoiceDate', 'buyerNTNCNIC', 'buyerBusinessName', 'created_by_user_id', 'created_by_email'],
-      order: [['created_at', 'DESC']]
+      attributes: [
+        "id",
+        "invoiceDate",
+        "buyerNTNCNIC",
+        "buyerBusinessName",
+        "created_by_user_id",
+        "created_by_email",
+      ],
+      order: [["created_at", "DESC"]],
     });
-    console.log('Sample invoices in database:', sampleInvoices.map(inv => ({
-      id: inv.id,
-      invoiceDate: inv.invoiceDate,
-      buyerNTNCNIC: inv.buyerNTNCNIC,
-      buyerBusinessName: inv.buyerBusinessName,
-      created_by_user_id: inv.created_by_user_id,
-      created_by_email: inv.created_by_email
-    })));
-    
+    console.log(
+      "Sample invoices in database:",
+      sampleInvoices.map((inv) => ({
+        id: inv.id,
+        invoiceDate: inv.invoiceDate,
+        buyerNTNCNIC: inv.buyerNTNCNIC,
+        buyerBusinessName: inv.buyerBusinessName,
+        created_by_user_id: inv.created_by_user_id,
+        created_by_email: inv.created_by_email,
+      }))
+    );
+
     // Debug: Check invoices in date range without buyer filter
     if (start_date && end_date) {
       const startDateStr = start_date;
       const endDateStr = end_date;
-      
+
       const dateRangeInvoices = await Invoice.findAll({
         where: {
           [req.tenantDb.Sequelize.Op.or]: [
             // Handle YYYY-MM-DD format
             {
               invoiceDate: {
-                [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
-              }
+                [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr],
+              },
             },
             // Handle DD-MM-YYYY format (convert and compare)
             {
               invoiceDate: {
                 [req.tenantDb.Sequelize.Op.and]: [
                   req.tenantDb.Sequelize.where(
-                    req.tenantDb.Sequelize.fn('STR_TO_DATE', 
-                      req.tenantDb.Sequelize.col('invoiceDate'), 
-                      '%d-%m-%Y'
+                    req.tenantDb.Sequelize.fn(
+                      "STR_TO_DATE",
+                      req.tenantDb.Sequelize.col("invoiceDate"),
+                      "%d-%m-%Y"
                     ),
                     {
-                      [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+                      [req.tenantDb.Sequelize.Op.between]: [
+                        startDateStr,
+                        endDateStr,
+                      ],
                     }
-                  )
-                ]
-              }
-            }
-          ]
+                  ),
+                ],
+              },
+            },
+          ],
         },
         limit: 5,
-        attributes: ['id', 'invoiceDate', 'buyerNTNCNIC', 'buyerBusinessName'],
-        order: [['created_at', 'DESC']]
+        attributes: ["id", "invoiceDate", "buyerNTNCNIC", "buyerBusinessName"],
+        order: [["created_at", "DESC"]],
       });
-      console.log('Invoices in date range (no buyer filter):', dateRangeInvoices.map(inv => ({
-        id: inv.id,
-        invoiceDate: inv.invoiceDate,
-        buyerNTNCNIC: inv.buyerNTNCNIC,
-        buyerBusinessName: inv.buyerBusinessName
-      })));
+      console.log(
+        "Invoices in date range (no buyer filter):",
+        dateRangeInvoices.map((inv) => ({
+          id: inv.id,
+          invoiceDate: inv.invoiceDate,
+          buyerNTNCNIC: inv.buyerNTNCNIC,
+          buyerBusinessName: inv.buyerBusinessName,
+        }))
+      );
     }
-    
+
     const { count, rows } = await Invoice.findAndCountAll({
       where: whereClause,
 
@@ -2336,7 +2587,7 @@ export const getAllInvoices = async (req, res) => {
 
       order: [
         [sort_by, sort_order.toUpperCase()],
-        ['created_at', 'DESC'] // Secondary sort for consistent ordering
+        ["created_at", "DESC"], // Secondary sort for consistent ordering
       ],
     });
 
@@ -2430,32 +2681,39 @@ export const getAllInvoices = async (req, res) => {
       };
     });
 
-    console.log('Query results - count:', count, 'invoices found');
-    console.log('Sample invoice buyerNTNCNIC values:', 
-      transformedInvoices.slice(0, 3).map(inv => ({
-        id: inv.id,
-        buyerNTNCNIC: inv.buyerNTNCNIC,
-        buyerBusinessName: inv.buyerBusinessName
-      }))
-    );
-    
-    // Debug: Check if there are any invoices with the buyer NTN/CNIC values
-    if (whereClause.buyerNTNCNIC && whereClause.buyerNTNCNIC[req.tenantDb.Sequelize.Op.in]) {
-      const matchingInvoices = await Invoice.findAll({
-        where: {
-          buyerNTNCNIC: whereClause.buyerNTNCNIC[req.tenantDb.Sequelize.Op.in]
-        },
-        attributes: ['id', 'buyerNTNCNIC', 'buyerBusinessName', 'invoiceDate'],
-        limit: 5
-      });
-      console.log('Invoices matching buyer NTN/CNIC filter:', matchingInvoices.map(inv => ({
+    console.log("Query results - count:", count, "invoices found");
+    console.log(
+      "Sample invoice buyerNTNCNIC values:",
+      transformedInvoices.slice(0, 3).map((inv) => ({
         id: inv.id,
         buyerNTNCNIC: inv.buyerNTNCNIC,
         buyerBusinessName: inv.buyerBusinessName,
-        invoiceDate: inv.invoiceDate
-      })));
+      }))
+    );
+
+    // Debug: Check if there are any invoices with the buyer NTN/CNIC values
+    if (
+      whereClause.buyerNTNCNIC &&
+      whereClause.buyerNTNCNIC[req.tenantDb.Sequelize.Op.in]
+    ) {
+      const matchingInvoices = await Invoice.findAll({
+        where: {
+          buyerNTNCNIC: whereClause.buyerNTNCNIC[req.tenantDb.Sequelize.Op.in],
+        },
+        attributes: ["id", "buyerNTNCNIC", "buyerBusinessName", "invoiceDate"],
+        limit: 5,
+      });
+      console.log(
+        "Invoices matching buyer NTN/CNIC filter:",
+        matchingInvoices.map((inv) => ({
+          id: inv.id,
+          buyerNTNCNIC: inv.buyerNTNCNIC,
+          buyerBusinessName: inv.buyerBusinessName,
+          invoiceDate: inv.invoiceDate,
+        }))
+      );
     }
-    
+
     res.status(200).json({
       success: true,
 
@@ -2464,7 +2722,8 @@ export const getAllInvoices = async (req, res) => {
 
         pagination: {
           current_page: limitNumber >= 999999 ? 1 : pageNumber,
-          total_pages: limitNumber >= 999999 ? 1 : Math.ceil(count / limitNumber),
+          total_pages:
+            limitNumber >= 999999 ? 1 : Math.ceil(count / limitNumber),
           total_records: count,
           records_per_page: limitNumber >= 999999 ? count : limitNumber,
         },
@@ -2887,7 +3146,7 @@ export const updateInvoice = async (req, res) => {
 
     // Get old invoice items for backup
     const oldInvoiceItems = await req.tenantModels.InvoiceItem.findAll({
-      where: { invoice_id: invoice.id }
+      where: { invoice_id: invoice.id },
     });
 
     // Store old values for audit BEFORE updating
@@ -2904,7 +3163,7 @@ export const updateInvoice = async (req, res) => {
       companyInvoiceRefNo: invoice.companyInvoiceRefNo,
       internal_invoice_no: invoice.internal_invoice_no,
       transctypeId: invoice.transctypeId,
-      
+
       // Complete Seller Information
       sellerNTNCNIC: invoice.sellerNTNCNIC,
       sellerFullNTN: invoice.sellerFullNTN,
@@ -2912,19 +3171,19 @@ export const updateInvoice = async (req, res) => {
       sellerProvince: invoice.sellerProvince,
       sellerAddress: invoice.sellerAddress,
       sellerCity: invoice.sellerCity,
-      
+
       // Complete Buyer Information
       buyerNTNCNIC: invoice.buyerNTNCNIC,
       buyerBusinessName: invoice.buyerBusinessName,
       buyerProvince: invoice.buyerProvince,
       buyerAddress: invoice.buyerAddress,
       buyerRegistrationType: invoice.buyerRegistrationType,
-      
+
       // Financial Information
       totalAmount: invoice.totalAmount,
-      
+
       // Complete Invoice Items with All Details
-      invoice_items: oldInvoiceItems.map(item => ({
+      invoice_items: oldInvoiceItems.map((item) => ({
         id: item.id,
         product_name: item.name,
         hsCode: item.hsCode,
@@ -2946,8 +3205,8 @@ export const updateInvoice = async (req, res) => {
         discount: item.discount,
         saleType: item.saleType,
         sroItemSerialNo: item.sroItemSerialNo,
-        billOfLadingUoM: item.billOfLadingUoM
-      }))
+        billOfLadingUoM: item.billOfLadingUoM,
+      })),
     };
 
     // Update the invoice
@@ -2958,7 +3217,7 @@ export const updateInvoice = async (req, res) => {
 
     // Get updated invoice items for backup
     const newInvoiceItems = await req.tenantModels.InvoiceItem.findAll({
-      where: { invoice_id: invoice.id }
+      where: { invoice_id: invoice.id },
     });
 
     // Prepare new values for audit
@@ -2975,7 +3234,7 @@ export const updateInvoice = async (req, res) => {
       companyInvoiceRefNo: invoice.companyInvoiceRefNo,
       internal_invoice_no: invoice.internal_invoice_no,
       transctypeId: invoice.transctypeId,
-      
+
       // Complete Seller Information
       sellerNTNCNIC: invoice.sellerNTNCNIC,
       sellerFullNTN: invoice.sellerFullNTN,
@@ -2983,19 +3242,19 @@ export const updateInvoice = async (req, res) => {
       sellerProvince: invoice.sellerProvince,
       sellerAddress: invoice.sellerAddress,
       sellerCity: invoice.sellerCity,
-      
+
       // Complete Buyer Information
       buyerNTNCNIC: invoice.buyerNTNCNIC,
       buyerBusinessName: invoice.buyerBusinessName,
       buyerProvince: invoice.buyerProvince,
       buyerAddress: invoice.buyerAddress,
       buyerRegistrationType: invoice.buyerRegistrationType,
-      
+
       // Financial Information
       totalAmount: invoice.totalAmount,
-      
+
       // Complete Invoice Items with All Details
-      invoice_items: newInvoiceItems.map(item => ({
+      invoice_items: newInvoiceItems.map((item) => ({
         id: item.id,
         product_name: item.name,
         hsCode: item.hsCode,
@@ -3017,8 +3276,8 @@ export const updateInvoice = async (req, res) => {
         discount: item.discount,
         saleType: item.saleType,
         sroItemSerialNo: item.sroItemSerialNo,
-        billOfLadingUoM: item.billOfLadingUoM
-      }))
+        billOfLadingUoM: item.billOfLadingUoM,
+      })),
     };
 
     // Create backup for invoice edit
@@ -3035,8 +3294,8 @@ export const updateInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating edit backup:", backupError);
@@ -3098,7 +3357,7 @@ export const deleteInvoice = async (req, res) => {
 
     // Get invoice items before deletion
     const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-      where: { invoice_id: invoice.id }
+      where: { invoice_id: invoice.id },
     });
 
     // Store old values for audit before deletion
@@ -3115,7 +3374,7 @@ export const deleteInvoice = async (req, res) => {
       companyInvoiceRefNo: invoice.companyInvoiceRefNo,
       internal_invoice_no: invoice.internal_invoice_no,
       transctypeId: invoice.transctypeId,
-      
+
       // Complete Seller Information
       sellerNTNCNIC: invoice.sellerNTNCNIC,
       sellerFullNTN: invoice.sellerFullNTN,
@@ -3123,19 +3382,19 @@ export const deleteInvoice = async (req, res) => {
       sellerProvince: invoice.sellerProvince,
       sellerAddress: invoice.sellerAddress,
       sellerCity: invoice.sellerCity,
-      
+
       // Complete Buyer Information
       buyerNTNCNIC: invoice.buyerNTNCNIC,
       buyerBusinessName: invoice.buyerBusinessName,
       buyerProvince: invoice.buyerProvince,
       buyerAddress: invoice.buyerAddress,
       buyerRegistrationType: invoice.buyerRegistrationType,
-      
+
       // Financial Information
       totalAmount: invoice.totalAmount,
-      
+
       // Complete Invoice Items with All Details
-      invoice_items: invoiceItems.map(item => ({
+      invoice_items: invoiceItems.map((item) => ({
         id: item.id,
         product_name: item.name,
         hsCode: item.hsCode,
@@ -3157,13 +3416,13 @@ export const deleteInvoice = async (req, res) => {
         discount: item.discount,
         saleType: item.saleType,
         sroItemSerialNo: item.sroItemSerialNo,
-        billOfLadingUoM: item.billOfLadingUoM
-      }))
+        billOfLadingUoM: item.billOfLadingUoM,
+      })),
     };
 
     // Delete invoice items first to avoid foreign key constraint
     await req.tenantModels.InvoiceItem.destroy({
-      where: { invoice_id: invoice.id }
+      where: { invoice_id: invoice.id },
     });
 
     // Now delete the invoice
@@ -3215,7 +3474,7 @@ export const getInvoiceStats = async (req, res) => {
     if (start_date && end_date) {
       const startDateStr = start_date;
       const endDateStr = end_date;
-      
+
       // Filter by invoiceDate using string comparison since it's stored as STRING
       // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
       whereClause[req.tenantDb.Sequelize.Op.or] = [
@@ -3223,7 +3482,7 @@ export const getInvoiceStats = async (req, res) => {
         {
           invoiceDate: {
             [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr],
-          }
+          },
         },
         // Handle DD-MM-YYYY format (convert and compare)
         {
@@ -3231,17 +3490,21 @@ export const getInvoiceStats = async (req, res) => {
             [req.tenantDb.Sequelize.Op.and]: [
               // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
               req.tenantDb.Sequelize.where(
-                req.tenantDb.Sequelize.fn('STR_TO_DATE', 
-                  req.tenantDb.Sequelize.col('invoiceDate'), 
-                  '%d-%m-%Y'
+                req.tenantDb.Sequelize.fn(
+                  "STR_TO_DATE",
+                  req.tenantDb.Sequelize.col("invoiceDate"),
+                  "%d-%m-%Y"
                 ),
                 {
-                  [req.tenantDb.Sequelize.Op.between]: [startDateStr, endDateStr]
+                  [req.tenantDb.Sequelize.Op.between]: [
+                    startDateStr,
+                    endDateStr,
+                  ],
                 }
-              )
-            ]
-          }
-        }
+              ),
+            ],
+          },
+        },
       ];
     }
 
@@ -3429,7 +3692,9 @@ export const submitSavedInvoice = async (req, res) => {
 
       buyerProvince: cleanValue(invoice.buyerProvince),
 
-      buyerAddress: cleanValue(invoice.buyerAddress),
+      buyerAddress: cleanValue(invoice.buyerAddress)
+        ? cleanValue(invoice.buyerAddress).replace(/\n/g, " ")
+        : cleanValue(invoice.buyerAddress),
 
       buyerRegistrationType: cleanValue(invoice.buyerRegistrationType),
 
@@ -3484,7 +3749,9 @@ export const submitSavedInvoice = async (req, res) => {
         const baseItem = {
           hsCode: cleanValue(item.hsCode).substring(0, 50),
 
-          productDescription: cleanValue(item.productDescription),
+          productDescription: cleanValue(item.productDescription)
+            ? cleanValue(item.productDescription).replace(/\n/g, " ")
+            : cleanValue(item.productDescription),
 
           rate: processedRate,
 
@@ -3590,8 +3857,8 @@ export const submitSavedInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating FBR request backup:", backupError);
@@ -3626,8 +3893,8 @@ export const submitSavedInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating FBR response backup:", backupError);
@@ -3840,8 +4107,8 @@ export const submitSavedInvoice = async (req, res) => {
         request: {
           ip: req.ip || req.connection?.remoteAddress,
           userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null
-        }
+          requestId: req.headers?.["x-request-id"] || null,
+        },
       });
     } catch (backupError) {
       console.error("❌ Error creating post backup:", backupError);
@@ -3899,7 +4166,7 @@ export const submitSavedInvoice = async (req, res) => {
         companyInvoiceRefNo: invoice.companyInvoiceRefNo,
         internal_invoice_no: invoice.internal_invoice_no,
         transctypeId: invoice.transctypeId,
-        
+
         // Complete Seller Information
         sellerNTNCNIC: invoice.sellerNTNCNIC,
         sellerFullNTN: invoice.sellerFullNTN,
@@ -3907,42 +4174,45 @@ export const submitSavedInvoice = async (req, res) => {
         sellerProvince: invoice.sellerProvince,
         sellerAddress: invoice.sellerAddress,
         sellerCity: invoice.sellerCity,
-        
+
         // Complete Buyer Information
         buyerNTNCNIC: invoice.buyerNTNCNIC,
         buyerBusinessName: invoice.buyerBusinessName,
         buyerProvince: invoice.buyerProvince,
         buyerAddress: invoice.buyerAddress,
         buyerRegistrationType: invoice.buyerRegistrationType,
-        
+
         // Financial Information
         totalAmount: invoice.totalAmount,
-        
+
         // Complete Invoice Items with All Details
-        invoice_items: invoice.InvoiceItems ? invoice.InvoiceItems.map(item => ({
-          id: item.id,
-          product_name: item.name,
-          hsCode: item.hsCode,
-          productDescription: item.productDescription,
-          quantity: item.quantity,
-          rate: item.rate,
-          uoM: item.uoM,
-          unitPrice: item.unitPrice,
-          totalValues: item.totalValues,
-          valueSalesExcludingST: item.valueSalesExcludingST,
-          fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
-          salesTaxApplicable: item.salesTaxApplicable,
-          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-          extraTax: item.extraTax,
-          furtherTax: item.furtherTax,
-          sroScheduleNo: item.sroScheduleNo,
-          fedPayable: item.fedPayable,
-          advanceIncomeTax: item.advanceIncomeTax,
-          discount: item.discount,
-          saleType: item.saleType,
-          sroItemSerialNo: item.sroItemSerialNo,
-          billOfLadingUoM: item.billOfLadingUoM
-        })) : []
+        invoice_items: invoice.InvoiceItems
+          ? invoice.InvoiceItems.map((item) => ({
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
+          : [],
       }, // oldValues (before submission)
       {
         // Basic Invoice Information
@@ -3957,7 +4227,7 @@ export const submitSavedInvoice = async (req, res) => {
         companyInvoiceRefNo: updatedInvoice.companyInvoiceRefNo,
         internal_invoice_no: updatedInvoice.internal_invoice_no,
         transctypeId: updatedInvoice.transctypeId,
-        
+
         // Complete Seller Information
         sellerNTNCNIC: updatedInvoice.sellerNTNCNIC,
         sellerFullNTN: updatedInvoice.sellerFullNTN,
@@ -3965,45 +4235,49 @@ export const submitSavedInvoice = async (req, res) => {
         sellerProvince: updatedInvoice.sellerProvince,
         sellerAddress: updatedInvoice.sellerAddress,
         sellerCity: updatedInvoice.sellerCity,
-        
+
         // Complete Buyer Information
         buyerNTNCNIC: updatedInvoice.buyerNTNCNIC,
         buyerBusinessName: updatedInvoice.buyerBusinessName,
         buyerProvince: updatedInvoice.buyerProvince,
         buyerAddress: updatedInvoice.buyerAddress,
         buyerRegistrationType: updatedInvoice.buyerRegistrationType,
-        
+
         // Financial Information
         totalAmount: updatedInvoice.totalAmount,
-        
+
         // Complete Invoice Items with All Details
-        invoice_items: invoice.InvoiceItems ? invoice.InvoiceItems.map(item => ({
-          id: item.id,
-          product_name: item.name,
-          hsCode: item.hsCode,
-          productDescription: item.productDescription,
-          quantity: item.quantity,
-          rate: item.rate,
-          uoM: item.uoM,
-          unitPrice: item.unitPrice,
-          totalValues: item.totalValues,
-          valueSalesExcludingST: item.valueSalesExcludingST,
-          fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
-          salesTaxApplicable: item.salesTaxApplicable,
-          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-          extraTax: item.extraTax,
-          furtherTax: item.furtherTax,
-          sroScheduleNo: item.sroScheduleNo,
-          fedPayable: item.fedPayable,
-          advanceIncomeTax: item.advanceIncomeTax,
-          discount: item.discount,
-          saleType: item.saleType,
-          sroItemSerialNo: item.sroItemSerialNo,
-          billOfLadingUoM: item.billOfLadingUoM
-        })) : []
+        invoice_items: invoice.InvoiceItems
+          ? invoice.InvoiceItems.map((item) => ({
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
+          : [],
       }, // newValues (after submission)
       {
-        entityName: updatedInvoice.invoice_number || updatedInvoice.system_invoice_id,
+        entityName:
+          updatedInvoice.invoice_number || updatedInvoice.system_invoice_id,
         endpoint: req.originalUrl,
         method: req.method,
         fbrInvoiceNumber: fbrInvoiceNumber,
@@ -4127,7 +4401,7 @@ export const bulkCreateInvoices = async (req, res) => {
             ],
           })
         : [];
-    
+
     // DEBUG: Also check total buyers in database
     const totalBuyersInDb = await Buyer.count();
     console.log(`🔍 DEBUG: Total buyers in database: ${totalBuyersInDb}`);
@@ -4137,47 +4411,52 @@ export const bulkCreateInvoices = async (req, res) => {
       existingBuyers.map((buyer) => [buyer.buyerNTNCNIC, buyer])
     );
 
-    console.log(`🔍 Found ${existingBuyers.length} existing buyers in database`);
-    console.log(`🔍 Buyer NTNs in database:`, existingBuyers.map(b => b.buyerNTNCNIC));
+    console.log(
+      `🔍 Found ${existingBuyers.length} existing buyers in database`
+    );
+    console.log(
+      `🔍 Buyer NTNs in database:`,
+      existingBuyers.map((b) => b.buyerNTNCNIC)
+    );
     console.log(`🔍 Buyer NTNs from CSV:`, uniqueBuyerNTNs);
     console.log(`🔍 DEBUG: uniqueBuyerNTNs length: ${uniqueBuyerNTNs.length}`);
     console.log(`🔍 DEBUG: uniqueBuyerNTNs values:`, uniqueBuyerNTNs);
     console.log(`🔍 DEBUG: existingBuyerMap size: ${existingBuyerMap.size}`);
-    console.log(`🔍 DEBUG: existingBuyerMap keys:`, Array.from(existingBuyerMap.keys()));
+    console.log(
+      `🔍 DEBUG: existingBuyerMap keys:`,
+      Array.from(existingBuyerMap.keys())
+    );
 
     // Extract unique product names for batch validation
     const uniqueProductNames = [
       ...new Set(
         invoices
           .flatMap((inv) => inv.items || [])
-          .map((item) => 
-            item.item_productName?.trim() || 
-            item.name?.trim() || 
-            item.productName?.trim()
+          .map(
+            (item) =>
+              item.item_productName?.trim() ||
+              item.name?.trim() ||
+              item.productName?.trim()
           )
           .filter((name) => name && name.trim())
       ),
     ];
 
-    console.log(`🔍 Found ${uniqueProductNames.length} unique product names to validate`);
+    console.log(
+      `🔍 Found ${uniqueProductNames.length} unique product names to validate`
+    );
 
     // Batch fetch existing products to avoid individual queries
     const { Product } = req.tenantModels;
     const existingProducts =
       uniqueProductNames.length > 0
         ? await Product.findAll({
-            where: { 
+            where: {
               name: {
-                [Product.sequelize.Sequelize.Op.in]: uniqueProductNames
-              }
+                [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
+              },
             },
-            attributes: [
-              "id",
-              "name", 
-              "description",
-              "hsCode",
-              "uom"
-            ],
+            attributes: ["id", "name", "description", "hsCode", "uom"],
           })
         : [];
 
@@ -4189,13 +4468,20 @@ export const bulkCreateInvoices = async (req, res) => {
       existingProductMap.set(product.name.trim(), product);
     });
 
-    console.log(`🔍 Found ${existingProducts.length} existing products in database`);
-    console.log(`🔍 Product names in database:`, existingProducts.map(p => p.name));
+    console.log(
+      `🔍 Found ${existingProducts.length} existing products in database`
+    );
+    console.log(
+      `🔍 Product names in database:`,
+      existingProducts.map((p) => p.name)
+    );
     console.log(`🔍 Product names from CSV:`, uniqueProductNames);
-    
+
     // Safety check: Ensure we have products to validate against
     if (uniqueProductNames.length > 0 && existingProducts.length === 0) {
-      console.log(`⚠️ WARNING: No products found in database but CSV has product names!`);
+      console.log(
+        `⚠️ WARNING: No products found in database but CSV has product names!`
+      );
       console.log(`⚠️ This will cause all product validations to fail.`);
     }
 
@@ -4240,14 +4526,18 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // Process all grouped invoices in memory (no database calls yet)
     console.log(`🔍 DEBUG: Starting to process ${invoices.length} invoices`);
-    
+
     // FIRST PASS: Validate ALL invoices before creating ANY
-    console.log(`🔍 FIRST PASS: Validating all ${invoices.length} invoices before processing any`);
+    console.log(
+      `🔍 FIRST PASS: Validating all ${invoices.length} invoices before processing any`
+    );
     const validationErrors = [];
-    
+
     for (let i = 0; i < invoices.length; i++) {
       const invoiceData = invoices[i];
-      console.log(`🔍 DEBUG: Validating invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`);
+      console.log(
+        `🔍 DEBUG: Validating invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`
+      );
 
       // Progress indicator for large files
       if (i % 100 === 0 && i > 0) {
@@ -4272,7 +4562,7 @@ export const bulkCreateInvoices = async (req, res) => {
           if (!invoiceData.buyerNTNCNIC?.trim()) {
             missingFields.push("Buyer NTN/CNIC");
           }
-          
+
           validationErrors.push({
             index: i,
             row: i + 1,
@@ -4402,17 +4692,26 @@ export const bulkCreateInvoices = async (req, res) => {
         // Handle buyer validation - only check if buyer exists by NTN
         if (invoiceData.buyerNTNCNIC?.trim()) {
           const ntnTrimmed = invoiceData.buyerNTNCNIC.trim();
-          
+
           console.log(`🔍 Validating buyer NTN: "${ntnTrimmed}"`);
-          console.log(`🔍 Available buyers in map:`, Array.from(existingBuyerMap.keys()));
+          console.log(
+            `🔍 Available buyers in map:`,
+            Array.from(existingBuyerMap.keys())
+          );
           console.log(`🔍 DEBUG: Looking for buyer with NTN: "${ntnTrimmed}"`);
-          console.log(`🔍 DEBUG: existingBuyerMap.has("${ntnTrimmed}"): ${existingBuyerMap.has(ntnTrimmed)}`);
-          
+          console.log(
+            `🔍 DEBUG: existingBuyerMap.has("${ntnTrimmed}"): ${existingBuyerMap.has(ntnTrimmed)}`
+          );
+
           const existingBuyer = existingBuyerMap.get(ntnTrimmed);
 
           if (!existingBuyer) {
-            console.log(`❌ Buyer with NTN "${ntnTrimmed}" NOT FOUND in system`);
-            console.log(`🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer`);
+            console.log(
+              `❌ Buyer with NTN "${ntnTrimmed}" NOT FOUND in system`
+            );
+            console.log(
+              `🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer`
+            );
             // Buyer with this NTN doesn't exist in our system
             validationErrors.push({
               index: i,
@@ -4425,17 +4724,20 @@ export const bulkCreateInvoices = async (req, res) => {
           console.log(`✅ Buyer with NTN "${ntnTrimmed}" found in system:`, {
             businessName: existingBuyer.buyerBusinessName,
             province: existingBuyer.buyerProvince,
-            address: existingBuyer.buyerAddress
+            address: existingBuyer.buyerAddress,
           });
 
           // Use existing buyer data instead of CSV data
           invoiceData.buyerBusinessName = existingBuyer.buyerBusinessName;
           invoiceData.buyerProvince = existingBuyer.buyerProvince;
           invoiceData.buyerAddress = existingBuyer.buyerAddress;
-          invoiceData.buyerRegistrationType = existingBuyer.buyerRegistrationType;
+          invoiceData.buyerRegistrationType =
+            existingBuyer.buyerRegistrationType;
         } else {
           // NTN is required for invoice processing
-          console.log(`🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer NTN`);
+          console.log(
+            `🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer NTN`
+          );
           validationErrors.push({
             index: i,
             row: i + 1,
@@ -4445,17 +4747,20 @@ export const bulkCreateInvoices = async (req, res) => {
         }
 
         // Pre-validate all products for this invoice before creating invoice record
-        console.log(`🔍 Pre-validating products for invoice ${i + 1} with ${invoiceData.items.length} items`);
+        console.log(
+          `🔍 Pre-validating products for invoice ${i + 1} with ${invoiceData.items.length} items`
+        );
         let validItemsCount = 0;
         let hasAnyProductName = false;
-        
+
         for (let j = 0; j < invoiceData.items.length; j++) {
           const itemData = invoiceData.items[j];
-          
+
           // Get product name from various possible fields
-          const productName = itemData.item_productName?.trim() || 
-                            itemData.name?.trim() || 
-                            itemData.productName?.trim();
+          const productName =
+            itemData.item_productName?.trim() ||
+            itemData.name?.trim() ||
+            itemData.productName?.trim();
 
           // Check if any product name exists (even if invalid)
           if (productName) {
@@ -4464,13 +4769,17 @@ export const bulkCreateInvoices = async (req, res) => {
 
           // Only skip if we have absolutely no product information
           if (!productName) {
-            console.log(`⚠️ Skipping item ${j + 1} in invoice ${i + 1}: No product name`);
+            console.log(
+              `⚠️ Skipping item ${j + 1} in invoice ${i + 1}: No product name`
+            );
             continue;
           }
 
           // Validate product exists in system
           console.log(`🔍 Validating product: "${productName}"`);
-          const existingProduct = existingProductMap.get(productName.toLowerCase().trim());
+          const existingProduct = existingProductMap.get(
+            productName.toLowerCase().trim()
+          );
           if (!existingProduct) {
             console.log(`❌ Product "${productName}" NOT FOUND in system`);
             validationErrors.push({
@@ -4487,7 +4796,9 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // Check if any product names are missing
         if (!hasAnyProductName) {
-          console.log(`⚠️ Validation error for invoice ${i + 1}: No product names found`);
+          console.log(
+            `⚠️ Validation error for invoice ${i + 1}: No product names found`
+          );
           validationErrors.push({
             index: i,
             row: i + 1,
@@ -4498,7 +4809,9 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // If no valid products found, add validation error
         if (validItemsCount === 0) {
-          console.log(`⚠️ Validation error for invoice ${i + 1}: No valid products found`);
+          console.log(
+            `⚠️ Validation error for invoice ${i + 1}: No valid products found`
+          );
           validationErrors.push({
             index: i,
             row: i + 1,
@@ -4508,7 +4821,9 @@ export const bulkCreateInvoices = async (req, res) => {
         }
 
         // FIRST PASS: Only validate, don't process items or create invoice records
-        console.log(`✅ Invoice ${i + 1} validation passed - will be processed in second pass`);
+        console.log(
+          `✅ Invoice ${i + 1} validation passed - will be processed in second pass`
+        );
       } catch (error) {
         console.error(`Error processing invoice ${i}:`, error);
         validationErrors.push({
@@ -4521,9 +4836,11 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // Check if there are any validation errors - if so, fail completely
     if (validationErrors.length > 0) {
-      console.log(`❌ VALIDATION FAILED: Found ${validationErrors.length} validation errors. Rejecting ALL invoices.`);
+      console.log(
+        `❌ VALIDATION FAILED: Found ${validationErrors.length} validation errors. Rejecting ALL invoices.`
+      );
       console.log(`🔍 Validation errors:`, validationErrors);
-      
+
       return res.status(400).json({
         success: false,
         message: `Validation failed. ${validationErrors.length} invoice(s) have errors. No invoices will be created.`,
@@ -4541,13 +4858,19 @@ export const bulkCreateInvoices = async (req, res) => {
       });
     }
 
-    console.log(`✅ VALIDATION PASSED: All ${invoices.length} invoices are valid. Proceeding with creation.`);
+    console.log(
+      `✅ VALIDATION PASSED: All ${invoices.length} invoices are valid. Proceeding with creation.`
+    );
 
     // SECOND PASS: Process valid invoices (only if validation passed)
-    console.log(`🔍 SECOND PASS: Processing ${invoices.length} validated invoices`);
+    console.log(
+      `🔍 SECOND PASS: Processing ${invoices.length} validated invoices`
+    );
     for (let i = 0; i < invoices.length; i++) {
       const invoiceData = invoices[i];
-      console.log(`🔍 DEBUG: Processing validated invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`);
+      console.log(
+        `🔍 DEBUG: Processing validated invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`
+      );
 
       // Progress indicator for large files
       if (i % 100 === 0 && i > 0) {
@@ -4565,13 +4888,18 @@ export const bulkCreateInvoices = async (req, res) => {
           errors.push({
             index: i,
             row: i + 1,
-            error: "Invoice missing required fields (invoiceType, invoiceDate, buyerNTNCNIC)",
+            error:
+              "Invoice missing required fields (invoiceType, invoiceDate, buyerNTNCNIC)",
           });
           continue;
         }
 
         // Check if invoice has items
-        if (!invoiceData.items || !Array.isArray(invoiceData.items) || invoiceData.items.length === 0) {
+        if (
+          !invoiceData.items ||
+          !Array.isArray(invoiceData.items) ||
+          invoiceData.items.length === 0
+        ) {
           console.log(`⚠️ Skipping invoice ${i + 1}: No items found`);
           errors.push({
             index: i,
@@ -4593,9 +4921,9 @@ export const bulkCreateInvoices = async (req, res) => {
         // Get buyer data (already validated in first pass)
         const ntnTrimmed = invoiceData.buyerNTNCNIC.trim();
         const existingBuyer = existingBuyerMap.get(ntnTrimmed);
-        
+
         console.log(`✅ Processing validated buyer: "${ntnTrimmed}"`);
-        
+
         // Use existing buyer data instead of CSV data
         invoiceData.buyerBusinessName = existingBuyer.buyerBusinessName;
         invoiceData.buyerProvince = existingBuyer.buyerProvince;
@@ -4637,7 +4965,8 @@ export const bulkCreateInvoices = async (req, res) => {
           buyerBusinessName: invoiceData.buyerBusinessName?.trim() || null,
           buyerProvince: invoiceData.buyerProvince?.trim() || null,
           buyerAddress: invoiceData.buyerAddress?.trim() || null,
-          buyerRegistrationType: invoiceData.buyerRegistrationType?.trim() || null,
+          buyerRegistrationType:
+            invoiceData.buyerRegistrationType?.trim() || null,
           invoiceRefNo: invoiceData.invoiceRefNo?.trim() || null,
           companyInvoiceRefNo: invoiceData.companyInvoiceRefNo?.trim() || null,
           internal_invoice_no: invoiceData.internalInvoiceNo?.trim() || null,
@@ -4647,9 +4976,11 @@ export const bulkCreateInvoices = async (req, res) => {
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
-            (req.user?.firstName || req.user?.lastName)
+            req.user?.firstName || req.user?.lastName
               ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-              : (req.user?.role === "admin" ? `Admin (${req.user?.id || "Unknown"})` : null),
+              : req.user?.role === "admin"
+                ? `Admin (${req.user?.id || "Unknown"})`
+                : null,
           created_at: new Date(),
           updated_at: new Date(),
         };
@@ -4669,7 +5000,9 @@ export const bulkCreateInvoices = async (req, res) => {
         });
 
         // Only add to invoiceBatches AFTER all validations pass
-        console.log(`🔍 DEBUG: Adding invoice ${i + 1} to batch - buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`);
+        console.log(
+          `🔍 DEBUG: Adding invoice ${i + 1} to batch - buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`
+        );
         invoiceBatches.push(invoiceRecord);
 
         // Debug: Log the invoice record being added
@@ -4693,9 +5026,10 @@ export const bulkCreateInvoices = async (req, res) => {
 
           try {
             // Get product name from various possible fields
-            const productName = itemData.item_productName?.trim() || 
-                              itemData.name?.trim() || 
-                              itemData.productName?.trim();
+            const productName =
+              itemData.item_productName?.trim() ||
+              itemData.name?.trim() ||
+              itemData.productName?.trim();
 
             // Only skip if we have absolutely no product information
             if (!productName) {
@@ -4706,10 +5040,14 @@ export const bulkCreateInvoices = async (req, res) => {
             }
 
             // Get existing product (already validated above)
-            const existingProduct = existingProductMap.get(productName.toLowerCase().trim());
+            const existingProduct = existingProductMap.get(
+              productName.toLowerCase().trim()
+            );
             if (!existingProduct) {
               // This should not happen since we pre-validated, but just in case
-              console.log(`❌ Product "${productName}" NOT FOUND in system (unexpected)`);
+              console.log(
+                `❌ Product "${productName}" NOT FOUND in system (unexpected)`
+              );
               continue;
             }
 
@@ -4717,11 +5055,14 @@ export const bulkCreateInvoices = async (req, res) => {
               id: existingProduct.id,
               name: existingProduct.name,
               hsCode: existingProduct.hsCode,
-              uom: existingProduct.uom
+              uom: existingProduct.uom,
             });
 
             // Validate required item fields - be more lenient and provide defaults
-            const hsCode = itemData.item_hsCode?.trim() || existingProduct.hsCode || "000000";
+            const hsCode =
+              itemData.item_hsCode?.trim() ||
+              existingProduct.hsCode ||
+              "000000";
             const rate = itemData.item_rate?.trim() || "17";
 
             // Debug: Log raw item data
@@ -4754,7 +5095,9 @@ export const bulkCreateInvoices = async (req, res) => {
               hsCode: hsCode,
               name: existingProduct.name, // Use the exact product name from database
               productDescription:
-                itemData.item_productDescription?.trim() || existingProduct.description || null,
+                itemData.item_productDescription?.trim() ||
+                existingProduct.description ||
+                null,
               rate: rate,
               uoM: itemData.item_uoM?.trim() || existingProduct.uom || null,
               quantity: parseFloat(itemData.item_quantity) || 0,
@@ -4989,7 +5332,9 @@ export const bulkCreateInvoices = async (req, res) => {
     const allCreatedInvoices = await sequelize.transaction(async (t) => {
       // No buyer creation - only use existing buyers
       // No product creation - only use existing products
-      console.log(`🔒 SAFETY CHECK: No products will be created during this upload process`);
+      console.log(
+        `🔒 SAFETY CHECK: No products will be created during this upload process`
+      );
       console.log(`🔒 Only existing products from database will be used`);
 
       // OPTIMIZED: Bulk create all invoices at once
@@ -5145,14 +5490,19 @@ export const bulkCreateInvoices = async (req, res) => {
             endpoint: req.originalUrl,
             method: req.method,
             chunkSize: chunkSize,
-            invoiceIds: allCreatedInvoices.map(inv => inv.id),
+            invoiceIds: allCreatedInvoices.map((inv) => inv.id),
             errorCount: errors.length,
             warningCount: warnings.length,
           }
         );
-        console.log(`✅ Audit logged for bulk creation of ${allCreatedInvoices.length} invoices`);
+        console.log(
+          `✅ Audit logged for bulk creation of ${allCreatedInvoices.length} invoices`
+        );
       } catch (auditError) {
-        console.error("⚠️ Failed to log audit event for bulk creation:", auditError);
+        console.error(
+          "⚠️ Failed to log audit event for bulk creation:",
+          auditError
+        );
         // Don't fail the operation if audit logging fails
       }
     }
@@ -5273,19 +5623,19 @@ export const getDashboardSummary = async (req, res) => {
 
     // Handle date range filter
     let whereDateRange = {};
-    
+
     if (req.query.start_date && req.query.end_date) {
       // Use provided date range
       const startDateStr = req.query.start_date; // Already in YYYY-MM-DD format
-      const endDateStr = req.query.end_date;     // Already in YYYY-MM-DD format
-      
-      console.log('Dashboard Date Range Filter:', {
+      const endDateStr = req.query.end_date; // Already in YYYY-MM-DD format
+
+      console.log("Dashboard Date Range Filter:", {
         start_date: req.query.start_date,
         end_date: req.query.end_date,
         startDateStr,
-        endDateStr
+        endDateStr,
       });
-      
+
       // Filter by invoiceDate using string comparison since it's stored as STRING
       // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
       whereDateRange = {
@@ -5294,7 +5644,7 @@ export const getDashboardSummary = async (req, res) => {
           {
             invoiceDate: {
               [Op.between]: [startDateStr, endDateStr],
-            }
+            },
           },
           // Handle DD-MM-YYYY format (convert and compare)
           {
@@ -5302,23 +5652,26 @@ export const getDashboardSummary = async (req, res) => {
               [Op.and]: [
                 // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
                 sequelize.where(
-                  sequelize.fn('STR_TO_DATE', 
-                    sequelize.col('invoiceDate'), 
-                    '%d-%m-%Y'
+                  sequelize.fn(
+                    "STR_TO_DATE",
+                    sequelize.col("invoiceDate"),
+                    "%d-%m-%Y"
                   ),
                   {
-                    [Op.between]: [startDateStr, endDateStr]
+                    [Op.between]: [startDateStr, endDateStr],
                   }
-                )
-              ]
-            }
-          }
-        ]
+                ),
+              ],
+            },
+          },
+        ],
       };
     } else {
       // Default to last 12 months if no date range specified
       const endDate = new Date();
-      const startDate = new Date(new Date(endDate).setMonth(endDate.getMonth() - 11, 1));
+      const startDate = new Date(
+        new Date(endDate).setMonth(endDate.getMonth() - 11, 1)
+      );
 
       whereDateRange = {
         created_at: { [Op.between]: [startDate, endDate] },
@@ -5344,15 +5697,16 @@ export const getDashboardSummary = async (req, res) => {
         Invoice.count({ where: { ...whereDateRange, status: "posted" } }),
 
         // For InvoiceItem sum, we need to join with Invoice to filter by invoiceDate
-        InvoiceItem.sum("totalValues", { 
-          include: [{
-            model: Invoice,
-            where: whereDateRange,
-            attributes: []
-          }]
+        InvoiceItem.sum("totalValues", {
+          include: [
+            {
+              model: Invoice,
+              where: whereDateRange,
+              attributes: [],
+            },
+          ],
         }).then((v) => v || 0),
       ]);
-
 
     // Monthly overview: counts by month for posted and saved
 
@@ -5573,7 +5927,11 @@ export const getDocumentTypesController = async (req, res) => {
         success: false,
 
         message:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
           "FBR system is temporarily unavailable. Please try again later.",
+
+        data: error.response?.data,
       });
     } else if (error.code === "ECONNABORTED") {
       return res.status(408).json({
@@ -5677,7 +6035,11 @@ export const getProvincesController = async (req, res) => {
         success: false,
 
         message:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
           "FBR system is temporarily unavailable. Please try again later.",
+
+        data: error.response?.data,
       });
     } else if (error.code === "ECONNABORTED") {
       return res.status(408).json({
@@ -5725,9 +6087,10 @@ export const validateInvoiceDataController = async (req, res) => {
     );
 
     // Check if tenant has FBR credentials
-    const fbrToken = environment === "production" 
-      ? tenant.sandboxProductionToken 
-      : tenant.sandboxTestToken || tenant.sandboxProductionToken;
+    const fbrToken =
+      environment === "production"
+        ? tenant.sandboxProductionToken
+        : tenant.sandboxTestToken || tenant.sandboxProductionToken;
 
     if (!fbrToken) {
       return res.status(400).json({
@@ -5778,7 +6141,11 @@ export const validateInvoiceDataController = async (req, res) => {
         success: false,
 
         message:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
           "FBR system is temporarily unavailable. Please try again later.",
+
+        data: error.response?.data,
       });
     } else if (error.code === "ECONNABORTED") {
       return res.status(408).json({
@@ -5827,9 +6194,10 @@ export const submitInvoiceDataController = async (req, res) => {
     );
 
     // Check if tenant has FBR credentials
-    const fbrToken = environment === "production" 
-      ? tenant.sandboxProductionToken 
-      : tenant.sandboxTestToken || tenant.sandboxProductionToken;
+    const fbrToken =
+      environment === "production"
+        ? tenant.sandboxProductionToken
+        : tenant.sandboxTestToken || tenant.sandboxProductionToken;
 
     if (!fbrToken) {
       return res.status(400).json({
@@ -5880,7 +6248,11 @@ export const submitInvoiceDataController = async (req, res) => {
         success: false,
 
         message:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
           "FBR system is temporarily unavailable. Please try again later.",
+
+        data: error.response?.data,
       });
     } else if (error.code === "ECONNABORTED") {
       return res.status(408).json({
@@ -5907,13 +6279,15 @@ export const submitInvoiceDataController = async (req, res) => {
 export const downloadInvoiceTemplateExcel = async (req, res) => {
   const processId = `excel_template_${Date.now()}`;
   const startTime = process.hrtime.bigint();
-  
+
   try {
     // Register process for memory tracking
-    const { default: MemoryManagementService } = await import("../../service/MemoryManagementService.js");
+    const { default: MemoryManagementService } = await import(
+      "../../service/MemoryManagementService.js"
+    );
     MemoryManagementService.registerProcess(processId, {
-      type: 'excel_template_generation',
-      tenantId: req.tenant?.tenant_id
+      type: "excel_template_generation",
+      tenantId: req.tenant?.tenant_id,
     });
 
     // Dynamically import exceljs to avoid loading cost if unused
@@ -5927,12 +6301,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
     // Check initial memory usage
     const initialMemory = MemoryManagementService.getMemoryUsage();
-    console.log(`🚀 Starting Excel template generation - Initial memory: ${initialMemory.heapUsed}MB`);
-    
+    console.log(
+      `🚀 Starting Excel template generation - Initial memory: ${initialMemory.heapUsed}MB`
+    );
+
     // Set memory limit warning threshold (1GB)
     const MEMORY_LIMIT_MB = 1024;
     if (initialMemory.heapUsed > MEMORY_LIMIT_MB) {
-      console.warn(`⚠️ High initial memory usage detected: ${initialMemory.heapUsed}MB. Forcing cleanup...`);
+      console.warn(
+        `⚠️ High initial memory usage detected: ${initialMemory.heapUsed}MB. Forcing cleanup...`
+      );
       MemoryManagementService.forceCleanup();
       if (global.gc) {
         global.gc();
@@ -6378,33 +6756,40 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     if (token) {
       // Start with rate_id=133 as a priority, then add all other rate IDs
       const uniqueRateIds = new Set();
-      
+
       // ALWAYS include rate_id=133 first (priority)
-      uniqueRateIds.add('133');
-      console.log('✅ Rate ID 133 explicitly included as priority');
-      
+      uniqueRateIds.add("133");
+      console.log("✅ Rate ID 133 explicitly included as priority");
+
       // Add all other rate IDs from rateDescToId if available
       if (rateDescToId && rateDescToId.size > 0) {
         const otherRateIds = Array.from(rateDescToId.values());
-        otherRateIds.forEach(id => uniqueRateIds.add(String(id)));
-        console.log(`Added ${otherRateIds.length} additional rate IDs from rateDescToId`);
+        otherRateIds.forEach((id) => uniqueRateIds.add(String(id)));
+        console.log(
+          `Added ${otherRateIds.length} additional rate IDs from rateDescToId`
+        );
       }
-      
+
       // Add some common rate IDs as fallback to ensure comprehensive coverage
-      const commonRateIds = ['134', '135', '136', '137', '138', '139', '140'];
-      commonRateIds.forEach(id => uniqueRateIds.add(id));
-      console.log('Added common rate IDs as fallback');
-      
-      console.log(`Fetching SRO Schedule data for ${uniqueRateIds.size} rate IDs...`);
-      console.log('All Rate IDs to fetch:', Array.from(uniqueRateIds).slice(0, 15));
-      
+      const commonRateIds = ["134", "135", "136", "137", "138", "139", "140"];
+      commonRateIds.forEach((id) => uniqueRateIds.add(id));
+      console.log("Added common rate IDs as fallback");
+
+      console.log(
+        `Fetching SRO Schedule data for ${uniqueRateIds.size} rate IDs...`
+      );
+      console.log(
+        "All Rate IDs to fetch:",
+        Array.from(uniqueRateIds).slice(0, 15)
+      );
+
       let successfulFetches = 0;
       let failedFetches = 0;
 
       for (const rateId of uniqueRateIds) {
         try {
           console.log(`Fetching SRO Schedule data for rate_id=${rateId}...`);
-          
+
           // Fetch SRO Schedule data for each rate ID
           const sroRaw = await fetchData(
             `pdi/v1/SroSchedule?rate_id=${rateId}&date=04-Feb-2024&origination_supplier_csv=1`,
@@ -6414,8 +6799,11 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
           console.log(`SRO Schedule API response for rate_id=${rateId}:`, {
             isArray: Array.isArray(sroRaw),
-            length: Array.isArray(sroRaw) ? sroRaw.length : 'N/A',
-            sample: Array.isArray(sroRaw) && sroRaw.length > 0 ? sroRaw[0] : 'No data'
+            length: Array.isArray(sroRaw) ? sroRaw.length : "N/A",
+            sample:
+              Array.isArray(sroRaw) && sroRaw.length > 0
+                ? sroRaw[0]
+                : "No data",
           });
 
           const items = (Array.isArray(sroRaw) ? sroRaw : [])
@@ -6430,16 +6818,18 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
             })
             .filter(Boolean);
 
-          console.log(`Found ${items.length} SRO Schedule items for rate_id=${rateId}`);
+          console.log(
+            `Found ${items.length} SRO Schedule items for rate_id=${rateId}`
+          );
 
           // Create a map for this rate ID
           const aggregated = new Map(); // desc -> id
-          
+
           for (const it of items) {
             if (!aggregated.has(it.desc)) {
               aggregated.set(it.desc, it.id);
             }
-            
+
             // Add all SRO descriptions to the comprehensive set
             if (it.desc) {
               allUniqueSROs.add(it.desc);
@@ -6450,40 +6840,55 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           successfulFetches++;
 
           // Special logging for rate_id=133
-          if (rateId === '133') {
-            console.log(`✅ SUCCESS: Rate ID 133 fetched ${items.length} SRO Schedule items`);
-            console.log('Rate ID 133 SRO Descriptions:', Array.from(aggregated.keys()).slice(0, 5));
+          if (rateId === "133") {
+            console.log(
+              `✅ SUCCESS: Rate ID 133 fetched ${items.length} SRO Schedule items`
+            );
+            console.log(
+              "Rate ID 133 SRO Descriptions:",
+              Array.from(aggregated.keys()).slice(0, 5)
+            );
           }
-
         } catch (e) {
-          console.error(`Failed to fetch SRO Schedule data for rate_id=${rateId}:`, e.message);
+          console.error(
+            `Failed to fetch SRO Schedule data for rate_id=${rateId}:`,
+            e.message
+          );
           sroByRateId[rateId] = new Map(); // Empty map for failed fetches
           failedFetches++;
-          
+
           // Special error logging for rate_id=133
-          if (rateId === '133') {
-            console.error('❌ CRITICAL: Failed to fetch rate_id=133 SRO Schedule data!');
+          if (rateId === "133") {
+            console.error(
+              "❌ CRITICAL: Failed to fetch rate_id=133 SRO Schedule data!"
+            );
           }
         }
       }
 
-      console.log(`SRO Schedule Fetch Summary: ${successfulFetches} successful, ${failedFetches} failed`);
+      console.log(
+        `SRO Schedule Fetch Summary: ${successfulFetches} successful, ${failedFetches} failed`
+      );
       console.log(
         `Collected ${allUniqueSROs.size} unique SRO Schedule Numbers from API across all rate IDs`
       );
-      
+
       // Verify rate_id=133 was successfully fetched
-      if (sroByRateId['133'] && sroByRateId['133'].size > 0) {
-        console.log(`✅ CONFIRMED: Rate ID 133 has ${sroByRateId['133'].size} SRO Schedule items`);
+      if (sroByRateId["133"] && sroByRateId["133"].size > 0) {
+        console.log(
+          `✅ CONFIRMED: Rate ID 133 has ${sroByRateId["133"].size} SRO Schedule items`
+        );
       } else {
-        console.warn('⚠️ WARNING: Rate ID 133 has no SRO Schedule items!');
+        console.warn("⚠️ WARNING: Rate ID 133 has no SRO Schedule items!");
       }
-      
+
       // Log sample SRO descriptions
-      console.log('Sample SRO Descriptions from all rate IDs:', Array.from(allUniqueSROs).slice(0, 10));
-      
+      console.log(
+        "Sample SRO Descriptions from all rate IDs:",
+        Array.from(allUniqueSROs).slice(0, 10)
+      );
     } else {
-      console.log('No token available for SRO Schedule fetching');
+      console.log("No token available for SRO Schedule fetching");
     }
 
     // Add fallback SRO Schedule data for comprehensive coverage
@@ -6513,7 +6918,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "6th Schd Table III",
       "Eighth Schedule Table 1",
       "NINTH SCHEDULE",
-      "6th Schd Table III"
+      "6th Schd Table III",
     ];
 
     // Add fallback SRO Schedule data to comprehensive set
@@ -6539,8 +6944,8 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
     if (token) {
       try {
-        console.log('Fetching all SRO Items from /pdi/v1/sroitemcode...');
-        
+        console.log("Fetching all SRO Items from /pdi/v1/sroitemcode...");
+
         // Fetch all SRO Items from the main API endpoint
         const sroItemsRaw = await fetchData(
           "pdi/v1/sroitemcode",
@@ -6550,25 +6955,29 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
         console.log(`SRO Item API response:`, {
           isArray: Array.isArray(sroItemsRaw),
-          length: Array.isArray(sroItemsRaw) ? sroItemsRaw.length : 'N/A',
-          sample: Array.isArray(sroItemsRaw) && sroItemsRaw.length > 0 ? sroItemsRaw[0] : 'No data'
+          length: Array.isArray(sroItemsRaw) ? sroItemsRaw.length : "N/A",
+          sample:
+            Array.isArray(sroItemsRaw) && sroItemsRaw.length > 0
+              ? sroItemsRaw[0]
+              : "No data",
         });
 
         if (Array.isArray(sroItemsRaw)) {
           const items = sroItemsRaw
             .map((item) => {
               // Extract SRO Item description from various possible field names
-              const desc = item.srO_ITEM_DESC || 
-                          item.SRO_ITEM_DESC || 
-                          item.sro_item_desc ||
-                          item.SRO_ITEM_DESCRIPTION ||
-                          item.sroItemDesc ||
-                          item.sroItemDescription ||
-                          item.desc || 
-                          item.description ||
-                          item.item_desc ||
-                          item.ITEM_DESC ||
-                          null;
+              const desc =
+                item.srO_ITEM_DESC ||
+                item.SRO_ITEM_DESC ||
+                item.sro_item_desc ||
+                item.SRO_ITEM_DESCRIPTION ||
+                item.sroItemDesc ||
+                item.sroItemDescription ||
+                item.desc ||
+                item.description ||
+                item.item_desc ||
+                item.ITEM_DESC ||
+                null;
               return desc ? String(desc).trim() : null;
             })
             .filter(Boolean);
@@ -6577,28 +6986,41 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
           // Add all SRO Item descriptions to the comprehensive set
           items.forEach((item) => {
-            if (item && item.trim() !== '') {
+            if (item && item.trim() !== "") {
               allUniqueSROItems.add(item);
             }
           });
 
-          console.log(`✅ SUCCESS: Fetched ${allUniqueSROItems.size} unique SRO Item descriptions from API`);
-          console.log('Sample SRO Item Descriptions:', Array.from(allUniqueSROItems).slice(0, 15));
-          console.log('All SRO Item Descriptions count:', allUniqueSROItems.size);
+          console.log(
+            `✅ SUCCESS: Fetched ${allUniqueSROItems.size} unique SRO Item descriptions from API`
+          );
+          console.log(
+            "Sample SRO Item Descriptions:",
+            Array.from(allUniqueSROItems).slice(0, 15)
+          );
+          console.log(
+            "All SRO Item Descriptions count:",
+            allUniqueSROItems.size
+          );
         } else {
-          console.warn('SRO Item API returned non-array response:', sroItemsRaw);
+          console.warn(
+            "SRO Item API returned non-array response:",
+            sroItemsRaw
+          );
         }
-        
+
         // Force garbage collection after processing large SRO Items data
         if (global.gc) {
           global.gc();
         }
-        
       } catch (e) {
-        console.error(`Failed to fetch SRO Item data from /pdi/v1/sroitemcode:`, e.message);
+        console.error(
+          `Failed to fetch SRO Item data from /pdi/v1/sroitemcode:`,
+          e.message
+        );
       }
     } else {
-      console.log('No token available for SRO Item fetching');
+      console.log("No token available for SRO Item fetching");
     }
 
     // No fallback data - use only API data for SRO Items
@@ -6615,12 +7037,17 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     console.log(
       `SRO Item Numbers: ${comprehensiveSROItemList.slice(0, 15).join(", ")}${comprehensiveSROItemList.length > 15 ? "..." : ""}`
     );
-    
+
     // Log if we have SRO Items from API or if the list is empty
-    if (comprehensiveSROItemList.length <= 1) { // Only "N/A"
-      console.warn('⚠️ WARNING: No SRO Items found from API. Only "N/A" option available.');
+    if (comprehensiveSROItemList.length <= 1) {
+      // Only "N/A"
+      console.warn(
+        '⚠️ WARNING: No SRO Items found from API. Only "N/A" option available.'
+      );
     } else {
-      console.log(`✅ SUCCESS: ${comprehensiveSROItemList.length - 1} SRO Items will be available in Excel dropdown (excluding "N/A")`);
+      console.log(
+        `✅ SUCCESS: ${comprehensiveSROItemList.length - 1} SRO Items will be available in Excel dropdown (excluding "N/A")`
+      );
     }
 
     // Force garbage collection after processing SRO Items
@@ -6630,10 +7057,14 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
     // Check memory usage after SRO Items processing
     const memoryAfterSRO = MemoryManagementService.getMemoryUsage();
-    console.log(`📊 Memory after SRO Items processing: ${memoryAfterSRO.heapUsed}MB`);
-    
+    console.log(
+      `📊 Memory after SRO Items processing: ${memoryAfterSRO.heapUsed}MB`
+    );
+
     if (memoryAfterSRO.heapUsed > MEMORY_LIMIT_MB) {
-      console.warn(`⚠️ Memory usage high after SRO Items: ${memoryAfterSRO.heapUsed}MB. Forcing cleanup...`);
+      console.warn(
+        `⚠️ Memory usage high after SRO Items: ${memoryAfterSRO.heapUsed}MB. Forcing cleanup...`
+      );
       MemoryManagementService.forceCleanup();
       if (global.gc) {
         global.gc();
@@ -6903,8 +7334,6 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       if (!col.width || col.width < 18) col.width = 20;
     }
 
-  
-
     // Rate formatting: Treat as text to preserve rate format (e.g., "17%", "Exempt")
     const rateIdx = columns.indexOf("item_rate") + 1;
     if (rateIdx > 0) {
@@ -7000,7 +7429,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       // For SRO Items, don't limit the values to get all available items
       // For other lists, limit to first 100 values to avoid Excel performance issues
       const limitedValues = isSROItems ? values : values.slice(0, 100);
-      
+
       limitedValues.forEach((val, idx) => {
         template.getCell(startRow + idx, colIndex).value = val;
       });
@@ -7028,7 +7457,6 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
     // Simplified HS Code handling - no hidden list needed
     // Users can input their own HS codes directly
-
 
     // Simplified UoM handling - use comprehensive list directly
 
@@ -7155,11 +7583,12 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       };
 
       // item_sroItemSerialNo dropdown
-      template.getCell(r, headerIndex("item_sroItemSerialNo")).dataValidation = {
+      template.getCell(r, headerIndex("item_sroItemSerialNo")).dataValidation =
+        {
           type: "list",
           allowBlank: true,
           formulae: [
-          `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
+            `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
           ],
           showErrorMessage: true,
           errorStyle: "warning",
@@ -7192,7 +7621,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         error: "Quantity must be a positive number.",
       };
 
-      template.getCell(r, headerIndex("item_valueSalesExcludingST")).dataValidation = {
+      template.getCell(
+        r,
+        headerIndex("item_valueSalesExcludingST")
+      ).dataValidation = {
         type: "decimal",
         operator: "greaterThan",
         formulae: [0],
@@ -7227,19 +7659,25 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
       // Auto-populate Sales Type based on Transaction Type selection
       const transctypeColLetter = getColLetter(headerIndex("transctypeId"));
-      
+
       template.getCell(r, headerIndex("item_saleType")).value = {
         formula: `IF($${transctypeColLetter}${r}="","",TRIM(MID($${transctypeColLetter}${r},FIND(" - ",$${transctypeColLetter}${r})+3,LEN($${transctypeColLetter}${r}))))`,
       };
 
       // Add automatic calculations
       const qtyColLetter = getColLetter(headerIndex("item_quantity"));
-      const retailColLetter = getColLetter(headerIndex("item_valueSalesExcludingST"));
+      const retailColLetter = getColLetter(
+        headerIndex("item_valueSalesExcludingST")
+      );
       const rateColLetter = getColLetter(headerIndex("item_rate"));
-      const vsColLetter = getColLetter(headerIndex("item_valueSalesExcludingST"));
+      const vsColLetter = getColLetter(
+        headerIndex("item_valueSalesExcludingST")
+      );
       const staColLetter = getColLetter(headerIndex("item_salesTaxApplicable"));
       const fedColLetter = getColLetter(headerIndex("item_fedPayable"));
-      const stwColLetter = getColLetter(headerIndex("item_salesTaxWithheldAtSource"));
+      const stwColLetter = getColLetter(
+        headerIndex("item_salesTaxWithheldAtSource")
+      );
       const ftrColLetter = getColLetter(headerIndex("item_furtherTax"));
       const extColLetter = getColLetter(headerIndex("item_extraTax"));
       const dscColLetter = getColLetter(headerIndex("item_discount"));
@@ -7342,19 +7780,26 @@ IF($${dscColLetter}${r}="",0,VALUE($${dscColLetter}${r})))`,
     // Complete the process and log performance metrics
     const totalTime = Number(process.hrtime.bigint() - startTime) / 1000000;
     MemoryManagementService.completeProcess(processId);
-    
+
     const memoryUsage = MemoryManagementService.getMemoryUsage();
-    console.log(`✅ Excel template generated successfully in ${totalTime.toFixed(2)}ms`);
-    console.log(`💾 Memory usage: ${memoryUsage.heapUsed}MB heap, ${memoryUsage.activeProcesses} active processes`);
+    console.log(
+      `✅ Excel template generated successfully in ${totalTime.toFixed(2)}ms`
+    );
+    console.log(
+      `💾 Memory usage: ${memoryUsage.heapUsed}MB heap, ${memoryUsage.activeProcesses} active processes`
+    );
 
     res.status(200).send(nodeBuffer);
   } catch (error) {
     const totalTime = Number(process.hrtime.bigint() - startTime) / 1000000;
-    console.error(`❌ Excel template generation failed after ${totalTime.toFixed(2)}ms:`, error);
+    console.error(
+      `❌ Excel template generation failed after ${totalTime.toFixed(2)}ms:`,
+      error
+    );
 
     // Complete the process even on error
     MemoryManagementService.completeProcess(processId);
-    
+
     // Force garbage collection on error
     if (global.gc) {
       global.gc();
@@ -7379,27 +7824,31 @@ IF($${dscColLetter}${r}="",0,VALUE($${dscColLetter}${r})))`,
 export const bulkPrintInvoices = async (req, res) => {
   try {
     const { invoiceNumbers, tenantId } = req.body;
-    
-    if (!invoiceNumbers || !Array.isArray(invoiceNumbers) || invoiceNumbers.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invoice numbers array is required" 
+
+    if (
+      !invoiceNumbers ||
+      !Array.isArray(invoiceNumbers) ||
+      invoiceNumbers.length === 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice numbers array is required",
       });
     }
 
     if (!tenantId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Tenant ID is required" 
+      return res.status(400).json({
+        success: false,
+        message: "Tenant ID is required",
       });
     }
 
     // Get tenant database connection
     const tenantDb = await TenantDatabaseService.getTenantDatabase(tenantId);
     if (!tenantDb) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Tenant not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
       });
     }
 
@@ -7420,9 +7869,9 @@ export const bulkPrintInvoices = async (req, res) => {
     }
 
     if (invoices.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "No invoices found" 
+      return res.status(404).json({
+        success: false,
+        message: "No invoices found",
       });
     }
 
@@ -7454,9 +7903,9 @@ export const bulkPrintInvoices = async (req, res) => {
     // Get tenant information for seller details
     const tenant = await Tenant.findOne({ where: { tenant_id: tenantId } });
     if (!tenant) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Tenant not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Tenant not found",
       });
     }
 
@@ -7490,12 +7939,28 @@ export const bulkPrintInvoices = async (req, res) => {
         plainInvoice.invoiceDate = formatDate(plainInvoice.invoiceDate);
 
         // Use tenant context for seller details (same as single print)
-        plainInvoice.sellerBusinessName = tenant.sellerBusinessName || tenant.seller_business_name || plainInvoice.sellerBusinessName;
-        plainInvoice.sellerAddress = tenant.sellerAddress || tenant.seller_address || plainInvoice.sellerAddress;
-        plainInvoice.sellerProvince = tenant.sellerProvince || tenant.seller_province || plainInvoice.sellerProvince;
-        plainInvoice.sellerFullNTN = tenant.sellerFullNTN || tenant.seller_full_ntn || plainInvoice.sellerFullNTN;
-        plainInvoice.sellerCity = tenant.sellerCity || tenant.seller_city || plainInvoice.sellerCity;
-        plainInvoice.seller_full_ntn = tenant.sellerFullNTN || tenant.seller_full_ntn || plainInvoice.seller_full_ntn;
+        plainInvoice.sellerBusinessName =
+          tenant.sellerBusinessName ||
+          tenant.seller_business_name ||
+          plainInvoice.sellerBusinessName;
+        plainInvoice.sellerAddress =
+          tenant.sellerAddress ||
+          tenant.seller_address ||
+          plainInvoice.sellerAddress;
+        plainInvoice.sellerProvince =
+          tenant.sellerProvince ||
+          tenant.seller_province ||
+          plainInvoice.sellerProvince;
+        plainInvoice.sellerFullNTN =
+          tenant.sellerFullNTN ||
+          tenant.seller_full_ntn ||
+          plainInvoice.sellerFullNTN;
+        plainInvoice.sellerCity =
+          tenant.sellerCity || tenant.seller_city || plainInvoice.sellerCity;
+        plainInvoice.seller_full_ntn =
+          tenant.sellerFullNTN ||
+          tenant.seller_full_ntn ||
+          plainInvoice.seller_full_ntn;
 
         return {
           ...plainInvoice,
@@ -7552,16 +8017,16 @@ export const bulkPrintInvoices = async (req, res) => {
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
-    await page.pdf({ 
-      path: pdfPath, 
-      format: "A4", 
+    await page.pdf({
+      path: pdfPath,
+      format: "A4",
       printBackground: true,
       margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
+        top: "20px",
+        right: "20px",
+        bottom: "20px",
+        left: "20px",
+      },
     });
 
     await browser.close();
@@ -7570,7 +8035,6 @@ export const bulkPrintInvoices = async (req, res) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `inline; filename=${pdfFileName}`);
     fs.createReadStream(pdfPath).pipe(res);
-
   } catch (error) {
     console.error("Bulk PDF generation failed:", error);
     res.status(500).json({
@@ -7580,4 +8044,3 @@ export const bulkPrintInvoices = async (req, res) => {
     });
   }
 };
-

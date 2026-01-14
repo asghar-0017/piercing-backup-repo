@@ -167,7 +167,7 @@ export default function BasicTable() {
   // Debounce search input
   useEffect(() => {
     setIsTyping(true);
-    
+
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
       setIsTyping(false);
@@ -189,7 +189,7 @@ export default function BasicTable() {
     } else {
       setLoading(true);
     }
-    
+
     try {
       if (!selectedTenant) {
         console.error("No Company selected");
@@ -230,7 +230,6 @@ export default function BasicTable() {
       // Add sorting parameters
       params.append("sort_by", sortBy);
       params.append("sort_order", sortOrder);
-
 
       const response = await api.get(
         `/tenant/${selectedTenant.tenant_id}/invoices?${params.toString()}`
@@ -277,7 +276,7 @@ export default function BasicTable() {
       if (debouncedSearch === undefined) {
         return;
       }
-      
+
       // Trigger API call for any changes
       getMyInvoices(true);
     }
@@ -631,7 +630,8 @@ export default function BasicTable() {
                   sroScheduleNo: rest.sroScheduleNo?.trim() || null,
                   sroItemSerialNo: rest.sroItemSerialNo?.trim() || null,
                   uoM: uoMValue,
-                  productDescription: rest.productDescription?.trim() || null,
+                  productDescription:
+                    rest.productDescription?.replace(/\n/g, " ").trim() || null,
                   saleType:
                     rest.saleType?.trim() || "Goods at standard rate (default)",
                   furtherTax: Number(Number(rest.furtherTax || 0).toFixed(2)),
@@ -655,6 +655,9 @@ export default function BasicTable() {
 
             const cleanedData = {
               ...invoiceData,
+              buyerAddress: invoiceData.buyerAddress
+                ? invoiceData.buyerAddress.replace(/\n/g, " ")
+                : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
               scenarioId: "SN001", // Hardcoded SN001 for FBR validation
@@ -668,7 +671,8 @@ export default function BasicTable() {
             );
 
             // Handle different FBR response structures
-            const validationData = fbrValidateResponse.data?.data || fbrValidateResponse.data;
+            const validationData =
+              fbrValidateResponse.data?.data || fbrValidateResponse.data;
             const hasValidationResponse =
               validationData && validationData.validationResponse;
             const isFbrSuccess =
@@ -695,7 +699,9 @@ export default function BasicTable() {
                 ) {
                   validation.invoiceStatuses.forEach((status) => {
                     if (status.error) {
-                      errorDetails.push(`Item ${status.itemSNo}: ${status.error}`);
+                      errorDetails.push(
+                        `Item ${status.itemSNo}: ${status.error}`
+                      );
                     }
                   });
                 }
@@ -707,9 +713,10 @@ export default function BasicTable() {
                 errorMessage = fbrValidateResponse.data.message;
               }
 
-              const fullErrorMessage = errorDetails.length > 0
-                ? `${errorMessage}\n\nDetails:\n${errorDetails.join('\n')}`
-                : errorMessage;
+              const fullErrorMessage =
+                errorDetails.length > 0
+                  ? `${errorMessage}\n\nDetails:\n${errorDetails.join("\n")}`
+                  : errorMessage;
 
               results.push({
                 invoiceNumber: invoice.invoiceNumber,
@@ -829,30 +836,44 @@ export default function BasicTable() {
         selectedInvoices.has(invoice._id || invoice.id)
       );
 
-      console.log(`🖨️ Bulk Print: Generating single PDF with ${selectedInvoiceDetails.length} invoices`);
-      console.log("Selected invoices:", selectedInvoiceDetails.map(inv => inv.invoiceNumber));
+      console.log(
+        `🖨️ Bulk Print: Generating single PDF with ${selectedInvoiceDetails.length} invoices`
+      );
+      console.log(
+        "Selected invoices:",
+        selectedInvoiceDetails.map((inv) => inv.invoiceNumber)
+      );
 
       // Show loading message
-      toast.info(`Generating PDF with ${selectedInvoiceDetails.length} invoice(s)...`, {
-        autoClose: 3000
-      });
+      toast.info(
+        `Generating PDF with ${selectedInvoiceDetails.length} invoice(s)...`,
+        {
+          autoClose: 3000,
+        }
+      );
 
       // Call bulk print API
-      const response = await api.post('/bulk-print-invoices', {
-        invoiceNumbers: selectedInvoiceDetails.map(inv => inv.invoiceNumber),
-        tenantId: selectedTenant?.tenant_id
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await api.post(
+        "/bulk-print-invoices",
+        {
+          invoiceNumbers: selectedInvoiceDetails.map(
+            (inv) => inv.invoiceNumber
+          ),
+          tenantId: selectedTenant?.tenant_id,
         },
-        responseType: 'blob' // Important for PDF download
-      });
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          responseType: "blob", // Important for PDF download
+        }
+      );
 
       // Create blob and download
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `bulk_invoices_${Date.now()}.pdf`;
       document.body.appendChild(link);
@@ -860,8 +881,10 @@ export default function BasicTable() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.success(`PDF generated with ${selectedInvoiceDetails.length} invoice(s)`);
-      
+      toast.success(
+        `PDF generated with ${selectedInvoiceDetails.length} invoice(s)`
+      );
+
       // Clear selection after printing
       setSelectedInvoices(new Set());
       setSelectMode(false);
@@ -901,7 +924,6 @@ export default function BasicTable() {
       const selectedInvoiceDetails = filteredInvoices.filter((invoice) =>
         selectedInvoices.has(invoice._id || invoice.id)
       );
-      
 
       // Process each selected invoice
       const results = [];
@@ -959,7 +981,8 @@ export default function BasicTable() {
                   sroScheduleNo: rest.sroScheduleNo?.trim() || null,
                   sroItemSerialNo: rest.sroItemSerialNo?.trim() || null,
                   uoM: uoMValue,
-                  productDescription: rest.productDescription?.trim() || null,
+                  productDescription:
+                    rest.productDescription?.replace(/\n/g, " ").trim() || null,
                   saleType:
                     rest.saleType?.trim() || "Goods at standard rate (default)",
                   furtherTax: Number(Number(rest.furtherTax || 0).toFixed(2)),
@@ -983,9 +1006,12 @@ export default function BasicTable() {
 
             const cleanedData = {
               ...invoiceData,
+              buyerAddress: invoiceData.buyerAddress
+                ? invoiceData.buyerAddress.replace(/\n/g, " ")
+                : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              scenarioId:'SN001',
+              scenarioId: "SN001",
               items: cleanedItems,
             };
 
@@ -1545,7 +1571,6 @@ export default function BasicTable() {
                 {selectMode ? "Cancel" : "Select"}
               </Button>
 
-
               <PermissionGate permission="invoice_uploader">
                 <Button
                   variant="outlined"
@@ -1620,7 +1645,9 @@ export default function BasicTable() {
                                     transition: "all 0.2s",
                                     minWidth: "auto",
                                     bgcolor: "white",
-                                    color: hasPostedInvoices ? "#ccc" : "#d32f2f",
+                                    color: hasPostedInvoices
+                                      ? "#ccc"
+                                      : "#d32f2f",
                                     borderColor: hasPostedInvoices
                                       ? "#ccc"
                                       : "#d32f2f",
@@ -1628,7 +1655,9 @@ export default function BasicTable() {
                                       background: hasPostedInvoices
                                         ? "transparent"
                                         : "#d32f2f",
-                                      color: hasPostedInvoices ? "#ccc" : "white",
+                                      color: hasPostedInvoices
+                                        ? "#ccc"
+                                        : "white",
                                       boxShadow: hasPostedInvoices ? 1 : 2,
                                       borderColor: hasPostedInvoices
                                         ? "#ccc"
@@ -1640,7 +1669,10 @@ export default function BasicTable() {
                                   }
                                 >
                                   {bulkDeleteLoading ? (
-                                    <CircularProgress size={16} color="inherit" />
+                                    <CircularProgress
+                                      size={16}
+                                      color="inherit"
+                                    />
                                   ) : (
                                     "Delete Selected"
                                   )}
@@ -1714,7 +1746,9 @@ export default function BasicTable() {
                                     transition: "all 0.2s",
                                     minWidth: "auto",
                                     bgcolor: "white",
-                                    color: hasPostedInvoices ? "#ccc" : "#f57c00",
+                                    color: hasPostedInvoices
+                                      ? "#ccc"
+                                      : "#f57c00",
                                     borderColor: hasPostedInvoices
                                       ? "#ccc"
                                       : "#f57c00",
@@ -1722,7 +1756,9 @@ export default function BasicTable() {
                                       background: hasPostedInvoices
                                         ? "transparent"
                                         : "#f57c00",
-                                      color: hasPostedInvoices ? "#ccc" : "white",
+                                      color: hasPostedInvoices
+                                        ? "#ccc"
+                                        : "white",
                                       boxShadow: hasPostedInvoices ? 1 : 2,
                                       borderColor: hasPostedInvoices
                                         ? "#ccc"
@@ -1734,7 +1770,10 @@ export default function BasicTable() {
                                   }
                                 >
                                   {saveValidateLoading ? (
-                                    <CircularProgress size={16} color="inherit" />
+                                    <CircularProgress
+                                      size={16}
+                                      color="inherit"
+                                    />
                                   ) : (
                                     "Save & Validate"
                                   )}
@@ -1804,7 +1843,7 @@ export default function BasicTable() {
             <TextField
               variant="outlined"
               size="small"
-                placeholder="Search by Invoice #, Company Invoice #, or Buyer NTN"
+              placeholder="Search by Invoice #, Company Invoice #, or Buyer NTN"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -1823,13 +1862,13 @@ export default function BasicTable() {
                         sx={{
                           width: 16,
                           height: 16,
-                          borderRadius: '50%',
-                          border: '2px solid #ccc',
-                          borderTop: '2px solid #1976d2',
-                          animation: 'spin 1s linear infinite',
-                          '@keyframes spin': {
-                            '0%': { transform: 'rotate(0deg)' },
-                            '100%': { transform: 'rotate(360deg)' },
+                          borderRadius: "50%",
+                          border: "2px solid #ccc",
+                          borderTop: "2px solid #1976d2",
+                          animation: "spin 1s linear infinite",
+                          "@keyframes spin": {
+                            "0%": { transform: "rotate(0deg)" },
+                            "100%": { transform: "rotate(360deg)" },
                           },
                         }}
                       />
@@ -1904,8 +1943,8 @@ export default function BasicTable() {
                   setPage(1);
                 }}
                 slotProps={{
-                  textField: { 
-                    size: "small", 
+                  textField: {
+                    size: "small",
                     sx: { minWidth: 140 },
                     InputProps: {
                       endAdornment: searchLoading && (
@@ -1913,7 +1952,7 @@ export default function BasicTable() {
                           <CircularProgress size={16} />
                         </InputAdornment>
                       ),
-                    }
+                    },
                   },
                 }}
               />
@@ -2046,24 +2085,63 @@ export default function BasicTable() {
                             fontWeight: "bold",
                             fontSize: 13,
                             letterSpacing: 0.3,
-                            cursor: (heading === "Company Invoice #" || heading === "Invoice Date") ? "pointer" : "default",
-                            "&:hover": (heading === "Company Invoice #" || heading === "Invoice Date") ? {
-                              backgroundColor: "#f5f5f5",
-                            } : {},
+                            cursor:
+                              heading === "Company Invoice #" ||
+                              heading === "Invoice Date"
+                                ? "pointer"
+                                : "default",
+                            "&:hover":
+                              heading === "Company Invoice #" ||
+                              heading === "Invoice Date"
+                                ? {
+                                    backgroundColor: "#f5f5f5",
+                                  }
+                                : {},
                           }}
-                          onClick={heading === "Company Invoice #" ? () => handleSort("companyInvoiceRefNo") : 
-                                  heading === "Invoice Date" ? () => handleSort("created_at") : undefined}
+                          onClick={
+                            heading === "Company Invoice #"
+                              ? () => handleSort("companyInvoiceRefNo")
+                              : heading === "Invoice Date"
+                                ? () => handleSort("created_at")
+                                : undefined
+                          }
                         >
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 0.5,
+                            }}
+                          >
                             {heading}
                             {heading === "Company Invoice #" && (
-                              <Box sx={{ display: "flex", flexDirection: "column", fontSize: "10px" }}>
-                                {sortBy === "companyInvoiceRefNo" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  fontSize: "10px",
+                                }}
+                              >
+                                {sortBy === "companyInvoiceRefNo"
+                                  ? sortOrder === "ASC"
+                                    ? "↑"
+                                    : "↓"
+                                  : ""}
                               </Box>
                             )}
                             {heading === "Invoice Date" && (
-                              <Box sx={{ display: "flex", flexDirection: "column", fontSize: "10px" }}>
-                                {sortBy === "created_at" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  fontSize: "10px",
+                                }}
+                              >
+                                {sortBy === "created_at"
+                                  ? sortOrder === "ASC"
+                                    ? "↑"
+                                    : "↓"
+                                  : ""}
                               </Box>
                             )}
                           </Box>
@@ -2108,7 +2186,9 @@ export default function BasicTable() {
                             color: "#666",
                           }}
                         >
-                          {rowsPerPage === "All" ? index + 1 : (page - 1) * rowsPerPage + index + 1}
+                          {rowsPerPage === "All"
+                            ? index + 1
+                            : (page - 1) * rowsPerPage + index + 1}
                         </TableCell>
                         <TableCell
                           component="th"
@@ -2369,10 +2449,9 @@ export default function BasicTable() {
                 }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  {rowsPerPage === "All" 
+                  {rowsPerPage === "All"
                     ? `Showing all ${totalRecords} invoices`
-                    : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, totalRecords)} of ${totalRecords} invoices`
-                  }
+                    : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, totalRecords)} of ${totalRecords} invoices`}
                 </Typography>
                 {rowsPerPage !== "All" && (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -2409,7 +2488,6 @@ export default function BasicTable() {
             onUpload={handleBulkUpload}
             selectedTenant={selectedTenant}
           />
-
         </Box>
       )}
     </>

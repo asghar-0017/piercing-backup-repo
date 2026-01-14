@@ -639,13 +639,7 @@ export default function CreateInvoice() {
         setSelectedBuyerId(matchingBuyer.id);
       }
     }
-  }, [
-    editingItemIndex,
-    formData.buyerNTNCNIC,
-    formData.buyerBusinessName,
-    buyers,
-    selectedBuyerId,
-  ]);
+  }, [editingItemIndex, buyers]); // Removed formData and selectedBuyerId to prevent loops
 
   // Sync product selection with form data during editing
   React.useEffect(() => {
@@ -683,13 +677,7 @@ export default function CreateInvoice() {
         }
       }
     }
-  }, [
-    editingItemIndex,
-    formData.items[0]?.hsCode,
-    formData.items[0]?.name,
-    products,
-    selectedProductIdByItem,
-  ]);
+  }, [editingItemIndex, products]); // Removed formData and selectedProductIdByItem to prevent loops
 
   // Function to handle transaction type button click
   const handleTransactionTypeButtonClick = async () => {
@@ -747,7 +735,7 @@ export default function CreateInvoice() {
       } catch (error) {
         setTransactionTypesError(
           error.message ||
-          "Failed to fetch transaction types from API. Please check your connection and try again."
+            "Failed to fetch transaction types from API. Please check your connection and try again."
         );
       } finally {
         setTransactionTypesLoading(false);
@@ -884,7 +872,7 @@ export default function CreateInvoice() {
         } catch (error) {
           setTransactionTypesError(
             error.message ||
-            "Failed to fetch transaction types from API. Please check your connection and try again."
+              "Failed to fetch transaction types from API. Please check your connection and try again."
           );
         } finally {
           setTransactionTypesLoading(false);
@@ -1182,9 +1170,9 @@ export default function CreateInvoice() {
         setIsEditMode(true);
         setEditInvoiceNumber(
           invoiceData.invoiceNumber ||
-          invoiceData.companyInvoiceRefNo ||
-          invoiceData.invoiceRefNo ||
-          ""
+            invoiceData.companyInvoiceRefNo ||
+            invoiceData.invoiceRefNo ||
+            ""
         );
         localStorage.removeItem("editInvoiceData");
 
@@ -2456,76 +2444,12 @@ export default function CreateInvoice() {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      // Small delay to ensure form data is properly set before restoring buyer and product
+      // Small delay to ensure form data is properly set before restoring product
       await new Promise((resolve) => setTimeout(resolve, 50));
 
-      // Restore buyer and product information if available in the item
-      console.log("Editing item with buyer and product info:", {
-        itemBuyerId: itemToEdit.buyerId,
-        itemBuyerNTN: itemToEdit.buyerNTNCNIC,
-        itemBuyerName: itemToEdit.buyerBusinessName,
-        itemProductId: itemToEdit.productId,
-        currentFormBuyerNTN: formData.buyerNTNCNIC,
-        currentFormBuyerName: formData.buyerBusinessName,
-        buyersCount: buyers.length,
-        productsCount: products.length,
-      });
-
-      if (itemToEdit.buyerId) {
-        console.log("Restoring buyer by ID:", itemToEdit.buyerId);
-        setSelectedBuyerId(itemToEdit.buyerId);
-
-        // Find match to set input
-        const match = buyers.find((b) => b.id === itemToEdit.buyerId);
-        if (match && typeof getBuyerLabel === "function") {
-          setBuyerInputValue(getBuyerLabel(match));
-        }
-      } else if (itemToEdit.buyerNTNCNIC && itemToEdit.buyerBusinessName) {
-        console.log("Restoring buyer by NTN/Name from item");
-        // Try to find the buyer by NTN/CNIC and business name
-        const matchingBuyer = buyers.find(
-          (buyer) =>
-            buyer.buyerNTNCNIC === itemToEdit.buyerNTNCNIC &&
-            buyer.buyerBusinessName === itemToEdit.buyerBusinessName
-        );
-        if (matchingBuyer) {
-          console.log("Found matching buyer by NTN/Name:", matchingBuyer.id);
-          setSelectedBuyerId(matchingBuyer.id);
-          if (typeof getBuyerLabel === "function") {
-            setBuyerInputValue(getBuyerLabel(matchingBuyer));
-          }
-        } else {
-          console.log("No matching buyer found by NTN/Name");
-        }
-      } else {
-        // Fallback: try to restore buyer from current form state if available
-        if (
-          formData.buyerNTNCNIC &&
-          formData.buyerBusinessName &&
-          buyers.length > 0
-        ) {
-          console.log("Restoring buyer by form properties");
-          const matchingBuyer = buyers.find(
-            (buyer) =>
-              buyer.buyerNTNCNIC === formData.buyerNTNCNIC &&
-              buyer.buyerBusinessName === formData.buyerBusinessName
-          );
-          if (matchingBuyer) {
-            console.log(
-              "Found matching buyer from form state:",
-              matchingBuyer.id
-            );
-            setSelectedBuyerId(matchingBuyer.id);
-            if (typeof getBuyerLabel === "function") {
-              setBuyerInputValue(getBuyerLabel(matchingBuyer));
-            }
-          } else {
-            console.log("No matching buyer found from form state");
-          }
-        } else {
-          console.log("No buyer information available to restore");
-        }
-      }
+      // Note: Buyer restoration has been removed from editAddedItem.
+      // The buyer is set at the invoice level, not the item level.
+      // When editing an item, the buyer field should remain unchanged.
 
       // NEW: Store product data for restoration when editing individual items
       if (
@@ -2833,44 +2757,44 @@ export default function CreateInvoice() {
       const items =
         prev.items.length > 0
           ? prev.items.map((item) => ({
-            ...item,
-            // Don't update product description - keep existing or clear if no HS code
-            productDescription: item.hsCode ? item.productDescription : "",
-            saleType: saleType,
-            rate: isEditing ? item.rate : "", // Preserve rate when editing
-          }))
+              ...item,
+              // Don't update product description - keep existing or clear if no HS code
+              productDescription: item.hsCode ? item.productDescription : "",
+              saleType: saleType,
+              rate: isEditing ? item.rate : "", // Preserve rate when editing
+            }))
           : [
-            {
-              hsCode: "",
-              productDescription: "", // Don't set scenario description automatically
-              rate: "",
-              quantity: "1",
-              unitPrice: "0.00",
-              retailPrice: "0",
-              totalValues: "0",
-              valueSalesExcludingST: "0",
-              salesTaxApplicable: "0",
-              salesTaxWithheldAtSource: "0",
-              sroScheduleNo: "",
-              sroItemSerialNo: "",
-              billOfLadingUoM: "",
-              uoM: "",
-              extraTax: "",
-              furtherTax: "0",
-              fedPayable: "0",
-              discount: "0",
-              advanceIncomeTax: "0",
-              saleType,
-              isSROScheduleEnabled: false,
-              isSROItemEnabled: false,
-              isValueSalesManual: false,
-              isTotalValuesManual: false,
-              isSalesTaxManual: false,
-              isSalesTaxWithheldManual: false,
-              isFurtherTaxManual: false,
-              isFedPayableManual: false,
-            },
-          ];
+              {
+                hsCode: "",
+                productDescription: "", // Don't set scenario description automatically
+                rate: "",
+                quantity: "1",
+                unitPrice: "0.00",
+                retailPrice: "0",
+                totalValues: "0",
+                valueSalesExcludingST: "0",
+                salesTaxApplicable: "0",
+                salesTaxWithheldAtSource: "0",
+                sroScheduleNo: "",
+                sroItemSerialNo: "",
+                billOfLadingUoM: "",
+                uoM: "",
+                extraTax: "",
+                furtherTax: "0",
+                fedPayable: "0",
+                discount: "0",
+                advanceIncomeTax: "0",
+                saleType,
+                isSROScheduleEnabled: false,
+                isSROItemEnabled: false,
+                isValueSalesManual: false,
+                isTotalValuesManual: false,
+                isSalesTaxManual: false,
+                isSalesTaxWithheldManual: false,
+                isFurtherTaxManual: false,
+                isFedPayableManual: false,
+              },
+            ];
       return {
         ...prev,
         transctypeId: transctypeId,
@@ -3009,7 +2933,9 @@ export default function CreateInvoice() {
               sroItemSerialNo: rest.sroItemSerialNo?.trim() || null,
 
               name: rest.name?.trim() || null,
-              productDescription: rest.productDescription?.trim() || null,
+              productDescription: rest.productDescription
+                ? rest.productDescription.replace(/\r?\n/g, " ").trim()
+                : null,
               saleType:
                 rest.saleType?.trim() || "Goods at standard rate (default)",
               furtherTax: Number(Number(rest.furtherTax || 0).toFixed(2)),
@@ -3090,8 +3016,9 @@ export default function CreateInvoice() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: `Failed to save invoice: ${error.response?.data?.message || error.message
-          }`,
+        text: `Failed to save invoice: ${
+          error.response?.data?.message || error.message
+        }`,
         confirmButtonColor: "#d33",
       });
     } finally {
@@ -3246,8 +3173,13 @@ export default function CreateInvoice() {
         return;
       }
 
+      const sanitizeAddress = (address) =>
+        address ? address.replace(/\r?\n/g, " ") : "";
+
       const cleanedData = {
         ...formData,
+        buyerAddress: sanitizeAddress(formData.buyerAddress),
+        sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
         scenarioId: "SN001", // Hardcoded SN001 for FBR validation
@@ -3285,7 +3217,9 @@ export default function CreateInvoice() {
               sroScheduleNo: rest.sroScheduleNo?.trim() || null,
               sroItemSerialNo: rest.sroItemSerialNo?.trim() || null,
               name: rest.name?.trim() || null,
-              productDescription: rest.productDescription?.trim() || null,
+              productDescription: rest.productDescription
+                ? rest.productDescription.replace(/\r?\n/g, " ").trim()
+                : null,
               saleType:
                 rest.saleType?.trim() || "Goods at standard rate (default)",
               furtherTax: Number(Number(rest.furtherTax || 0).toFixed(2)),
@@ -3345,6 +3279,8 @@ export default function CreateInvoice() {
 
         const backendData = {
           ...formData,
+          buyerAddress: sanitizeAddress(formData.buyerAddress),
+          sellerAddress: sanitizeAddress(formData.sellerAddress),
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
           transctypeId: formData.transctypeId,
           scenarioId: "SN001", // Hardcoded SN001 for save and validate
@@ -3458,6 +3394,8 @@ export default function CreateInvoice() {
         // Handle FBR API validation errors
         const fbrError =
           errorResponse?.validationResponse?.error ||
+          errorResponse?.data?.error ||
+          errorResponse?.data?.message ||
           errorResponse?.error ||
           errorResponse?.message;
 
@@ -3605,26 +3543,29 @@ export default function CreateInvoice() {
           // },
           {
             field: "valueSalesExcludingST",
-            message: `Value Sales Excluding ST is required for item ${index + 1
-              }`,
+            message: `Value Sales Excluding ST is required for item ${
+              index + 1
+            }`,
           },
           ...(item.rate && item.rate.toLowerCase() === "exempt"
             ? [
-              {
-                field: "sroScheduleNo",
-                message: `SRO Schedule Number is required for exempt item ${index + 1
+                {
+                  field: "sroScheduleNo",
+                  message: `SRO Schedule Number is required for exempt item ${
+                    index + 1
                   }`,
-              },
-              {
-                field: "sroItemSerialNo",
-                message: `SRO Item Serial Number is required for exempt item ${index + 1
+                },
+                {
+                  field: "sroItemSerialNo",
+                  message: `SRO Item Serial Number is required for exempt item ${
+                    index + 1
                   }`,
-              },
-            ]
+                },
+              ]
             : []),
           ...(item.rate &&
-            item.rate.includes("/bill") &&
-            formData.scenarioId === "SN018"
+          item.rate.includes("/bill") &&
+          formData.scenarioId === "SN018"
             ? []
             : []),
         ];
@@ -3687,7 +3628,9 @@ export default function CreateInvoice() {
             totalValues: Number(Number(rest.totalValues).toFixed(2)),
             sroScheduleNo: rest.sroScheduleNo?.trim() || null,
             sroItemSerialNo: rest.sroItemSerialNo?.trim() || null,
-            productDescription: rest.productDescription?.trim() || null,
+            productDescription: rest.productDescription
+              ? rest.productDescription.replace(/\r?\n/g, " ").trim()
+              : null,
             saleType:
               rest.saleType?.trim() || "Goods at standard rate (default)",
             furtherTax: Number(Number(rest.furtherTax || 0).toFixed(2)),
@@ -3707,8 +3650,13 @@ export default function CreateInvoice() {
         }
       );
 
+      const sanitizeAddress = (address) =>
+        address ? address.replace(/\r?\n/g, " ") : "";
+
       const cleanedData = {
         ...formData,
+        buyerAddress: sanitizeAddress(formData.buyerAddress),
+        sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
         scenarioId: "SN001", // Hardcoded SN001 for submit
@@ -3832,6 +3780,8 @@ export default function CreateInvoice() {
 
       const backendData = {
         ...formData, // Use original form data to preserve all fields
+        buyerAddress: sanitizeAddress(formData.buyerAddress),
+        sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
         scenarioId: "SN001", // Hardcoded SN001 for submit
@@ -3911,6 +3861,7 @@ export default function CreateInvoice() {
           errorMessage = "Backend server error. Please try again later.";
         } else {
           errorMessage =
+            error.response.data?.error ||
             error.response.data?.message ||
             `Backend error: ${error.response.status}`;
         }
@@ -4403,11 +4354,11 @@ export default function CreateInvoice() {
                   ...buyers,
                   ...(loadingBuyers && buyerHasMore
                     ? [
-                      {
-                        id: "__loading__",
-                        buyerBusinessName: "Loading more...",
-                      },
-                    ]
+                        {
+                          id: "__loading__",
+                          buyerBusinessName: "Loading more...",
+                        },
+                      ]
                     : []),
                 ]}
                 filterOptions={(x) => x}
@@ -4641,7 +4592,7 @@ export default function CreateInvoice() {
                         } catch (error) {
                           setTransactionTypesError(
                             error.message ||
-                            "Failed to fetch transaction types from API. Please check your connection and try again."
+                              "Failed to fetch transaction types from API. Please check your connection and try again."
                           );
                         } finally {
                           setTransactionTypesLoading(false);
@@ -5356,11 +5307,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.valueSalesExcludingST === "0.00" ||
-                        item.valueSalesExcludingST === "0"
+                      item.valueSalesExcludingST === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                          item.valueSalesExcludingST
-                        )
+                            item.valueSalesExcludingST
+                          )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5478,11 +5429,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.salesTaxWithheldAtSource === "0.00" ||
-                        item.salesTaxWithheldAtSource === "0"
+                      item.salesTaxWithheldAtSource === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                          item.salesTaxWithheldAtSource
-                        )
+                            item.salesTaxWithheldAtSource
+                          )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5641,7 +5592,7 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.advanceIncomeTax === "0.00" ||
-                        item.advanceIncomeTax === "0"
+                      item.advanceIncomeTax === "0"
                         ? ""
                         : formatWithCommasWhileTyping(item.advanceIncomeTax)
                     }
@@ -5923,7 +5874,7 @@ export default function CreateInvoice() {
                                     "&:hover": {
                                       background:
                                         editingItemIndex &&
-                                          editingItemIndex !== item.id
+                                        editingItemIndex !== item.id
                                           ? "rgba(0, 0, 0, 0.04)"
                                           : "rgba(99, 102, 241, 0.1)",
                                     },
@@ -6069,23 +6020,23 @@ export default function CreateInvoice() {
         </Box>
         {(allLoading ||
           (selectedTenant && !tokensLoaded && !loadingTimeout)) && (
-            <Box
-              sx={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                width: "100vw",
-                height: "100vh",
-                bgcolor: "rgba(255,255,255,0.7)",
-                zIndex: 9999,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CircularProgress size={50} color="primary" />
-            </Box>
-          )}
+          <Box
+            sx={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              bgcolor: "rgba(255,255,255,0.7)",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CircularProgress size={50} color="primary" />
+          </Box>
+        )}
 
         {/* Buyer Modal */}
         <BuyerModal
