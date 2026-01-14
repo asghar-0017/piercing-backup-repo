@@ -19,14 +19,14 @@ class FileProcessor {
    */
   processCSV(content, expectedColumns) {
     const lines = content.split('\n').filter(line => line.trim());
-    
+
     if (lines.length < 2) {
       throw new Error('CSV file must have at least a header row and one data row');
     }
 
     // Parse headers and normalize
     const headers = this.parseCSVLine(lines[0]).map(h => this.normalizeHeader(h));
-    
+
     // Log missing headers but don't throw error - process whatever columns are available
     const missingHeaders = expectedColumns.filter(col => !headers.includes(col));
     if (missingHeaders.length > 0) {
@@ -35,26 +35,26 @@ class FileProcessor {
 
     const data = [];
     const totalLines = lines.length - 1; // Exclude header
-    
+
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      
+
       const values = this.parseCSVLine(line);
       const row = {};
-      
+
       headers.forEach((header, index) => {
         row[header] = values[index] || '';
       });
-      
+
       data.push(row);
-      
+
       // Report progress every 100 rows
       if (i % 100 === 0) {
         this.reportProgress((i / totalLines) * 100, `Processed ${i} rows`);
       }
     }
-    
+
     return data;
   }
 
@@ -67,33 +67,33 @@ class FileProcessor {
     if (jsonData.length < 2) {
       throw new Error('Excel file must have at least a header row and one data row');
     }
-    
+
     const headers = jsonData[0].map(h => this.normalizeHeader(h));
-    
+
     // Log available headers for debugging
     console.log('Available headers in Excel file:', headers);
     console.log('Expected columns:', expectedColumns);
-    
+
     // Log missing headers but don't throw error - process whatever columns are available
     const missingHeaders = expectedColumns.filter(col => !headers.includes(col));
     if (missingHeaders.length > 0) {
       console.warn(`Missing expected columns: ${missingHeaders.join(', ')}. Processing with available columns.`);
     }
-    
+
     // Create a mapping of available headers to their original names for data processing
     const headerMapping = {};
     jsonData[0].forEach((originalHeader, index) => {
       const normalizedHeader = headers[index];
       headerMapping[normalizedHeader] = originalHeader;
     });
-    
+
     const data = [];
     const totalRows = jsonData.length - 1; // Exclude header
-    
+
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i];
       if (!row || !Array.isArray(row)) continue; // Skip invalid rows
-      
+
       // Check if the row has any non-empty cells in the first few columns (key fields)
       const hasData = row
         .slice(0, 5)
@@ -103,9 +103,9 @@ class FileProcessor {
             cell !== undefined &&
             String(cell).trim() !== ""
         );
-      
+
       if (!hasData) continue; // Skip rows with no meaningful data
-      
+
       const rowData = {};
       headers.forEach((header, index) => {
         let value = row[index] !== null && row[index] !== undefined
@@ -113,7 +113,7 @@ class FileProcessor {
           : '';
         rowData[header] = value;
       });
-      
+
       // Log first few rows for debugging
       if (i <= 3) {
         console.log(`Excel Row ${i} data:`, {
@@ -127,10 +127,10 @@ class FileProcessor {
           buyerNTNCNIC: rowData.buyerNTNCNIC
         });
       }
-      
+
       // Additional check: exclude rows that are clearly not invoice data
       const invoiceType = String(rowData.invoiceType || rowData.invoice_type || "").trim().toLowerCase();
-      
+
       // Skip special rows - check for instruction patterns
       if (
         invoiceType.includes("total") ||
@@ -152,7 +152,7 @@ class FileProcessor {
 
       // More flexible meaningful data check that works with any column structure
       const isMeaningful = this.hasMeaningfulDataFlexible(rowData, headers, i - 1);
-      
+
       // Debug logging for first few rows
       if (i <= 5) {
         console.log(`Row ${i} meaningful data check:`, {
@@ -167,19 +167,19 @@ class FileProcessor {
           allData: rowData
         });
       }
-      
+
       if (isMeaningful) {
         data.push(rowData);
       }
-      
+
       // Report progress every 100 rows
       if (i % 100 === 0) {
         this.reportProgress((i / totalRows) * 100, `Processed ${i} rows`);
       }
     }
-    
+
     console.log(`Processed ${data.length} meaningful rows from ${totalRows} total rows`);
-    
+
     // Debug: Log sample of processed data
     if (data.length > 0) {
       console.log('🔍 Worker Debug: Sample processed row:', {
@@ -191,7 +191,7 @@ class FileProcessor {
         buyerBusinessName: data[0].buyerBusinessName
       });
     }
-    
+
     return data;
   }
 
@@ -203,10 +203,10 @@ class FileProcessor {
     const result = [];
     let current = '';
     let inQuotes = false;
-    
+
     for (let i = 0; i < line.length; i++) {
       const char = line[i];
-      
+
       if (char === '"') {
         if (inQuotes && line[i + 1] === '"') {
           current += '"';
@@ -221,7 +221,7 @@ class FileProcessor {
         current += char;
       }
     }
-    
+
     result.push(current.trim());
     return result;
   }
@@ -232,7 +232,7 @@ class FileProcessor {
    */
   normalizeHeader(header) {
     const headerStr = String(header || "").trim();
-    
+
     // Map display headers (as shown in Excel) back to internal keys
     const displayToInternalHeaderMap = {
       "Invoice Type": "invoiceType",
@@ -301,16 +301,16 @@ class FileProcessor {
       "sro_item_serial_no": "item_sroItemSerialNo",
       "sale_type": "item_saleType",
     };
-    
+
     // First try exact match
     if (displayToInternalHeaderMap[headerStr]) {
       return displayToInternalHeaderMap[headerStr];
     }
-    
+
     // Try partial matches for truncated headers
     const partialMatches = {
       "Invoice Da": "invoiceDate",
-      "Invoice Re": "invoiceRefNo", 
+      "Invoice Re": "invoiceRefNo",
       "Company I": "companyInvoiceRefNo",
       "Buyer NTN": "buyerNTNCNIC",
       "Buyer Buis": "buyerBusinessName",
@@ -329,11 +329,11 @@ class FileProcessor {
       "FED Payab": "item_fedPayable",
       "Total Valu": "item_totalValues"
     };
-    
+
     if (partialMatches[headerStr]) {
       return partialMatches[headerStr];
     }
-    
+
     // Fallback to normalized version
     return headerStr
       .toLowerCase()
@@ -350,7 +350,7 @@ class FileProcessor {
    */
   hasMeaningfulData(row, rowIndex) {
     // Check for meaningful invoice-level data
-    const hasInvoiceData = 
+    const hasInvoiceData =
       (row.invoiceType && row.invoiceType.trim() !== "" && row.invoiceType !== "Standard") ||
       (row.invoiceDate && row.invoiceDate.trim() !== "") ||
       (row.companyInvoiceRefNo && row.companyInvoiceRefNo.trim() !== "" && row.companyInvoiceRefNo !== `row_${rowIndex + 1}`) ||
@@ -358,7 +358,7 @@ class FileProcessor {
       (row.buyerNTNCNIC && row.buyerNTNCNIC.trim() !== "");
 
     // Check for meaningful item-level data
-    const hasItemData = 
+    const hasItemData =
       (row.item_productName && row.item_productName.trim() !== "") ||
       (row.item_hsCode && row.item_hsCode.trim() !== "") ||
       (row.item_quantity && row.item_quantity !== "" && row.item_quantity !== "0" && row.item_quantity !== 0) ||
@@ -394,28 +394,28 @@ class FileProcessor {
       'auto-calculates', 'enter ', 'use the', 'dropdown', 'validated', 'hardcoded', 'fallback',
       'computed as', 'divided by', 'instruction', 'note:', 'tip:', 'help:', 'example:'
     ];
-    
+
     const hasInstructionPatterns = Object.entries(row).some(([key, value]) => {
       const strValue = String(value).toLowerCase().trim();
       // Only check for patterns at the beginning of the field or as complete phrases
       const matchesPattern = instructionPatterns.some(pattern => {
-        return strValue.startsWith(pattern) || 
-               strValue.includes(` ${pattern}`) || 
-               strValue.includes(`${pattern} `);
+        return strValue.startsWith(pattern) ||
+          strValue.includes(` ${pattern}`) ||
+          strValue.includes(`${pattern} `);
       });
-      
+
       if (matchesPattern) {
         console.log(`Row ${rowIndex + 1}: Field '${key}' contains instruction pattern:`, {
           value: String(value),
           lowerValue: strValue,
-          matchedPattern: instructionPatterns.find(pattern => 
-            strValue.startsWith(pattern) || 
-            strValue.includes(` ${pattern}`) || 
+          matchedPattern: instructionPatterns.find(pattern =>
+            strValue.startsWith(pattern) ||
+            strValue.includes(` ${pattern}`) ||
             strValue.includes(`${pattern} `)
           )
         });
       }
-      
+
       return matchesPattern;
     });
 
@@ -449,30 +449,30 @@ class FileProcessor {
     const groupedInvoices = new Map();
     const errors = [];
     const warnings = [];
-    
+
     data.forEach((item, index) => {
       try {
         // Use any available identifier or create a unique one
         // Try different possible column names for invoice reference
-        const companyInvoiceRefNo = item.companyInvoiceRefNo?.trim() || 
-                                   item.company_invoice_ref_no?.trim() ||
-                                   item.invoice_ref_no?.trim() ||
-                                   item.dn_invoice_ref_no?.trim() ||
-                                   item.internalInvoiceNo?.trim() || 
-                                   item.internal_invoice_no?.trim() ||
-                                   item.invoiceNumber?.trim() || 
-                                   item.invoice_number?.trim() ||
-                                   `row_${index + 1}`;
-        
+        const companyInvoiceRefNo = item.companyInvoiceRefNo?.trim() ||
+          item.company_invoice_ref_no?.trim() ||
+          item.invoice_ref_no?.trim() ||
+          item.dn_invoice_ref_no?.trim() ||
+          item.internalInvoiceNo?.trim() ||
+          item.internal_invoice_no?.trim() ||
+          item.invoiceNumber?.trim() ||
+          item.invoice_number?.trim() ||
+          `row_${index + 1}`;
+
         if (groupedInvoices.has(companyInvoiceRefNo)) {
           const existingInvoice = groupedInvoices.get(companyInvoiceRefNo);
-          
+
           // Add item to existing invoice
           existingInvoice.items.push(this.cleanItemData(item, index));
         } else {
           // Create new invoice group with whatever data is available
           const buyerBusinessName = item.buyerBusinessName || item.buyer_business_name || item.buyer_buisness_name || '';
-          
+
           // Debug logging for buyer business name
           if (index < 3) {
             console.log(`🔍 Worker Debug: Creating invoice ${index + 1}:`, {
@@ -482,7 +482,7 @@ class FileProcessor {
               availableFields: Object.keys(item).filter(key => key.toLowerCase().includes('buyer'))
             });
           }
-          
+
           groupedInvoices.set(companyInvoiceRefNo, {
             invoiceType: item.invoiceType || item.invoice_type || 'Standard',
             invoiceDate: item.invoiceDate || item.invoice_date || new Date().toISOString().split('T')[0],
@@ -493,6 +493,7 @@ class FileProcessor {
             buyerProvince: item.buyerProvince || item.buyer_province || '',
             buyerAddress: item.buyerAddress || item.buyer_address || '',
             buyerRegistrationType: item.buyerRegistrationType || item.buyer_registration_type || 'Individual',
+            transctypeId: item.transctypeId || item.transaction_type || item.transctype_id || '',
             items: [this.cleanItemData(item, index)],
           });
         }
@@ -503,9 +504,9 @@ class FileProcessor {
         });
       }
     });
-    
+
     const finalInvoices = Array.from(groupedInvoices.values());
-    
+
     // Debug: Log final invoice data
     if (finalInvoices.length > 0) {
       console.log('🔍 Worker Debug: Final invoice data:', {
@@ -524,7 +525,7 @@ class FileProcessor {
         }
       });
     }
-    
+
     return {
       invoices: finalInvoices,
       errors,
@@ -541,7 +542,7 @@ class FileProcessor {
       return "";
 
     const stringValue = String(value).trim();
-    
+
     console.log("🔍 Worker cleanHsCode input:", stringValue.substring(0, 100) + (stringValue.length > 100 ? "..." : ""));
 
     // If it contains " - ", extract the part before the first " - "
@@ -565,26 +566,35 @@ class FileProcessor {
    */
   cleanItemData(item, index) {
     const cleaned = { ...item };
-    
+
     // Convert numeric fields - handle various field name variations
     const numericFields = [
       'quantity', 'unitPrice', 'totalValues', 'valueSalesExcludingST',
       'fixedNotifiedValueOrRetailPrice', 'salesTaxApplicable', 'extraTax',
-      'furtherTax', 'fedPayable', 'discount',
+      'furtherTax', 'fedPayable', 'discount', 'rate',
       // Alternative field names
       'item_quantity', 'item_unitPrice', 'item_totalValues', 'item_valueSalesExcludingST',
-      'item_salesTaxApplicable', 'item_extraTax', 'item_furtherTax', 'item_fedPayable', 'item_discount'
+      'item_salesTaxApplicable', 'item_extraTax', 'item_furtherTax', 'item_fedPayable', 'item_discount', 'item_rate'
     ];
-    
+
     numericFields.forEach(field => {
       if (cleaned[field] !== undefined && cleaned[field] !== null && cleaned[field] !== '') {
         const num = parseFloat(cleaned[field]);
         cleaned[field] = isNaN(num) ? 0 : num;
       } else {
-        cleaned[field] = 0;
+        // Only default to 0 for optional fields. 
+        // For mandatory fields, leave as undefined so validator catches them.
+        const criticalFields = [
+          'quantity', 'unitPrice', 'rate', 'valueSalesExcludingST', 'salesTaxApplicable',
+          'item_quantity', 'item_unitPrice', 'item_rate', 'item_valueSalesExcludingST', 'item_salesTaxApplicable'
+        ];
+
+        if (!criticalFields.includes(field)) {
+          cleaned[field] = 0;
+        }
       }
     });
-    
+
     // Map alternative field names to standard names AND preserve original names for backend
     const fieldMappings = {
       'item_productName': 'name',
@@ -602,26 +612,26 @@ class FileProcessor {
       'item_uoM': 'uoM',
       'item_rate': 'rate'
     };
-    
+
     // Create both mapped and original field names for backend compatibility
     Object.entries(fieldMappings).forEach(([oldField, newField]) => {
       if (cleaned[oldField] !== undefined) {
         let value = cleaned[oldField];
-        
+
         // Clean HS code to extract only the numeric part
         if (oldField === 'item_hsCode') {
           value = this.cleanHsCode(value);
         }
-        
+
         cleaned[newField] = value;
         // Also keep the original field name for backend validation
         cleaned[oldField] = value;
       }
     });
-    
+
     // Add row tracking
     cleaned._row = index + 1;
-    
+
     return cleaned;
   }
 
@@ -634,7 +644,7 @@ class FileProcessor {
     if (this.progressCallback) {
       this.progressCallback(percentage, message);
     }
-    
+
     self.postMessage({
       type: 'progress',
       percentage,
@@ -650,29 +660,29 @@ class FileProcessor {
     if (this.isProcessing) {
       throw new Error('Already processing a file');
     }
-    
+
     this.isProcessing = true;
-    
+
     try {
       this.reportProgress(0, 'Starting file processing...');
-      
+
       let parsedData;
-      
-             if (data.type === 'csv') {
-         this.reportProgress(10, 'Parsing CSV file...');
-         parsedData = this.processCSV(data.content, data.expectedColumns);
-       } else if (data.type === 'excel') {
-         this.reportProgress(10, 'Processing Excel data...');
-         parsedData = this.processExcel(data.jsonData, data.expectedColumns);
-       } else {
-         throw new Error('Unsupported file type');
-       }
-      
+
+      if (data.type === 'csv') {
+        this.reportProgress(10, 'Parsing CSV file...');
+        parsedData = this.processCSV(data.content, data.expectedColumns);
+      } else if (data.type === 'excel') {
+        this.reportProgress(10, 'Processing Excel data...');
+        parsedData = this.processExcel(data.jsonData, data.expectedColumns);
+      } else {
+        throw new Error('Unsupported file type');
+      }
+
       this.reportProgress(70, 'Grouping invoices...');
       const result = this.groupInvoices(parsedData);
-      
+
       this.reportProgress(100, 'Processing complete!');
-      
+
       return {
         success: true,
         data: result,
@@ -696,9 +706,9 @@ class FileProcessor {
 const processor = new FileProcessor();
 
 // Handle messages from main thread
-self.onmessage = async function(e) {
+self.onmessage = async function (e) {
   const { type, data } = e.data;
-  
+
   switch (type) {
     case 'process':
       try {
@@ -714,7 +724,7 @@ self.onmessage = async function(e) {
         });
       }
       break;
-      
+
     case 'cancel':
       processor.isProcessing = false;
       self.postMessage({
