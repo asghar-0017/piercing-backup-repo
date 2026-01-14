@@ -406,16 +406,36 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     return result;
   };
 
+  const [duplicateRows, setDuplicateRows] = useState([]);
+
   const validateAndSetPreview = async (data) => {
     const validationErrors = [];
     const validData = [];
+    const duplicates = [];
 
     data.forEach((row, index) => {
       const rowErrors = [];
+      const rowNum = index + 2;
 
       // Check required fields
       if (!row.buyerProvince || !row.buyerProvince.trim()) {
         rowErrors.push("Province is required");
+      }
+
+      if (!row.buyerNTNCNIC || !row.buyerNTNCNIC.trim()) {
+        rowErrors.push("Buyer NTN/CNIC is required");
+      }
+
+      if (!row.buyerBusinessName || !row.buyerBusinessName.trim()) {
+        rowErrors.push("Buyer Business Name is required");
+      }
+
+      if (!row.buyerPhoneNumber || !row.buyerPhoneNumber.trim()) {
+        rowErrors.push("Buyer Phone Number is required");
+      }
+
+      if (!row.buyerAddress || !row.buyerAddress.trim()) {
+        rowErrors.push("Buyer Address is required");
       }
 
       // Validate NTN/CNIC format (if provided)
@@ -424,7 +444,6 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
         // NTN/CNIC validation logic
         if (ntnCnic.length === 7) {
-          // 7 characters - should be NTN (digits and alphabets only, no special characters)
           const ntnRegex = /^[A-Za-z0-9]{7}$/;
           if (!ntnRegex.test(ntnCnic)) {
             rowErrors.push(
@@ -432,7 +451,6 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             );
           }
         } else if (ntnCnic.length === 13) {
-          // 13 characters - should be CNIC (digits only, no alphabets or special characters)
           const cnicRegex = /^[0-9]{13}$/;
           if (!cnicRegex.test(ntnCnic)) {
             rowErrors.push(
@@ -440,22 +458,47 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             );
           }
         } else {
-          // Invalid length
           rowErrors.push(
             "BuyerNTN: Should be either 7 characters (NTN) or 13 characters (CNIC)"
           );
         }
 
-        // Check for duplicate NTN/CNIC within the same file
-        const duplicateIndex = validData.findIndex(
+        // Exact row duplicate check (Full match) within the uploaded CSV
+        const isExactDuplicate = validData.some((item) => {
+          return (
+            (item.buyerNTNCNIC || "").trim() === (row.buyerNTNCNIC || "").trim() &&
+            (item.buyerBusinessName || "").trim() === (row.buyerBusinessName || "").trim() &&
+            (item.buyerProvince || "").trim() === (row.buyerProvince || "").trim() &&
+            (item.buyerAddress || "").trim() === (row.buyerAddress || "").trim() &&
+            (item.buyerPhoneNumber || "").trim() === (row.buyerPhoneNumber || "").trim()
+          );
+        });
+
+        if (isExactDuplicate) {
+          duplicates.push({
+            ...row,
+            _status: "duplicate",
+            _row: rowNum
+          });
+          return; // Skip this row
+        }
+
+        // Also check if NTN is already in validData to avoid file-level NTN conflicts
+        // even if not exact match (good practice, though prompt focused on exact)
+        const ntnExistsInFile = validData.some(
           (item) => item.buyerNTNCNIC && item.buyerNTNCNIC.trim() === ntnCnic
         );
-        if (duplicateIndex !== -1) {
-          rowErrors.push("Duplicate NTN/CNIC found in file");
+        if (ntnExistsInFile) {
+          duplicates.push({
+            ...row,
+            _status: "duplicate_ntn",
+            _row: rowNum
+          });
+          return;
         }
       }
 
-      // Validate province (common Pakistani provinces)
+      // Validate province
       const validProvinces = [
         "BALOCHISTAN",
         "AZAD JAMMU AND KASHMIR",
@@ -474,20 +517,19 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         );
       }
 
-      // Registration type column removed from template
-
       if (rowErrors.length > 0) {
         validationErrors.push({
-          row: index + 2, // +2 because of 0-based index and header row
+          row: rowNum,
           errors: rowErrors,
         });
       } else {
-        validData.push(row);
+        validData.push({ ...row, _row: rowNum });
       }
     });
 
     setErrors(validationErrors);
-    setPreviewData(validData); // Show all valid data
+    setDuplicateRows(duplicates);
+    setPreviewData(validData);
 
     // Check for existing buyers if we have valid data
     if (validData.length > 0 && selectedTenant) {
@@ -514,7 +556,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       if (existing.length > 0) {
         toast.info(
-          `${existing.length} buyers already exist and will be skipped during upload`
+          `${existing.length} buyers already exist in the system and will be skipped`
         );
       }
 
@@ -549,7 +591,7 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           closeOnClick: false,
           pauseOnHover: true,
         });
-      } catch (_) {}
+      } catch (_) { }
 
       // Use the new optimized backend endpoint for bulk FBR checking
       const response = await api.post(
@@ -611,29 +653,26 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           );
         }
       } else {
-        throw new Error("Backend FBR check failed");
+        throw new Error("FBR API call was not successful");
       }
     } catch (error) {
       console.error("Error checking registration types:", error);
+
+      const errorMsg = error.message || "FBR API issue - service unavailable.";
+
       try {
         toast.update("fbr-bulk-check", {
-          render: "Error checking registration types. Using default values.",
+          render: `FBR API Error: ${errorMsg}. Processing stopped.`,
           type: "error",
-          autoClose: 5000,
+          autoClose: 8000,
         });
       } catch (_) {
-        toast.error("Error checking registration types. Using default values.");
+        toast.error(`FBR API Error: ${errorMsg}. Processing stopped.`);
       }
 
-      // Fallback to default values
-      const updated = newBuyersData.map((item) => ({
-        ...item,
-        buyerData: {
-          ...item.buyerData,
-          buyerRegistrationType: "Unregistered",
-        },
-      }));
-      setNewBuyers(updated);
+      // Stop processing by clearing newBuyers so they can't be uploaded
+      setNewBuyers([]);
+      setPreviewData([]); // Reset preview or handle as needed
     } finally {
       setCheckingRegistration(false);
     }
@@ -810,6 +849,14 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         _status: "existing",
         _existingBuyer: item.existingBuyer,
         _row: item.row,
+      });
+    });
+
+    // Add duplicates within file
+    duplicateRows.forEach((item) => {
+      combined.push({
+        ...item,
+        _status: "duplicate",
       });
     });
 
@@ -1066,7 +1113,23 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                                 size="small"
                                 color="warning"
                                 icon={<Info />}
-                                title={`Already exists as: ${row._existingBuyer.buyerBusinessName}`}
+                                title="NTN already registered."
+                              />
+                            ) : row._status === "duplicate" ? (
+                              <Chip
+                                label="Skip"
+                                size="small"
+                                color="error"
+                                icon={<Warning />}
+                                title="This row was skipped because it is an exact duplicate."
+                              />
+                            ) : row._status === "duplicate_ntn" ? (
+                              <Chip
+                                label="Skip"
+                                size="small"
+                                color="error"
+                                icon={<Warning />}
+                                title="This row was skipped because the NTN is already present in this file."
                               />
                             ) : (
                               <Chip

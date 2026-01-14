@@ -325,14 +325,14 @@ export default function CreateInvoice() {
     const checkFbrStatus = async () => {
       try {
         setFbrRegistrationStatus(prev => ({ ...prev, loading: true, error: null }));
-        
+
         const currentDate = dayjs().format('YYYY-MM-DD');
         console.log(`Checking FBR status for NTN: ${buyer.buyerNTNCNIC}, Date: ${currentDate}`);
-        
+
         const result = await checkRegistrationStatusWithDate(buyer.buyerNTNCNIC, currentDate);
-        
+
         console.log("FBR API result:", result);
-        
+
         setFbrRegistrationStatus({
           loading: false,
           isActive: result.isActive,
@@ -361,17 +361,17 @@ export default function CreateInvoice() {
                 const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
                 const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
                 const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-                
+
                 return {
                   ...item,
                   totalValues: calculatedTotal.toString(), // Update Total Values
                   isTotalValuesManual: false // Reset manual flag since it's auto-calculated
                 };
               }
-              
+
               const valueSalesExcludingST = parseFloat(item.valueSalesExcludingST) || 0;
               const furtherTaxAmount = result.shouldApplyFurtherTax ? (valueSalesExcludingST * 0.04) : 0;
-              
+
               // Recalculate Total Values when Further Tax changes
               const calculatedTotalBeforeDiscount =
                 parseFloat(item.valueSalesExcludingST || 0) +
@@ -385,7 +385,7 @@ export default function CreateInvoice() {
               const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
               const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
               const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-              
+
               return {
                 ...item,
                 furtherTax: furtherTaxAmount.toFixed(2), // Calculate 4% of Value Sales (Excluding ST)
@@ -432,14 +432,14 @@ export default function CreateInvoice() {
             const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
             const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
             const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-            
+
             return {
               ...item,
               totalValues: calculatedTotal.toString(), // Update Total Values
               isTotalValuesManual: false // Reset manual flag since it's auto-calculated
             };
           }
-          
+
           // For non-manual further tax, don't recalculate - let user control it
           return item;
         })
@@ -457,7 +457,7 @@ export default function CreateInvoice() {
           if (!item.isFurtherTaxManual && fbrRegistrationStatus.shouldApplyFurtherTax) {
             const valueSalesExcludingST = parseFloat(item.valueSalesExcludingST) || 0;
             const furtherTaxAmount = valueSalesExcludingST * 0.04;
-            
+
             // Recalculate Total Values when Further Tax changes
             const calculatedTotalBeforeDiscount =
               parseFloat(item.valueSalesExcludingST || 0) +
@@ -471,7 +471,7 @@ export default function CreateInvoice() {
             const totalAfterDiscount = calculatedTotalBeforeDiscount - discountAmount;
             const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
             const calculatedTotal = Number((totalAfterDiscount + taxWithheld).toFixed(2));
-            
+
             return {
               ...item,
               furtherTax: furtherTaxAmount.toFixed(2), // Calculate 4% of Value Sales (Excluding ST)
@@ -479,7 +479,7 @@ export default function CreateInvoice() {
               isTotalValuesManual: false // Reset manual flag since it's auto-calculated
             };
           }
-          
+
           return item;
         })
       }));
@@ -489,7 +489,7 @@ export default function CreateInvoice() {
   // Effect to update form data when buyer is selected
   React.useEffect(() => {
     if (!selectedBuyerId || buyers.length === 0) return;
-    
+
     const buyer = buyers.find((b) => b.id === selectedBuyerId);
     if (buyer) {
       setFormData((prev) => ({
@@ -677,7 +677,7 @@ export default function CreateInvoice() {
       } catch (error) {
         setTransactionTypesError(
           error.message ||
-            "Failed to fetch transaction types from API. Please check your connection and try again."
+          "Failed to fetch transaction types from API. Please check your connection and try again."
         );
       } finally {
         setTransactionTypesLoading(false);
@@ -814,7 +814,7 @@ export default function CreateInvoice() {
         } catch (error) {
           setTransactionTypesError(
             error.message ||
-              "Failed to fetch transaction types from API. Please check your connection and try again."
+            "Failed to fetch transaction types from API. Please check your connection and try again."
           );
         } finally {
           setTransactionTypesLoading(false);
@@ -1112,9 +1112,9 @@ export default function CreateInvoice() {
         setIsEditMode(true);
         setEditInvoiceNumber(
           invoiceData.invoiceNumber ||
-            invoiceData.companyInvoiceRefNo ||
-            invoiceData.invoiceRefNo ||
-            ""
+          invoiceData.companyInvoiceRefNo ||
+          invoiceData.invoiceRefNo ||
+          ""
         );
         localStorage.removeItem("editInvoiceData");
 
@@ -1809,12 +1809,12 @@ export default function CreateInvoice() {
       });
     } catch (e) {
       console.error("Error saving product:", e);
-      
+
       let errorMessage = "Failed to save product. Please try again.";
-      
+
       if (e.response) {
         const { status, data } = e.response;
-        
+
         if (status === 400) {
           if (data.message && data.message.includes("HS Code is required")) {
             errorMessage = "HS Code is required for the product.";
@@ -1837,7 +1837,7 @@ export default function CreateInvoice() {
       } else if (e.message) {
         errorMessage = e.message;
       }
-      
+
       toast.error(errorMessage, {
         autoClose: 5000,
         hideProgressBar: false,
@@ -2611,44 +2611,44 @@ export default function CreateInvoice() {
       const items =
         prev.items.length > 0
           ? prev.items.map((item) => ({
-              ...item,
-              // Don't update product description - keep existing or clear if no HS code
-              productDescription: item.hsCode ? item.productDescription : "",
-              saleType: saleType,
-              rate: isEditing ? item.rate : "", // Preserve rate when editing
-            }))
+            ...item,
+            // Don't update product description - keep existing or clear if no HS code
+            productDescription: item.hsCode ? item.productDescription : "",
+            saleType: saleType,
+            rate: isEditing ? item.rate : "", // Preserve rate when editing
+          }))
           : [
-              {
-                hsCode: "",
-                productDescription: "", // Don't set scenario description automatically
-                rate: "",
-                quantity: "1",
-                unitPrice: "0.00",
-                retailPrice: "0",
-                totalValues: "0",
-                valueSalesExcludingST: "0",
-                salesTaxApplicable: "0",
-                salesTaxWithheldAtSource: "0",
-                sroScheduleNo: "",
-                sroItemSerialNo: "",
-                billOfLadingUoM: "",
-                uoM: "",
-                extraTax: "",
-                furtherTax: "0",
-                fedPayable: "0",
-                discount: "0",
-                advanceIncomeTax: "0",
-                saleType,
-                isSROScheduleEnabled: false,
-                isSROItemEnabled: false,
-                isValueSalesManual: false,
-                isTotalValuesManual: false,
-                isSalesTaxManual: false,
-                isSalesTaxWithheldManual: false,
-                isFurtherTaxManual: false,
-                isFedPayableManual: false,
-              },
-            ];
+            {
+              hsCode: "",
+              productDescription: "", // Don't set scenario description automatically
+              rate: "",
+              quantity: "1",
+              unitPrice: "0.00",
+              retailPrice: "0",
+              totalValues: "0",
+              valueSalesExcludingST: "0",
+              salesTaxApplicable: "0",
+              salesTaxWithheldAtSource: "0",
+              sroScheduleNo: "",
+              sroItemSerialNo: "",
+              billOfLadingUoM: "",
+              uoM: "",
+              extraTax: "",
+              furtherTax: "0",
+              fedPayable: "0",
+              discount: "0",
+              advanceIncomeTax: "0",
+              saleType,
+              isSROScheduleEnabled: false,
+              isSROItemEnabled: false,
+              isValueSalesManual: false,
+              isTotalValuesManual: false,
+              isSalesTaxManual: false,
+              isSalesTaxWithheldManual: false,
+              isFurtherTaxManual: false,
+              isFedPayableManual: false,
+            },
+          ];
       return {
         ...prev,
         transctypeId: transctypeId,
@@ -2868,9 +2868,8 @@ export default function CreateInvoice() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: `Failed to save invoice: ${
-          error.response?.data?.message || error.message
-        }`,
+        text: `Failed to save invoice: ${error.response?.data?.message || error.message
+          }`,
         confirmButtonColor: "#d33",
       });
     } finally {
@@ -3384,29 +3383,26 @@ export default function CreateInvoice() {
           // },
           {
             field: "valueSalesExcludingST",
-            message: `Value Sales Excluding ST is required for item ${
-              index + 1
-            }`,
+            message: `Value Sales Excluding ST is required for item ${index + 1
+              }`,
           },
           ...(item.rate && item.rate.toLowerCase() === "exempt"
             ? [
-                {
-                  field: "sroScheduleNo",
-                  message: `SRO Schedule Number is required for exempt item ${
-                    index + 1
+              {
+                field: "sroScheduleNo",
+                message: `SRO Schedule Number is required for exempt item ${index + 1
                   }`,
-                },
-                {
-                  field: "sroItemSerialNo",
-                  message: `SRO Item Serial Number is required for exempt item ${
-                    index + 1
+              },
+              {
+                field: "sroItemSerialNo",
+                message: `SRO Item Serial Number is required for exempt item ${index + 1
                   }`,
-                },
-              ]
+              },
+            ]
             : []),
           ...(item.rate &&
-          item.rate.includes("/bill") &&
-          formData.scenarioId === "SN018"
+            item.rate.includes("/bill") &&
+            formData.scenarioId === "SN018"
             ? []
             : []),
         ];
@@ -4182,11 +4178,11 @@ export default function CreateInvoice() {
                   ...buyers,
                   ...(loadingBuyers && buyerHasMore
                     ? [
-                        {
-                          id: "__loading__",
-                          buyerBusinessName: "Loading more...",
-                        },
-                      ]
+                      {
+                        id: "__loading__",
+                        buyerBusinessName: "Loading more...",
+                      },
+                    ]
                     : []),
                 ]}
                 getOptionLabel={(option) =>
@@ -4333,7 +4329,7 @@ export default function CreateInvoice() {
                         } catch (error) {
                           setTransactionTypesError(
                             error.message ||
-                              "Failed to fetch transaction types from API. Please check your connection and try again."
+                            "Failed to fetch transaction types from API. Please check your connection and try again."
                           );
                         } finally {
                           setTransactionTypesLoading(false);
@@ -4587,8 +4583,8 @@ export default function CreateInvoice() {
                 </Alert>
               ) : fbrRegistrationStatus.isActive !== null ? (
                 <Box>
-                  <Alert 
-                    severity={fbrRegistrationStatus.isActive ? "success" : "info"} 
+                  <Alert
+                    severity={fbrRegistrationStatus.isActive ? "success" : "info"}
                     sx={{ py: 1, mb: 1 }}
                   >
                     <Typography variant="body2">
@@ -4914,11 +4910,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.valueSalesExcludingST === "0.00" ||
-                      item.valueSalesExcludingST === "0"
+                        item.valueSalesExcludingST === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                            item.valueSalesExcludingST
-                          )
+                          item.valueSalesExcludingST
+                        )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5036,11 +5032,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.salesTaxWithheldAtSource === "0.00" ||
-                      item.salesTaxWithheldAtSource === "0"
+                        item.salesTaxWithheldAtSource === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                            item.salesTaxWithheldAtSource
-                          )
+                          item.salesTaxWithheldAtSource
+                        )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5199,7 +5195,7 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.advanceIncomeTax === "0.00" ||
-                      item.advanceIncomeTax === "0"
+                        item.advanceIncomeTax === "0"
                         ? ""
                         : formatWithCommasWhileTyping(item.advanceIncomeTax)
                     }
@@ -5481,7 +5477,7 @@ export default function CreateInvoice() {
                                     "&:hover": {
                                       background:
                                         editingItemIndex &&
-                                        editingItemIndex !== item.id
+                                          editingItemIndex !== item.id
                                           ? "rgba(0, 0, 0, 0.04)"
                                           : "rgba(99, 102, 241, 0.1)",
                                     },
@@ -5627,23 +5623,23 @@ export default function CreateInvoice() {
         </Box>
         {(allLoading ||
           (selectedTenant && !tokensLoaded && !loadingTimeout)) && (
-          <Box
-            sx={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              bgcolor: "rgba(255,255,255,0.7)",
-              zIndex: 9999,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CircularProgress size={50} color="primary" />
-          </Box>
-        )}
+            <Box
+              sx={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
+                bgcolor: "rgba(255,255,255,0.7)",
+                zIndex: 9999,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress size={50} color="primary" />
+            </Box>
+          )}
 
         {/* Buyer Modal */}
         <BuyerModal
