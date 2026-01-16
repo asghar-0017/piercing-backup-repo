@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
+import Swal from "sweetalert2";
+import { useTenantSelection } from "../Context/TenantSelectionProvider";
 
 const AuditManagement = () => {
+  const { selectedTenant } = useTenantSelection();
   const [activeTab, setActiveTab] = useState("logs");
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditSummary, setAuditSummary] = useState([]);
@@ -12,6 +15,7 @@ const AuditManagement = () => {
   const [selectedEntity, setSelectedEntity] = useState({ type: "", id: "" });
   const [entityHistory, setEntityHistory] = useState(null);
   const [showEntityHistory, setShowEntityHistory] = useState(false);
+  const [recoverLoading, setRecoverLoading] = useState(false);
   const [filters, setFilters] = useState({
     entityType: "",
     entityId: "",
@@ -36,11 +40,16 @@ const AuditManagement = () => {
       const queryParams = new URLSearchParams({
         page: pagination.page,
         limit: pagination.limit,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== "")),
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, v]) => v !== "")
+        ),
       });
 
-      console.log('🔍 Frontend Debug - Fetching audit logs with params:', queryParams.toString());
-      console.log('🔍 Frontend Debug - Current filters:', filters);
+      console.log(
+        "🔍 Frontend Debug - Fetching audit logs with params:",
+        queryParams.toString()
+      );
+      console.log("🔍 Frontend Debug - Current filters:", filters);
 
       const response = await fetch(`/api/audit/logs?${queryParams}`, {
         headers: {
@@ -49,14 +58,17 @@ const AuditManagement = () => {
       });
 
       const result = await response.json();
-      console.log('🔍 Frontend Debug - Audit logs response:', result);
-      
+      console.log("🔍 Frontend Debug - Audit logs response:", result);
+
       if (result.success) {
         setAuditLogs(result.data.logs);
         setPagination(result.data.pagination);
       } else {
         setError(result.message);
-        console.error('🔍 Frontend Debug - Audit logs API error:', result.message);
+        console.error(
+          "🔍 Frontend Debug - Audit logs API error:",
+          result.message
+        );
       }
     } catch (err) {
       setError("Failed to fetch audit logs");
@@ -66,29 +78,124 @@ const AuditManagement = () => {
     }
   };
 
+  const handleRecoverInvoice = async (entityType, entityId, tenantId) => {
+    if (entityType !== "invoice") {
+      return;
+    }
+
+    const effectiveTenantId =
+      tenantId || selectedTenant?.tenant_id || filters.tenantId;
+
+    if (!effectiveTenantId) {
+      Swal.fire({
+        icon: "error",
+        title: "Cannot Recover Invoice",
+        text: "Tenant information is missing.",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+
+    const result = await Swal.fire({
+      icon: "warning",
+      title: "Recover Invoice",
+      text: `Are you sure you want to recover invoice #${entityId}?`,
+      showCancelButton: true,
+      confirmButtonText: "Yes, recover it",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+    });
+    if (!result.isConfirmed) {
+      return;
+    }
+
+    try {
+      setRecoverLoading(true);
+
+      const response = await fetch(
+        `/api/tenant/${effectiveTenantId}/invoices/${entityId}/recover`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            "X-Tenant-Id": effectiveTenantId,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        await Swal.fire({
+          icon: "success",
+          title: "Invoice Recovered",
+          text: "Invoice recovered successfully.",
+          confirmButtonText: "OK",
+        });
+
+        fetchAuditLogs();
+        fetchAuditSummary();
+
+        if (showEntityHistory && entityHistory) {
+          fetchEntityHistory(entityType, entityId);
+        }
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Recovery Failed",
+          text: result.message || "Failed to recover invoice.",
+          confirmButtonText: "OK",
+        });
+      }
+    } catch (err) {
+      console.error("Error recovering invoice:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Recovery Error",
+        text: "Error recovering invoice. Please check console for details.",
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setRecoverLoading(false);
+    }
+  };
+
   // Fetch entity history
   const fetchEntityHistory = async (entityType, entityId) => {
-    console.log(`🔍 Frontend Debug - Fetching entity history for ${entityType} #${entityId}`);
+    console.log(
+      `🔍 Frontend Debug - Fetching entity history for ${entityType} #${entityId}`
+    );
     console.log(`🔍 Frontend Debug - Current filters:`, filters);
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/audit/entity/${entityType}/${entityId}/history`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
+      const response = await fetch(
+        `/api/audit/entity/${entityType}/${entityId}/history`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
 
       const result = await response.json();
       console.log(`🔍 Frontend Debug - Entity history response:`, result);
-      
+
       if (result.success) {
         setEntityHistory(result.data.history);
         setShowEntityHistory(true);
-        console.log(`🔍 Frontend Debug - Entity history set:`, result.data.history);
+        console.log(
+          `🔍 Frontend Debug - Entity history set:`,
+          result.data.history
+        );
       } else {
         setError(result.message);
-        console.error(`🔍 Frontend Debug - Entity history error:`, result.message);
+        console.error(
+          `🔍 Frontend Debug - Entity history error:`,
+          result.message
+        );
       }
     } catch (err) {
       setError("Failed to fetch entity history");
@@ -106,7 +213,9 @@ const AuditManagement = () => {
       const queryParams = new URLSearchParams({
         page: pagination.page,
         limit: pagination.limit,
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== "")),
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, v]) => v !== "")
+        ),
       });
 
       const response = await fetch(`/api/audit/summary?${queryParams}`, {
@@ -133,7 +242,7 @@ const AuditManagement = () => {
   // Fetch statistics
   const fetchStatistics = async () => {
     try {
-      console.log('🔍 Frontend Debug - Fetching statistics...');
+      console.log("🔍 Frontend Debug - Fetching statistics...");
       const response = await fetch("/api/audit/statistics", {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -141,13 +250,16 @@ const AuditManagement = () => {
       });
 
       const result = await response.json();
-      console.log('🔍 Frontend Debug - Statistics response:', result);
-      
+      console.log("🔍 Frontend Debug - Statistics response:", result);
+
       if (result.success) {
         setStatistics(result.data);
-        console.log('🔍 Frontend Debug - Statistics set:', result.data);
+        console.log("🔍 Frontend Debug - Statistics set:", result.data);
       } else {
-        console.error('🔍 Frontend Debug - Statistics API error:', result.message);
+        console.error(
+          "🔍 Frontend Debug - Statistics API error:",
+          result.message
+        );
       }
     } catch (err) {
       console.error("Error fetching statistics:", err);
@@ -157,7 +269,7 @@ const AuditManagement = () => {
   useEffect(() => {
     // Always fetch statistics for the summary cards
     fetchStatistics();
-    
+
     if (activeTab === "logs") {
       if (filters.entityId && filters.entityType) {
         // If specific entity is selected, fetch its history
@@ -175,23 +287,34 @@ const AuditManagement = () => {
 
   const handleFilterChange = (key, value) => {
     console.log(`🔍 Frontend Debug - Filter change: ${key} = ${value}`);
-    setFilters(prev => {
+    setFilters((prev) => {
       const newFilters = { ...prev, [key]: value };
       console.log(`🔍 Frontend Debug - New filters:`, newFilters);
       return newFilters;
     });
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
+  useEffect(() => {
+    if (selectedTenant && selectedTenant.tenant_id) {
+      setFilters((prev) => ({
+        ...prev,
+        tenantId: prev.tenantId || selectedTenant.tenant_id,
+      }));
+    }
+  }, [selectedTenant]);
+
   const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, page: newPage }));
+    setPagination((prev) => ({ ...prev, page: newPage }));
   };
 
   const exportAuditLogs = async () => {
     try {
       const queryParams = new URLSearchParams({
         format: "csv",
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== "")),
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([_, v]) => v !== "")
+        ),
       });
 
       const response = await fetch(`/api/audit/export?${queryParams}`, {
@@ -217,29 +340,52 @@ const AuditManagement = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return "Invalid Date";
+      }
+      return date.toLocaleString();
+    } catch (error) {
+      console.error("Error formatting date:", error, dateString);
+      return "Invalid Date";
+    }
   };
 
   const getOperationColor = (operation) => {
     switch (operation) {
-      case "CREATE": return "text-green-600 bg-green-100";
-      case "UPDATE": return "text-blue-600 bg-blue-100";
-      case "DELETE": return "text-red-600 bg-red-100";
-      case "SAVE_DRAFT": return "text-yellow-600 bg-yellow-100";
-      case "SAVE_AND_VALIDATE": return "text-purple-600 bg-purple-100";
-      case "SUBMIT_TO_FBR": return "text-indigo-600 bg-indigo-100";
-      case "BULK_CREATE": return "text-orange-600 bg-orange-100";
-      default: return "text-gray-600 bg-gray-100";
+      case "CREATE":
+        return "text-green-600 bg-green-100";
+      case "UPDATE":
+        return "text-blue-600 bg-blue-100";
+      case "DELETE":
+        return "text-red-600 bg-red-100";
+      case "SAVE_DRAFT":
+        return "text-yellow-600 bg-yellow-100";
+      case "SAVE_AND_VALIDATE":
+        return "text-purple-600 bg-purple-100";
+      case "SUBMIT_TO_FBR":
+        return "text-indigo-600 bg-indigo-100";
+      case "BULK_CREATE":
+        return "text-orange-600 bg-orange-100";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
   };
 
   const getEntityTypeColor = (entityType) => {
     switch (entityType) {
-      case "invoice": return "text-purple-600 bg-purple-100";
-      case "buyer": return "text-orange-600 bg-orange-100";
-      case "product": return "text-indigo-600 bg-indigo-100";
-      case "user": return "text-pink-600 bg-pink-100";
-      default: return "text-gray-600 bg-gray-100";
+      case "invoice":
+        return "text-purple-600 bg-purple-100";
+      case "buyer":
+        return "text-orange-600 bg-orange-100";
+      case "product":
+        return "text-indigo-600 bg-indigo-100";
+      case "user":
+        return "text-pink-600 bg-pink-100";
+      default:
+        return "text-gray-600 bg-gray-100";
     }
   };
 
@@ -257,13 +403,13 @@ const AuditManagement = () => {
 
   // View entity history
   const viewEntityHistory = (entityType, entityId) => {
-    setFilters(prev => ({ ...prev, entityType, entityId }));
+    setFilters((prev) => ({ ...prev, entityType, entityId }));
     fetchEntityHistory(entityType, entityId);
   };
 
   // Clear entity selection
   const clearEntitySelection = () => {
-    setFilters(prev => ({ ...prev, entityType: "", entityId: "" }));
+    setFilters((prev) => ({ ...prev, entityType: "", entityId: "" }));
     setShowEntityHistory(false);
     setEntityHistory(null);
   };
@@ -277,18 +423,24 @@ const AuditManagement = () => {
   // Helper function to render seller information
   const renderSellerInfo = (data) => {
     if (!data) return null;
-    
+
     return (
       <div className="bg-blue-50 p-3 sm:p-4 rounded-lg mb-4">
-        <h4 className="text-sm sm:text-md font-semibold text-blue-900 mb-3">Seller Information</h4>
+        <h4 className="text-sm sm:text-md font-semibold text-blue-900 mb-3">
+          Seller Information
+        </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div>
             <span className="font-medium text-gray-700">Business Name:</span>
-            <span className="ml-2 text-gray-900">{data.sellerBusinessName || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.sellerBusinessName || "N/A"}
+            </span>
           </div>
           <div>
             <span className="font-medium text-gray-700">NTN/CNIC:</span>
-            <span className="ml-2 text-gray-900">{data.sellerNTNCNIC || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.sellerNTNCNIC || "N/A"}
+            </span>
           </div>
           {data.sellerFullNTN && (
             <div>
@@ -298,7 +450,9 @@ const AuditManagement = () => {
           )}
           <div>
             <span className="font-medium text-gray-700">Province:</span>
-            <span className="ml-2 text-gray-900">{data.sellerProvince || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.sellerProvince || "N/A"}
+            </span>
           </div>
           {data.sellerCity && (
             <div>
@@ -308,7 +462,9 @@ const AuditManagement = () => {
           )}
           <div className="sm:col-span-2">
             <span className="font-medium text-gray-700">Address:</span>
-            <span className="ml-2 text-gray-900">{data.sellerAddress || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.sellerAddress || "N/A"}
+            </span>
           </div>
         </div>
       </div>
@@ -318,26 +474,38 @@ const AuditManagement = () => {
   // Helper function to render buyer information
   const renderBuyerInfo = (data) => {
     if (!data) return null;
-    
+
     return (
       <div className="bg-green-50 p-3 sm:p-4 rounded-lg mb-4">
-        <h4 className="text-sm sm:text-md font-semibold text-green-900 mb-3">Buyer Information</h4>
+        <h4 className="text-sm sm:text-md font-semibold text-green-900 mb-3">
+          Buyer Information
+        </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
           <div>
             <span className="font-medium text-gray-700">Business Name:</span>
-            <span className="ml-2 text-gray-900">{data.buyerBusinessName || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.buyerBusinessName || "N/A"}
+            </span>
           </div>
           <div>
             <span className="font-medium text-gray-700">NTN/CNIC:</span>
-            <span className="ml-2 text-gray-900">{data.buyerNTNCNIC || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.buyerNTNCNIC || "N/A"}
+            </span>
           </div>
           <div>
             <span className="font-medium text-gray-700">Province:</span>
-            <span className="ml-2 text-gray-900">{data.buyerProvince || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.buyerProvince || "N/A"}
+            </span>
           </div>
           <div>
-            <span className="font-medium text-gray-700">Registration Type:</span>
-            <span className="ml-2 text-gray-900">{data.buyerRegistrationType || 'N/A'}</span>
+            <span className="font-medium text-gray-700">
+              Registration Type:
+            </span>
+            <span className="ml-2 text-gray-900">
+              {data.buyerRegistrationType || "N/A"}
+            </span>
           </div>
           {data.buyerCity && (
             <div>
@@ -347,7 +515,9 @@ const AuditManagement = () => {
           )}
           <div className="sm:col-span-2">
             <span className="font-medium text-gray-700">Address:</span>
-            <span className="ml-2 text-gray-900">{data.buyerAddress || 'N/A'}</span>
+            <span className="ml-2 text-gray-900">
+              {data.buyerAddress || "N/A"}
+            </span>
           </div>
         </div>
       </div>
@@ -356,13 +526,19 @@ const AuditManagement = () => {
 
   // Helper function to render invoice items as a comprehensive table
   const renderInvoiceItemsTable = (invoiceItems) => {
-    if (!invoiceItems || !Array.isArray(invoiceItems) || invoiceItems.length === 0) {
+    if (
+      !invoiceItems ||
+      !Array.isArray(invoiceItems) ||
+      invoiceItems.length === 0
+    ) {
       return <p className="text-sm text-gray-500">No invoice items</p>;
     }
 
     return (
       <div className="bg-purple-50 p-4 rounded-lg mb-4">
-        <h4 className="text-md font-semibold text-purple-900 mb-3">Invoice Items ({invoiceItems.length} items)</h4>
+        <h4 className="text-md font-semibold text-purple-900 mb-3">
+          Invoice Items ({invoiceItems.length} items)
+        </h4>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -401,40 +577,81 @@ const AuditManagement = () => {
                 <tr key={item.id || index}>
                   <td className="px-3 py-2 text-sm">
                     <div>
-                      <div className="font-medium text-gray-900">{item.product_name || 'N/A'}</div>
-                      <div className="text-gray-500 text-xs">{item.productDescription || 'No description'}</div>
+                      <div className="font-medium text-gray-900">
+                        {item.product_name || "N/A"}
+                      </div>
+                      <div className="text-gray-500 text-xs">
+                        {item.productDescription || "No description"}
+                      </div>
                     </div>
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.hsCode || 'N/A'}
+                    {item.hsCode || "N/A"}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
                     {item.quantity ? (
                       <div>
                         <span>{item.quantity}</span>
                         {item.uoM && (
-                          <span className="ml-1 text-blue-600 font-medium">{item.uoM}</span>
+                          <span className="ml-1 text-blue-600 font-medium">
+                            {item.uoM}
+                          </span>
                         )}
                       </div>
-                    ) : 'N/A'}
+                    ) : (
+                      "N/A"
+                    )}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.unitPrice ? `$${parseFloat(item.unitPrice).toFixed(2)}` : 'N/A'}
+                    {item.unitPrice !== null && item.unitPrice !== undefined
+                      ? `PKR ${parseFloat(item.unitPrice).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : "N/A"}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.totalValues ? `$${parseFloat(item.totalValues).toFixed(2)}` : 'N/A'}
+                    {item.totalValues !== null && item.totalValues !== undefined
+                      ? `PKR ${parseFloat(item.totalValues).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : "N/A"}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.rate || 'N/A'}
+                    {item.rate || "N/A"}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.salesTaxApplicable ? `$${parseFloat(item.salesTaxApplicable).toFixed(2)}` : 'N/A'}
+                    {item.salesTaxApplicable !== null &&
+                    item.salesTaxApplicable !== undefined
+                      ? `PKR ${parseFloat(item.salesTaxApplicable).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : "N/A"}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.extraTax ? `$${parseFloat(item.extraTax).toFixed(2)}` : 'N/A'}
+                    {(() => {
+                      const extraTaxValue = item.extraTax;
+                      if (
+                        extraTaxValue !== null &&
+                        extraTaxValue !== undefined &&
+                        extraTaxValue !== ""
+                      ) {
+                        const amount = parseFloat(extraTaxValue);
+                        if (!isNaN(amount) && amount > 0) {
+                          return `PKR ${amount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        }
+                      }
+                      return "PKR 0.00";
+                    })()}
                   </td>
                   <td className="px-3 py-2 text-sm text-gray-500">
-                    {item.furtherTax ? `$${parseFloat(item.furtherTax).toFixed(2)}` : 'N/A'}
+                    {(() => {
+                      const furtherTaxValue = item.furtherTax;
+                      if (
+                        furtherTaxValue !== null &&
+                        furtherTaxValue !== undefined &&
+                        furtherTaxValue !== ""
+                      ) {
+                        const amount = parseFloat(furtherTaxValue);
+                        if (!isNaN(amount) && amount > 0) {
+                          return `PKR ${amount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                        }
+                      }
+                      return "PKR 0.00";
+                    })()}
                   </td>
                 </tr>
               ))}
@@ -448,12 +665,12 @@ const AuditManagement = () => {
   // Helper function to render object as table with intelligent data display
   const renderObjectAsTable = (obj, title) => {
     if (!obj) return <p className="text-sm text-gray-500">No data available</p>;
-    
+
     let parsedObj;
     try {
-      parsedObj = typeof obj === 'string' ? JSON.parse(obj) : obj;
+      parsedObj = typeof obj === "string" ? JSON.parse(obj) : obj;
     } catch (error) {
-      console.error('Error parsing object:', error);
+      console.error("Error parsing object:", error);
       return <p className="text-sm text-red-500">Error parsing data</p>;
     }
 
@@ -463,62 +680,146 @@ const AuditManagement = () => {
         <div className="space-y-4">
           {/* Basic Invoice Information */}
           <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-            <h4 className="text-sm sm:text-md font-semibold text-gray-900 mb-3">Invoice Information</h4>
+            <h4 className="text-sm sm:text-md font-semibold text-gray-900 mb-3">
+              Invoice Information
+            </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div>
-                <span className="font-medium text-gray-700">Invoice Number:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.invoice_number || 'N/A'}</span>
+                <span className="font-medium text-gray-700">
+                  Invoice Number:
+                </span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.invoice_number || "N/A"}
+                </span>
               </div>
               <div>
-                <span className="font-medium text-gray-700">System Invoice ID:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.system_invoice_id || 'N/A'}</span>
+                <span className="font-medium text-gray-700">
+                  System Invoice ID:
+                </span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.system_invoice_id || "N/A"}
+                </span>
               </div>
               <div>
-                <span className="font-medium text-gray-700">FBR Invoice Number:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.fbr_invoice_number || 'N/A'}</span>
+                <span className="font-medium text-gray-700">
+                  FBR Invoice Number:
+                </span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.fbr_invoice_number || "N/A"}
+                </span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Status:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.status || 'N/A'}</span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.status || "N/A"}
+                </span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Invoice Type:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.invoiceType || 'N/A'}</span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.invoiceType || "N/A"}
+                </span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Invoice Date:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.invoiceDate || 'N/A'}</span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.invoiceDate || "N/A"}
+                </span>
               </div>
               <div>
                 <span className="font-medium text-gray-700">Total Amount:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.totalAmount ? `$${parseFloat(parsedObj.totalAmount).toFixed(2)}` : 'N/A'}</span>
+                <span className="ml-2 text-gray-900">
+                  {(() => {
+                    // Try multiple field names
+                    let totalAmount =
+                      parsedObj.totalAmount ?? parsedObj.total_amount;
+
+                    // Convert to number if it's a string
+                    if (
+                      typeof totalAmount === "string" &&
+                      totalAmount.trim() !== ""
+                    ) {
+                      totalAmount = parseFloat(totalAmount);
+                    }
+
+                    // If totalAmount is not available or is 0, try to calculate from invoice items
+                    if (
+                      (totalAmount === null ||
+                        totalAmount === undefined ||
+                        totalAmount === "" ||
+                        totalAmount === 0) &&
+                      parsedObj.invoice_items &&
+                      Array.isArray(parsedObj.invoice_items) &&
+                      parsedObj.invoice_items.length > 0
+                    ) {
+                      totalAmount = parsedObj.invoice_items.reduce(
+                        (sum, item) => {
+                          const itemTotal = parseFloat(item.totalValues || 0);
+                          return sum + (isNaN(itemTotal) ? 0 : itemTotal);
+                        },
+                        0
+                      );
+                    }
+
+                    // Format the amount
+                    const amount = parseFloat(totalAmount);
+                    if (!isNaN(amount) && amount > 0) {
+                      return `PKR ${amount.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    } else if (!isNaN(amount) && amount === 0) {
+                      return "PKR 0.00";
+                    }
+                    return "N/A";
+                  })()}
+                </span>
               </div>
               <div>
-                <span className="font-medium text-gray-700">FBR Validation:</span>
-                <span className="ml-2 text-gray-900">{parsedObj.fbrValidation || 'N/A'}</span>
+                <span className="font-medium text-gray-700">
+                  FBR Validation:
+                </span>
+                <span className="ml-2 text-gray-900">
+                  {parsedObj.fbrValidation ||
+                    parsedObj.fbrValidationResult ||
+                    (parsedObj.status === "posted" ? "Submitted" : "N/A")}
+                </span>
               </div>
               {parsedObj.invoiceRefNo && (
                 <div>
-                  <span className="font-medium text-gray-700">Invoice Ref No:</span>
-                  <span className="ml-2 text-gray-900">{parsedObj.invoiceRefNo}</span>
+                  <span className="font-medium text-gray-700">
+                    Invoice Ref No:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    {parsedObj.invoiceRefNo}
+                  </span>
                 </div>
               )}
               {parsedObj.companyInvoiceRefNo && (
                 <div>
-                  <span className="font-medium text-gray-700">Company Invoice Ref No:</span>
-                  <span className="ml-2 text-gray-900">{parsedObj.companyInvoiceRefNo}</span>
+                  <span className="font-medium text-gray-700">
+                    Company Invoice Ref No:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    {parsedObj.companyInvoiceRefNo}
+                  </span>
                 </div>
               )}
               {parsedObj.internal_invoice_no && (
                 <div>
-                  <span className="font-medium text-gray-700">Internal Invoice No:</span>
-                  <span className="ml-2 text-gray-900">{parsedObj.internal_invoice_no}</span>
+                  <span className="font-medium text-gray-700">
+                    Internal Invoice No:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    {parsedObj.internal_invoice_no}
+                  </span>
                 </div>
               )}
               {parsedObj.transctypeId && (
                 <div>
-                  <span className="font-medium text-gray-700">Transaction Type ID:</span>
-                  <span className="ml-2 text-gray-900">{parsedObj.transctypeId}</span>
+                  <span className="font-medium text-gray-700">
+                    Transaction Type ID:
+                  </span>
+                  <span className="ml-2 text-gray-900">
+                    {parsedObj.transctypeId}
+                  </span>
                 </div>
               )}
             </div>
@@ -531,43 +832,72 @@ const AuditManagement = () => {
           {renderBuyerInfo(parsedObj)}
 
           {/* Invoice Items */}
-          {parsedObj.invoice_items && Array.isArray(parsedObj.invoice_items) && (
-            renderInvoiceItemsTable(parsedObj.invoice_items)
-          )}
+          {parsedObj.invoice_items &&
+            Array.isArray(parsedObj.invoice_items) &&
+            renderInvoiceItemsTable(parsedObj.invoice_items)}
 
           {/* Additional fields not covered above - only show non-empty fields */}
           {(() => {
             const coveredFields = new Set([
-              'invoice_id', 'invoice_number', 'system_invoice_id', 'fbr_invoice_number', 'status',
-              'invoiceType', 'invoiceDate', 'totalAmount', 'fbrValidation', 'invoice_items',
-              'sellerNTNCNIC', 'sellerFullNTN', 'sellerBusinessName', 'sellerProvince', 'sellerAddress', 'sellerCity',
-              'buyerNTNCNIC', 'buyerBusinessName', 'buyerProvince', 'buyerAddress', 'buyerRegistrationType',
-              'invoiceRefNo', 'companyInvoiceRefNo', 'internal_invoice_no', 'transctypeId', 'transctypeld'
+              "invoice_id",
+              "invoice_number",
+              "system_invoice_id",
+              "fbr_invoice_number",
+              "status",
+              "invoiceType",
+              "invoiceDate",
+              "totalAmount",
+              "fbrValidation",
+              "invoice_items",
+              "sellerNTNCNIC",
+              "sellerFullNTN",
+              "sellerBusinessName",
+              "sellerProvince",
+              "sellerAddress",
+              "sellerCity",
+              "buyerNTNCNIC",
+              "buyerBusinessName",
+              "buyerProvince",
+              "buyerAddress",
+              "buyerRegistrationType",
+              "invoiceRefNo",
+              "companyInvoiceRefNo",
+              "internal_invoice_no",
+              "transctypeId",
+              "transctypeld",
             ]);
-            
+
             // Filter out empty fields and only show meaningful additional data
             const additionalFields = Object.entries(parsedObj)
               .filter(([key]) => !coveredFields.has(key))
               .filter(([key, value]) => {
                 // Only show fields that have meaningful values
-                return value !== null && 
-                       value !== undefined && 
-                       value !== '' && 
-                       value !== 'NULL' && 
-                       value !== 'null' &&
-                       (typeof value !== 'string' || value.trim() !== '');
+                return (
+                  value !== null &&
+                  value !== undefined &&
+                  value !== "" &&
+                  value !== "NULL" &&
+                  value !== "null" &&
+                  (typeof value !== "string" || value.trim() !== "")
+                );
               });
-            
+
             if (additionalFields.length > 0) {
               return (
                 <div className="bg-yellow-50 p-4 rounded-lg">
-                  <h4 className="text-md font-semibold text-yellow-900 mb-3">Additional Information</h4>
+                  <h4 className="text-md font-semibold text-yellow-900 mb-3">
+                    Additional Information
+                  </h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     {additionalFields.map(([key, value]) => (
                       <div key={key}>
-                        <span className="font-medium text-gray-700">{key}:</span>
+                        <span className="font-medium text-gray-700">
+                          {key}:
+                        </span>
                         <span className="ml-2 text-gray-900">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                          {typeof value === "object"
+                            ? JSON.stringify(value)
+                            : String(value)}
                         </span>
                       </div>
                     ))}
@@ -602,12 +932,13 @@ const AuditManagement = () => {
                   {key}
                 </td>
                 <td className="px-4 py-2 text-sm text-gray-500">
-                  {value === null
-                    ? <span className="text-gray-500 italic">null</span>
-                    : typeof value === 'object' && value !== null
-                      ? JSON.stringify(value, null, 2)
-                      : String(value)
-                  }
+                  {value === null ? (
+                    <span className="text-gray-500 italic">null</span>
+                  ) : typeof value === "object" && value !== null ? (
+                    JSON.stringify(value, null, 2)
+                  ) : (
+                    String(value)
+                  )}
                 </td>
               </tr>
             ))}
@@ -619,12 +950,16 @@ const AuditManagement = () => {
 
   // Helper function to render changed fields as comparison table
   const renderChangedFieldsAsTable = (changedFields) => {
-    if (!changedFields) return <p className="text-sm text-gray-500">No changes detected</p>;
-    
-    console.log('🔍 Frontend Debug - Raw changedFields:', changedFields);
-    const parsedFields = typeof changedFields === 'string' ? JSON.parse(changedFields) : changedFields;
-    console.log('🔍 Frontend Debug - Parsed changedFields:', parsedFields);
-    
+    if (!changedFields)
+      return <p className="text-sm text-gray-500">No changes detected</p>;
+
+    console.log("🔍 Frontend Debug - Raw changedFields:", changedFields);
+    const parsedFields =
+      typeof changedFields === "string"
+        ? JSON.parse(changedFields)
+        : changedFields;
+    console.log("🔍 Frontend Debug - Parsed changedFields:", parsedFields);
+
     return (
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -648,30 +983,40 @@ const AuditManagement = () => {
                   {field}
                 </td>
                 <td className="px-2 sm:px-4 py-2 text-sm text-red-600 break-words">
-                  {field === 'invoice_items' && Array.isArray(values.old) ? (
+                  {field === "invoice_items" && Array.isArray(values.old) ? (
                     <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Previous Items ({values.old.length} items):</p>
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        Previous Items ({values.old.length} items):
+                      </p>
                       {renderInvoiceItemsTable(values.old)}
                     </div>
-                  ) : values.old === null 
-                    ? <span className="text-gray-500 italic">null</span>
-                    : typeof values.old === 'object' && values.old !== null 
-                      ? <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(values.old, null, 2)}</pre>
-                      : String(values.old)
-                  }
+                  ) : values.old === null ? (
+                    <span className="text-gray-500 italic">null</span>
+                  ) : typeof values.old === "object" && values.old !== null ? (
+                    <pre className="text-xs whitespace-pre-wrap break-words">
+                      {JSON.stringify(values.old, null, 2)}
+                    </pre>
+                  ) : (
+                    String(values.old)
+                  )}
                 </td>
                 <td className="px-2 sm:px-4 py-2 text-sm text-green-600 break-words">
-                  {field === 'invoice_items' && Array.isArray(values.new) ? (
+                  {field === "invoice_items" && Array.isArray(values.new) ? (
                     <div className="mt-2">
-                      <p className="text-sm font-medium text-gray-700 mb-2">New Items ({values.new.length} items):</p>
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        New Items ({values.new.length} items):
+                      </p>
                       {renderInvoiceItemsTable(values.new)}
                     </div>
-                  ) : values.new === null 
-                    ? <span className="text-gray-500 italic">null</span>
-                    : typeof values.new === 'object' && values.new !== null 
-                      ? <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(values.new, null, 2)}</pre>
-                      : String(values.new)
-                  }
+                  ) : values.new === null ? (
+                    <span className="text-gray-500 italic">null</span>
+                  ) : typeof values.new === "object" && values.new !== null ? (
+                    <pre className="text-xs whitespace-pre-wrap break-words">
+                      {JSON.stringify(values.new, null, 2)}
+                    </pre>
+                  ) : (
+                    String(values.new)
+                  )}
                 </td>
               </tr>
             ))}
@@ -684,11 +1029,33 @@ const AuditManagement = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Audit Management</h1>
-          <p className="text-gray-600 mt-2">
-            Track and monitor all system activities and changes
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Audit Management
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Track and monitor all system activities and changes
+            </p>
+          </div>
+          {selectedTenant && (
+            <div className="bg-white rounded-lg shadow px-4 py-3 border border-gray-200">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                Selected Company
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {selectedTenant.sellerBusinessName}
+              </div>
+              <div className="mt-1 text-xs text-gray-600">
+                Tenant ID: {selectedTenant.tenant_id}
+              </div>
+              {selectedTenant.sellerProvince && (
+                <div className="mt-1 text-xs text-gray-600">
+                  Province: {selectedTenant.sellerProvince}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Statistics Cards */}
@@ -696,13 +1063,27 @@ const AuditManagement = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Operations</p>
-                <p className="text-2xl font-semibold text-gray-900">{statistics.totalOperations || 0}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Total Operations
+                </p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {statistics.totalOperations || 0}
+                </p>
               </div>
             </div>
           </div>
@@ -710,13 +1091,25 @@ const AuditManagement = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 rounded-lg">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                <svg
+                  className="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
                 </svg>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Created</p>
-                <p className="text-2xl font-semibold text-gray-900">{statistics.operationsByType?.CREATE || 0}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {statistics.operationsByType?.CREATE || 0}
+                </p>
               </div>
             </div>
           </div>
@@ -724,13 +1117,25 @@ const AuditManagement = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-yellow-100 rounded-lg">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg
+                  className="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
                 </svg>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Updated</p>
-                <p className="text-2xl font-semibold text-gray-900">{statistics.operationsByType?.UPDATE || 0}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {statistics.operationsByType?.UPDATE || 0}
+                </p>
               </div>
             </div>
           </div>
@@ -738,13 +1143,25 @@ const AuditManagement = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="p-2 bg-red-100 rounded-lg">
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Deleted</p>
-                <p className="text-2xl font-semibold text-gray-900">{statistics.operationsByType?.DELETE || 0}</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {statistics.operationsByType?.DELETE || 0}
+                </p>
               </div>
             </div>
           </div>
@@ -807,7 +1224,9 @@ const AuditManagement = () => {
                   </label>
                   <select
                     value={filters.operation}
-                    onChange={(e) => handleFilterChange("operation", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("operation", e.target.value)
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Operations</option>
@@ -829,14 +1248,21 @@ const AuditManagement = () => {
                     <input
                       type="number"
                       value={filters.entityId}
-                      onChange={(e) => handleFilterChange("entityId", e.target.value)}
+                      onChange={(e) =>
+                        handleFilterChange("entityId", e.target.value)
+                      }
                       placeholder="Enter ID..."
                       className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       disabled={!filters.entityType}
                     />
                     {filters.entityId && filters.entityType && (
                       <button
-                        onClick={() => fetchEntityHistory(filters.entityType, filters.entityId)}
+                        onClick={() =>
+                          fetchEntityHistory(
+                            filters.entityType,
+                            filters.entityId
+                          )
+                        }
                         className="px-3 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         title="View Complete History"
                       >
@@ -853,7 +1279,9 @@ const AuditManagement = () => {
                   <input
                     type="date"
                     value={filters.startDate}
-                    onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("startDate", e.target.value)
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -865,7 +1293,9 @@ const AuditManagement = () => {
                   <input
                     type="date"
                     value={filters.endDate}
-                    onChange={(e) => handleFilterChange("endDate", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("endDate", e.target.value)
+                    }
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -877,7 +1307,9 @@ const AuditManagement = () => {
                   <input
                     type="text"
                     value={filters.search}
-                    onChange={(e) => handleFilterChange("search", e.target.value)}
+                    onChange={(e) =>
+                      handleFilterChange("search", e.target.value)
+                    }
                     placeholder="Search..."
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -897,7 +1329,7 @@ const AuditManagement = () => {
                         endDate: "",
                         search: "",
                       });
-                      setPagination(prev => ({ ...prev, page: 1 }));
+                      setPagination((prev) => ({ ...prev, page: 1 }));
                       clearEntitySelection();
                     }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -944,9 +1376,12 @@ const AuditManagement = () => {
                 <div className="flex items-center space-x-3">
                   <span className="text-2xl">ℹ️</span>
                   <div>
-                    <h4 className="text-lg font-semibold text-blue-900">Complete History Available</h4>
+                    <h4 className="text-lg font-semibold text-blue-900">
+                      Complete History Available
+                    </h4>
                     <p className="text-blue-700 text-sm">
-                      Click "View Complete History" buttons to see all changes for an entity in chronological order.
+                      Click "View Complete History" buttons to see all changes
+                      for an entity in chronological order.
                     </p>
                   </div>
                 </div>
@@ -965,11 +1400,15 @@ const AuditManagement = () => {
                             <div className="flex items-center space-x-2 mb-2">
                               <span className="text-2xl">🕒</span>
                               <h3 className="text-xl font-bold text-blue-900">
-                                Complete Edit History: {entityHistory.entityName || `${entityHistory.entityType} #${entityHistory.entityId}`}
+                                Complete Edit History:{" "}
+                                {entityHistory.entityName ||
+                                  `${entityHistory.entityType} #${entityHistory.entityId}`}
                               </h3>
                             </div>
                             <p className="text-blue-700 text-sm font-medium">
-                              📅 Timeline of ALL changes from creation to current state - {entityHistory.timeline.length} operations
+                              📅 Timeline of ALL changes from creation to
+                              current state - {entityHistory.timeline.length}{" "}
+                              operations
                             </p>
                           </div>
                           <button
@@ -983,26 +1422,92 @@ const AuditManagement = () => {
                         {/* Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                           <div className="bg-white p-4 rounded-lg">
-                            <div className="text-sm font-medium text-gray-600">Total Operations</div>
-                            <div className="text-2xl font-bold text-gray-900">{entityHistory.summary.totalOperations}</div>
+                            <div className="text-sm font-medium text-gray-600">
+                              Total Operations
+                            </div>
+                            <div className="text-2xl font-bold text-gray-900">
+                              {entityHistory.summary.totalOperations}
+                            </div>
                           </div>
                           <div className="bg-white p-4 rounded-lg">
-                            <div className="text-sm font-medium text-gray-600">Created By</div>
-                            <div className="text-sm font-bold text-gray-900">{entityHistory.summary.createdBy?.name || "Unknown"}</div>
-                            <div className="text-xs text-gray-500">{entityHistory.summary.createdBy?.email || ""}</div>
+                            <div className="text-sm font-medium text-gray-600">
+                              Created By
+                            </div>
+                            <div className="text-sm font-bold text-gray-900">
+                              {entityHistory.summary.createdBy?.name ||
+                                "Unknown"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {entityHistory.summary.createdBy?.email || ""}
+                            </div>
                           </div>
                           <div className="bg-white p-4 rounded-lg">
-                            <div className="text-sm font-medium text-gray-600">Last Modified By</div>
-                            <div className="text-sm font-bold text-gray-900">{entityHistory.summary.lastModifiedBy?.name || "Unknown"}</div>
-                            <div className="text-xs text-gray-500">{entityHistory.summary.lastModifiedBy?.email || ""}</div>
+                            <div className="text-sm font-medium text-gray-600">
+                              Last Modified By
+                            </div>
+                            <div className="text-sm font-bold text-gray-900">
+                              {entityHistory.summary.lastModifiedBy?.name ||
+                                "Unknown"}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {entityHistory.summary.lastModifiedBy?.email ||
+                                ""}
+                            </div>
                           </div>
-                          <div className={`p-4 rounded-lg ${entityHistory.isDeleted ? 'bg-red-50' : 'bg-green-50'}`}>
-                            <div className={`text-sm font-medium ${entityHistory.isDeleted ? 'text-red-600' : 'text-green-600'}`}>
+                          <div
+                            className={`p-4 rounded-lg ${entityHistory.isDeleted ? "bg-red-50" : "bg-green-50"}`}
+                          >
+                            <div
+                              className={`text-sm font-medium ${entityHistory.isDeleted ? "text-red-600" : "text-green-600"}`}
+                            >
                               Status
                             </div>
-                            <div className={`text-sm font-bold ${entityHistory.isDeleted ? 'text-red-900' : 'text-green-900'}`}>
+                            <div
+                              className={`text-sm font-bold ${entityHistory.isDeleted ? "text-red-900" : "text-green-900"}`}
+                            >
                               {entityHistory.isDeleted ? "Deleted" : "Active"}
                             </div>
+                            {entityHistory.entityType === "invoice" &&
+                              entityHistory.isDeleted && (
+                                <div className="mt-3">
+                                  <button
+                                    onClick={() => {
+                                      const timelineTenantEntry =
+                                        entityHistory.timeline.find(
+                                          (entry) =>
+                                            (entry.tenant && entry.tenant.id) ||
+                                            entry.tenantId
+                                        ) || entityHistory.timeline[0];
+
+                                      const tenantIdFromTimeline =
+                                        timelineTenantEntry &&
+                                        (timelineTenantEntry.tenant &&
+                                        timelineTenantEntry.tenant.id
+                                          ? timelineTenantEntry.tenant.id
+                                          : timelineTenantEntry.tenantId ||
+                                            null);
+
+                                      const tenantId =
+                                        selectedTenant?.tenant_id ||
+                                        filters.tenantId ||
+                                        tenantIdFromTimeline ||
+                                        null;
+
+                                      handleRecoverInvoice(
+                                        "invoice",
+                                        entityHistory.entityId,
+                                        tenantId
+                                      );
+                                    }}
+                                    disabled={recoverLoading}
+                                    className="inline-flex items-center px-3 py-1 text-xs font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+                                  >
+                                    {recoverLoading
+                                      ? "Recovering..."
+                                      : "Recover Invoice"}
+                                  </button>
+                                </div>
+                              )}
                           </div>
                         </div>
 
@@ -1011,8 +1516,12 @@ const AuditManagement = () => {
                           {entityHistory.timeline.length === 0 ? (
                             <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-gray-300">
                               <div className="text-4xl mb-2">📝</div>
-                              <h4 className="text-lg font-medium text-gray-900 mb-2">No History Found</h4>
-                              <p className="text-gray-500">This entity has no audit history recorded.</p>
+                              <h4 className="text-lg font-medium text-gray-900 mb-2">
+                                No History Found
+                              </h4>
+                              <p className="text-gray-500">
+                                This entity has no audit history recorded.
+                              </p>
                             </div>
                           ) : (
                             <>
@@ -1020,56 +1529,89 @@ const AuditManagement = () => {
                               <div className="bg-white border-2 border-blue-200 rounded-lg p-4 mb-4">
                                 <div className="flex items-center space-x-2 mb-2">
                                   <span className="text-2xl">📅</span>
-                                  <h4 className="text-lg font-bold text-blue-900">Complete Timeline - All Changes in Order</h4>
+                                  <h4 className="text-lg font-bold text-blue-900">
+                                    Complete Timeline - All Changes in Order
+                                  </h4>
                                 </div>
                                 <p className="text-blue-700 text-sm">
-                                  This shows the complete journey from creation to current state, with all users who made changes.
+                                  This shows the complete journey from creation
+                                  to current state, with all users who made
+                                  changes.
                                 </p>
                               </div>
-                              
+
                               {entityHistory.timeline.map((entry, index) => (
-                            <div key={entry.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                  <div className="text-2xl">
-                                    {entry.operation === 'CREATE' ? '➕' : 
-                                     entry.operation === 'UPDATE' ? '✏️' : 
-                                     entry.operation === 'DELETE' ? '🗑️' : '📝'}
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center space-x-2">
-                                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(entry.operation)}`}>
-                                        {entry.operation}
-                                      </span>
-                                      <span className="text-sm text-gray-500">
-                                        by {entry.user.name || "Unknown"}
-                                      </span>
+                                <div
+                                  key={entry.id}
+                                  className="bg-white border border-gray-200 rounded-lg p-4"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-4">
+                                      <div className="text-2xl">
+                                        {entry.operation === "CREATE"
+                                          ? "➕"
+                                          : entry.operation === "UPDATE"
+                                            ? "✏️"
+                                            : entry.operation === "DELETE"
+                                              ? "🗑️"
+                                              : "📝"}
+                                      </div>
+                                      <div>
+                                        <div className="flex items-center space-x-2">
+                                          <span
+                                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(entry.operation)}`}
+                                          >
+                                            {entry.operation}
+                                          </span>
+                                          <span className="text-sm text-gray-500">
+                                            by{" "}
+                                            {entry.user?.name ||
+                                              entry.userName ||
+                                              entry.user?.email ||
+                                              "Unknown"}
+                                          </span>
+                                        </div>
+                                        <div className="text-sm text-gray-600 mt-1">
+                                          {formatDate(
+                                            entry.timestamp || entry.created_at
+                                          )}
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-sm text-gray-600 mt-1">
-                                      {formatDate(entry.timestamp)}
-                                    </div>
+                                    <button
+                                      onClick={() =>
+                                        showAuditDetails({
+                                          ...entry,
+                                          entityType: entityHistory.entityType,
+                                          entityId: entityHistory.entityId,
+                                          operation: entry.operation,
+                                          userName:
+                                            entry.user?.name ||
+                                            entry.userName ||
+                                            "Unknown",
+                                          userEmail:
+                                            entry.user?.email ||
+                                            entry.userEmail ||
+                                            "N/A",
+                                          created_at:
+                                            entry.timestamp || entry.created_at,
+                                          oldValues: entry.oldValues,
+                                          newValues: entry.newValues,
+                                          changedFields: entry.changedFields,
+                                          ipAddress: entry.ipAddress,
+                                          tenantName:
+                                            entry.tenant?.name ||
+                                            entry.tenantName,
+                                          additionalInfo: entry.additionalInfo,
+                                        })
+                                      }
+                                      className="text-blue-600 hover:text-blue-900 font-medium text-sm"
+                                    >
+                                      View Details
+                                    </button>
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => showAuditDetails({
-                                    ...entry,
-                                    entityType: entityHistory.entityType,
-                                    entityId: entityHistory.entityId,
-                                    oldValues: entry.oldValues,
-                                    newValues: entry.newValues,
-                                    changedFields: entry.changedFields,
-                                    ipAddress: entry.ipAddress,
-                                    tenantName: entry.tenant.name,
-                                    additionalInfo: entry.additionalInfo
-                                  })}
-                                  className="text-blue-600 hover:text-blue-900 font-medium text-sm"
-                                >
-                                  View Details
-                                </button>
-                              </div>
-                            </div>
-                              ))
-                              }
+                              ))}
                             </>
                           )}
                         </div>
@@ -1104,20 +1646,30 @@ const AuditManagement = () => {
                               <tr key={log.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="flex items-center">
-                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(log.entityType)}`}>
+                                    <span
+                                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(log.entityType)}`}
+                                    >
                                       {log.entityType}
                                     </span>
-                                    <span className="ml-2 text-sm text-gray-900">#{log.entityId}</span>
+                                    <span className="ml-2 text-sm text-gray-900">
+                                      #{log.entityId}
+                                    </span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(log.operation)}`}>
+                                  <span
+                                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(log.operation)}`}
+                                  >
                                     {log.operation}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900">{log.userName || "Unknown"}</div>
-                                  <div className="text-sm text-gray-500">{log.userEmail || "N/A"}</div>
+                                  <div className="text-sm text-gray-900">
+                                    {log.userName || "Unknown"}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {log.userEmail || "N/A"}
+                                  </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                   {formatDate(log.created_at)}
@@ -1131,7 +1683,12 @@ const AuditManagement = () => {
                                       View Details
                                     </button>
                                     <button
-                                      onClick={() => viewEntityHistory(log.entityType, log.entityId)}
+                                      onClick={() =>
+                                        viewEntityHistory(
+                                          log.entityType,
+                                          log.entityId
+                                        )
+                                      }
                                       className="px-3 py-1 text-xs font-bold text-white bg-green-600 border border-green-700 rounded hover:bg-green-700"
                                     >
                                       🕒 Complete History
@@ -1176,21 +1733,35 @@ const AuditManagement = () => {
                         {auditSummary.map((summary) => (
                           <tr key={summary.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(summary.entityType)}`}>
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(summary.entityType)}`}
+                              >
                                 {summary.entityType}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{summary.entityName || "N/A"}</div>
-                              <div className="text-sm text-gray-500">ID: {summary.entityId}</div>
+                              <div className="text-sm text-gray-900">
+                                {summary.entityName || "N/A"}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                ID: {summary.entityId}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{summary.createdByName || "Unknown"}</div>
-                              <div className="text-sm text-gray-500">{summary.createdByEmail || "N/A"}</div>
+                              <div className="text-sm text-gray-900">
+                                {summary.createdByName || "Unknown"}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {summary.createdByEmail || "N/A"}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">{summary.lastModifiedByName || "Unknown"}</div>
-                              <div className="text-sm text-gray-500">{summary.lastModifiedByEmail || "N/A"}</div>
+                              <div className="text-sm text-gray-900">
+                                {summary.lastModifiedByName || "Unknown"}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {summary.lastModifiedByEmail || "N/A"}
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {summary.totalOperations}
@@ -1218,36 +1789,59 @@ const AuditManagement = () => {
                 {activeTab === "statistics" && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="bg-gray-50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Operations by Entity Type</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">
+                        Operations by Entity Type
+                      </h3>
                       <div className="space-y-3">
-                        {Object.entries(statistics.operationsByEntity || {}).map(([entityType, count]) => (
-                          <div key={entityType} className="flex justify-between items-center">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(entityType)}`}>
+                        {Object.entries(
+                          statistics.operationsByEntity || {}
+                        ).map(([entityType, count]) => (
+                          <div
+                            key={entityType}
+                            className="flex justify-between items-center"
+                          >
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(entityType)}`}
+                            >
                               {entityType}
                             </span>
-                            <span className="text-sm font-medium text-gray-900">{count}</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {count}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     <div className="bg-gray-50 rounded-lg p-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Top Users by Activity</h3>
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">
+                        Top Users by Activity
+                      </h3>
                       <div className="space-y-3">
-                        {statistics.topUsers?.slice(0, 10).map((user, index) => (
-                          <div key={index} className="flex justify-between items-center">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900">{user.userName || "Unknown"}</div>
-                              <div className="text-xs text-gray-500">{user.userEmail || "N/A"}</div>
+                        {statistics.topUsers
+                          ?.slice(0, 10)
+                          .map((user, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between items-center"
+                            >
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {user.userName || "Unknown"}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {user.userEmail || "N/A"}
+                                </div>
+                              </div>
+                              <span className="text-sm font-medium text-gray-900">
+                                {user.count}
+                              </span>
                             </div>
-                            <span className="text-sm font-medium text-gray-900">{user.count}</span>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
                   </div>
                 )}
-
               </>
             )}
 
@@ -1255,7 +1849,12 @@ const AuditManagement = () => {
             {pagination.totalPages > 1 && (
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-700">
-                  Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} results
+                  Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total
+                  )}{" "}
+                  of {pagination.total} results
                 </div>
                 <div className="flex space-x-2">
                   <button
@@ -1292,84 +1891,126 @@ const AuditManagement = () => {
                 className="text-gray-400 hover:text-gray-600 flex-shrink-0"
               >
                 <span className="sr-only">Close</span>
-                <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="h-5 w-5 sm:h-6 sm:w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
 
             <div className="space-y-4 sm:space-y-6 overflow-y-auto flex-1 pr-1 sm:pr-2">
-                {/* Basic Information */}
-                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                  <h4 className="text-sm sm:text-md font-semibold text-gray-900 mb-3">Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Operation</label>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(selectedLog.operation)}`}>
-                        {selectedLog.operation}
-                      </span>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Entity Type</label>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(selectedLog.entityType)}`}>
-                        {selectedLog.entityType}
-                      </span>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">User</label>
-                      <p className="text-sm text-gray-900">{selectedLog.userName || "Unknown"}</p>
-                      <p className="text-sm text-gray-500">{selectedLog.userEmail || "N/A"}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Date</label>
-                      <p className="text-sm text-gray-900">{formatDate(selectedLog.created_at)}</p>
-                    </div>
-                    {selectedLog.entityType !== "invoice" && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">IP Address</label>
-                          <p className="text-sm text-gray-900">{selectedLog.ipAddress || "N/A"}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">Tenant</label>
-                          <p className="text-sm text-gray-900">{selectedLog.tenantName || "N/A"}</p>
-                        </div>
-                      </>
-                    )}
+              {/* Basic Information */}
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                <h4 className="text-sm sm:text-md font-semibold text-gray-900 mb-3">
+                  Information
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Operation
+                    </label>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getOperationColor(selectedLog.operation)}`}
+                    >
+                      {selectedLog.operation}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Entity Type
+                    </label>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getEntityTypeColor(selectedLog.entityType)}`}
+                    >
+                      {selectedLog.entityType}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      User
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedLog.userName || "Unknown"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {selectedLog.userEmail || "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Date
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {formatDate(selectedLog.created_at)}
+                    </p>
+                  </div>
+                  {selectedLog.entityType !== "invoice" && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          IP Address
+                        </label>
+                        <p className="text-sm text-gray-900">
+                          {selectedLog.ipAddress || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Tenant
+                        </label>
+                        <p className="text-sm text-gray-900">
+                          {selectedLog.tenantName || "N/A"}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Old Values (for UPDATE/DELETE operations) */}
+              {selectedLog.oldValues && (
+                <div className="bg-red-50 p-3 sm:p-4 rounded-lg">
+                  <h4 className="text-sm sm:text-md font-semibold text-red-900 mb-3">
+                    Previous Values
+                  </h4>
+                  <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
+                    {renderObjectAsTable(selectedLog.oldValues)}
                   </div>
                 </div>
+              )}
 
-                {/* Old Values (for UPDATE/DELETE operations) */}
-                {selectedLog.oldValues && (
-                  <div className="bg-red-50 p-3 sm:p-4 rounded-lg">
-                    <h4 className="text-sm sm:text-md font-semibold text-red-900 mb-3">Previous Values</h4>
-                    <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
-                      {renderObjectAsTable(selectedLog.oldValues)}
-                    </div>
+              {/* New Values (for CREATE/UPDATE operations) */}
+              {selectedLog.newValues && (
+                <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
+                  <h4 className="text-sm sm:text-md font-semibold text-green-900 mb-3">
+                    New Values
+                  </h4>
+                  <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
+                    {renderObjectAsTable(selectedLog.newValues)}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* New Values (for CREATE/UPDATE operations) */}
-                {selectedLog.newValues && (
-                  <div className="bg-green-50 p-3 sm:p-4 rounded-lg">
-                    <h4 className="text-sm sm:text-md font-semibold text-green-900 mb-3">New Values</h4>
-                    <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
-                      {renderObjectAsTable(selectedLog.newValues)}
-                    </div>
+              {/* Changed Fields (for UPDATE operations) */}
+              {selectedLog.changedFields && (
+                <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                  <h4 className="text-sm sm:text-md font-semibold text-blue-900 mb-3">
+                    Changed Fields
+                  </h4>
+                  <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
+                    {renderChangedFieldsAsTable(selectedLog.changedFields)}
                   </div>
-                )}
-
-                {/* Changed Fields (for UPDATE operations) */}
-                {selectedLog.changedFields && (
-                  <div className="bg-blue-50 p-3 sm:p-4 rounded-lg">
-                    <h4 className="text-sm sm:text-md font-semibold text-blue-900 mb-3">Changed Fields</h4>
-                    <div className="bg-white p-2 sm:p-3 rounded border overflow-x-auto">
-                      {renderChangedFieldsAsTable(selectedLog.changedFields)}
-                    </div>
-                  </div>
-                )}
-
-
+                </div>
+              )}
             </div>
 
             <div className="mt-4 sm:mt-6 flex justify-end flex-shrink-0 border-t pt-3 sm:pt-4">
@@ -1383,7 +2024,6 @@ const AuditManagement = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

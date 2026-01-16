@@ -27,6 +27,7 @@ import {
   validateInvoiceData,
   submitInvoiceData,
 } from "../../service/FBRService.js";
+import AuditLog from "../../model/mysql/AuditLog.js";
 
 const { toWords } = numberToWords;
 
@@ -582,12 +583,50 @@ export const createInvoice = async (req, res) => {
       // Don't fail the main operation if backup fails
     }
 
-    // Log audit event for invoice creation
+    // Determine operation type: SUBMIT_TO_FBR if posted with FBR invoice number, otherwise CREATE
+    const operation =
+      result.status === "posted" && result.fbr_invoice_number
+        ? "SUBMIT_TO_FBR"
+        : "CREATE";
+
+    // Fetch invoice items for audit log if not already available
+    let invoiceItemsForAudit = items;
+    if (!invoiceItemsForAudit || invoiceItemsForAudit.length === 0) {
+      const fetchedItems = await req.tenantModels.InvoiceItem.findAll({
+        where: { invoice_id: result.id },
+      });
+      invoiceItemsForAudit = fetchedItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        hsCode: item.hsCode,
+        productDescription: item.productDescription,
+        quantity: item.quantity,
+        rate: item.rate,
+        uoM: item.uoM,
+        unitPrice: item.unitPrice,
+        totalValues: item.totalValues,
+        valueSalesExcludingST: item.valueSalesExcludingST,
+        fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
+        salesTaxApplicable: item.salesTaxApplicable,
+        salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+        extraTax: item.extraTax,
+        furtherTax: item.furtherTax,
+        sroScheduleNo: item.sroScheduleNo,
+        fedPayable: item.fedPayable,
+        advanceIncomeTax: item.advanceIncomeTax,
+        discount: item.discount,
+        saleType: item.saleType,
+        sroItemSerialNo: item.sroItemSerialNo,
+        billOfLadingUoM: item.billOfLadingUoM,
+      }));
+    }
+
+    // Log audit event for invoice creation or FBR submission
     await logAuditEvent(
       req,
       "invoice",
       result.id,
-      "CREATE",
+      operation,
       null, // oldValues
       {
         // Basic Invoice Information
@@ -622,8 +661,8 @@ export const createInvoice = async (req, res) => {
         totalAmount: result.totalAmount,
 
         // Complete Invoice Items with All Details
-        invoice_items: items
-          ? items.map((item) => ({
+        invoice_items: invoiceItemsForAudit
+          ? invoiceItemsForAudit.map((item) => ({
               id: item.id,
               product_name: item.name,
               hsCode: item.hsCode,
@@ -652,7 +691,9 @@ export const createInvoice = async (req, res) => {
       }, // newValues
       {
         entityName: result.invoice_number || result.system_invoice_id,
-        itemsCount: items ? items.length : 0,
+        itemsCount: invoiceItemsForAudit ? invoiceItemsForAudit.length : 0,
+        fbrInvoiceNumber: result.fbr_invoice_number,
+        isFbrSubmission: operation === "SUBMIT_TO_FBR",
       }
     );
 
@@ -2420,7 +2461,7 @@ export const getAllInvoices = async (req, res) => {
       }
     }
 
-    // Removed default filter to show all invoices (draft, saved, validated, posted, etc.)
+    whereClause.isDeleted = false;
 
     // Add date range filter
 
@@ -2574,8 +2615,8 @@ export const getAllInvoices = async (req, res) => {
       include: [
         {
           model: InvoiceItem,
-
           as: "InvoiceItems",
+          required: false,
         },
       ],
 
@@ -2673,10 +2714,10 @@ export const getAllInvoices = async (req, res) => {
         updated_at: plainInvoice.updated_at,
         ...(req.user?.role === "admin"
           ? {
-            created_by_user_id: plainInvoice.created_by_user_id,
-            created_by_email: plainInvoice.created_by_email,
-            created_by_name: plainInvoice.created_by_name,
-          }
+              created_by_user_id: plainInvoice.created_by_user_id,
+              created_by_email: plainInvoice.created_by_email,
+              created_by_name: plainInvoice.created_by_name,
+            }
           : {}),
       };
     });
@@ -2754,8 +2795,8 @@ export const getInvoiceById = async (req, res) => {
       include: [
         {
           model: InvoiceItem,
-
           as: "InvoiceItems",
+          required: false,
         },
       ],
     });
@@ -2861,8 +2902,9 @@ export const getInvoiceByNumber = async (req, res) => {
       include: [
         {
           model: InvoiceItem,
-
           as: "InvoiceItems",
+          where: { isDeleted: false },
+          required: false,
         },
       ],
     });
@@ -3341,7 +3383,7 @@ export const updateInvoice = async (req, res) => {
 
 export const deleteInvoice = async (req, res) => {
   try {
-    const { Invoice } = req.tenantModels;
+    const { Invoice, InvoiceItem } = req.tenantModels;
 
     const { id } = req.params;
 
@@ -3356,7 +3398,7 @@ export const deleteInvoice = async (req, res) => {
     }
 
     // Get invoice items before deletion
-    const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
+    const invoiceItems = await InvoiceItem.findAll({
       where: { invoice_id: invoice.id },
     });
 
@@ -3420,13 +3462,69 @@ export const deleteInvoice = async (req, res) => {
       })),
     };
 
-    // Delete invoice items first to avoid foreign key constraint
-    await req.tenantModels.InvoiceItem.destroy({
-      where: { invoice_id: invoice.id },
-    });
+    // Soft delete invoice items
+    await req.tenantModels.InvoiceItem.update(
+      { isDeleted: true },
+      {
+        where: { invoice_id: invoice.id },
+      }
+    );
 
-    // Now delete the invoice
-    await invoice.destroy();
+    // Soft delete the invoice
+    await invoice.update({ isDeleted: true });
+
+    // Check if this is an automatic deletion during FBR submission
+    // This happens when a saved invoice is deleted right after submitting to FBR
+    let isAutomaticDeletion = false;
+    try {
+      // Only check for automatic deletion if invoice status is "saved" or "draft"
+      if (invoice.status === "saved" || invoice.status === "draft") {
+        // Check if there's a recent SUBMIT_TO_FBR operation by the same user within the last 2 minutes
+        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+        const userId = req.user?.id || req.user?.userId;
+
+        console.log(
+          `🔍 Checking for automatic deletion - Invoice #${invoice.id}, Status: ${invoice.status}, User ID: ${userId}`
+        );
+
+        if (userId) {
+          const recentFbrSubmission = await AuditLog.findOne({
+            where: {
+              entityType: "invoice",
+              operation: "SUBMIT_TO_FBR",
+              userId: userId,
+              created_at: {
+                [Op.gte]: twoMinutesAgo,
+              },
+            },
+            order: [["created_at", "DESC"]],
+          });
+
+          // If there's a recent FBR submission, this is likely an automatic deletion
+          if (recentFbrSubmission) {
+            isAutomaticDeletion = true;
+            console.log(
+              `✅ Marking invoice #${invoice.id} deletion as automatic - recent FBR submission found (ID: ${recentFbrSubmission.id}, created: ${recentFbrSubmission.created_at})`
+            );
+          } else {
+            console.log(
+              `❌ Invoice #${invoice.id} deletion is NOT automatic - no recent FBR submission found`
+            );
+          }
+        } else {
+          console.log(
+            `⚠️ Cannot check for automatic deletion - no user ID available`
+          );
+        }
+      } else {
+        console.log(
+          `ℹ️ Invoice #${invoice.id} deletion is NOT automatic - status is "${invoice.status}" (not "saved" or "draft")`
+        );
+      }
+    } catch (checkError) {
+      console.error("❌ Error checking for automatic deletion:", checkError);
+      // Continue with normal deletion logging if check fails
+    }
 
     // Log audit event for invoice deletion
     await logAuditEvent(
@@ -3440,6 +3538,8 @@ export const deleteInvoice = async (req, res) => {
         entityName: invoice.invoice_number || invoice.system_invoice_id,
         endpoint: req.originalUrl,
         method: req.method,
+        isAutomaticDeletion: isAutomaticDeletion,
+        deletedInvoiceStatus: invoice.status,
       }
     );
 
@@ -3456,6 +3556,143 @@ export const deleteInvoice = async (req, res) => {
 
       message: "Error deleting invoice",
 
+      error: error.message,
+    });
+  }
+};
+
+export const recoverInvoice = async (req, res) => {
+  try {
+    const { Invoice, InvoiceItem } = req.tenantModels;
+
+    const { id } = req.params;
+
+    const invoice = await Invoice.findByPk(id);
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    if (!invoice.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: "Invoice is not deleted",
+      });
+    }
+
+    await req.tenantDb.transaction(async (t) => {
+      await InvoiceItem.update(
+        { isDeleted: false },
+        {
+          where: { invoice_id: invoice.id },
+          transaction: t,
+        }
+      );
+
+      await invoice.update(
+        { isDeleted: false },
+        {
+          transaction: t,
+        }
+      );
+    });
+
+    try {
+      await AuditLog.destroy({
+        where: {
+          entityType: "invoice",
+          entityId: invoice.id,
+          operation: "DELETE",
+        },
+      });
+    } catch (auditError) {
+      console.error(
+        "Error deleting DELETE audit logs during invoice recovery:",
+        auditError
+      );
+    }
+
+    const invoiceItems = await InvoiceItem.findAll({
+      where: { invoice_id: invoice.id, isDeleted: false },
+    });
+
+    const newValues = {
+      invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number,
+      system_invoice_id: invoice.system_invoice_id,
+      status: invoice.status,
+      fbr_invoice_number: invoice.fbr_invoice_number,
+      invoiceType: invoice.invoiceType,
+      invoiceDate: invoice.invoiceDate,
+      invoiceRefNo: invoice.invoiceRefNo,
+      companyInvoiceRefNo: invoice.companyInvoiceRefNo,
+      internal_invoice_no: invoice.internal_invoice_no,
+      transctypeId: invoice.transctypeId,
+      sellerNTNCNIC: invoice.sellerNTNCNIC,
+      sellerFullNTN: invoice.sellerFullNTN,
+      sellerBusinessName: invoice.sellerBusinessName,
+      sellerProvince: invoice.sellerProvince,
+      sellerAddress: invoice.sellerAddress,
+      sellerCity: invoice.sellerCity,
+      buyerNTNCNIC: invoice.buyerNTNCNIC,
+      buyerBusinessName: invoice.buyerBusinessName,
+      buyerProvince: invoice.buyerProvince,
+      buyerAddress: invoice.buyerAddress,
+      buyerRegistrationType: invoice.buyerRegistrationType,
+      totalAmount: invoice.totalAmount,
+      invoice_items: invoiceItems.map((item) => ({
+        id: item.id,
+        product_name: item.name,
+        hsCode: item.hsCode,
+        productDescription: item.productDescription,
+        quantity: item.quantity,
+        rate: item.rate,
+        uoM: item.uoM,
+        unitPrice: item.unitPrice,
+        totalValues: item.totalValues,
+        valueSalesExcludingST: item.valueSalesExcludingST,
+        fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
+        salesTaxApplicable: item.salesTaxApplicable,
+        salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+        extraTax: item.extraTax,
+        furtherTax: item.furtherTax,
+        sroScheduleNo: item.sroScheduleNo,
+        fedPayable: item.fedPayable,
+        advanceIncomeTax: item.advanceIncomeTax,
+        discount: item.discount,
+        saleType: item.saleType,
+        sroItemSerialNo: item.sroItemSerialNo,
+        billOfLadingUoM: item.billOfLadingUoM,
+      })),
+    };
+
+    await logAuditEvent(
+      req,
+      "invoice",
+      invoice.id,
+      "RECOVER",
+      null,
+      newValues,
+      {
+        entityName: invoice.invoice_number || invoice.system_invoice_id,
+        endpoint: req.originalUrl,
+        method: req.method,
+      }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Invoice recovered successfully",
+    });
+  } catch (error) {
+    console.error("Error recovering invoice:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Error recovering invoice",
       error: error.message,
     });
   }
@@ -4245,6 +4482,7 @@ export const submitSavedInvoice = async (req, res) => {
 
         // Financial Information
         totalAmount: updatedInvoice.totalAmount,
+        fbrValidation: isSuccess ? "success" : "failed",
 
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
@@ -4281,6 +4519,7 @@ export const submitSavedInvoice = async (req, res) => {
         endpoint: req.originalUrl,
         method: req.method,
         fbrInvoiceNumber: fbrInvoiceNumber,
+        fbrValidation: isSuccess ? "success" : "failed",
       }
     );
 
@@ -4361,13 +4600,13 @@ export const bulkCreateInvoices = async (req, res) => {
       totalInvoices: invoices.length,
       sampleInvoice: invoices[0]
         ? {
-          invoiceType: invoices[0].invoiceType,
-          invoiceDate: invoices[0].invoiceDate,
-          companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
-          internalInvoiceNo: invoices[0].internalInvoiceNo,
-          buyerBusinessName: invoices[0].buyerBusinessName,
-          itemsCount: invoices[0].items?.length || 0,
-        }
+            invoiceType: invoices[0].invoiceType,
+            invoiceDate: invoices[0].invoiceDate,
+            companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
+            internalInvoiceNo: invoices[0].internalInvoiceNo,
+            buyerBusinessName: invoices[0].buyerBusinessName,
+            itemsCount: invoices[0].items?.length || 0,
+          }
         : null,
       sampleInternalInvoiceNo: invoices[0]?.internalInvoiceNo,
       hasInternalInvoiceNo: !!invoices[0]?.internalInvoiceNo,
@@ -4391,15 +4630,15 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingBuyers =
       uniqueBuyerNTNs.length > 0
         ? await Buyer.findAll({
-          where: { buyerNTNCNIC: uniqueBuyerNTNs },
-          attributes: [
-            "buyerNTNCNIC",
-            "buyerBusinessName",
-            "buyerProvince",
-            "buyerAddress",
-            "buyerRegistrationType",
-          ],
-        })
+            where: { buyerNTNCNIC: uniqueBuyerNTNs },
+            attributes: [
+              "buyerNTNCNIC",
+              "buyerBusinessName",
+              "buyerProvince",
+              "buyerAddress",
+              "buyerRegistrationType",
+            ],
+          })
         : [];
 
     // DEBUG: Also check total buyers in database
@@ -5575,7 +5814,7 @@ export const checkExistingInvoices = async (req, res) => {
     const existing = [];
     const newInvoices = invoices.map((inv, idx) => ({
       row: idx + 1,
-      invoiceData: inv
+      invoiceData: inv,
     }));
 
     return res.status(200).json({
@@ -6325,16 +6564,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
         provinceMap = Array.isArray(provinces)
           ? provinces.reduce((acc, p) => {
-            const desc =
-              p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
+              const desc =
+                p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
 
-            const code =
-              p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
+              const code =
+                p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
 
-            if (desc && code) acc[desc.toUpperCase()] = code;
+              if (desc && code) acc[desc.toUpperCase()] = code;
 
-            return acc;
-          }, {})
+              return acc;
+            }, {})
           : {};
 
         const tenantProvince = (
@@ -6537,10 +6776,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                    id: rateId ? String(rateId) : null,
+                      id: rateId ? String(rateId) : null,
 
-                    desc: String(rateDesc).trim(),
-                  }
+                      desc: String(rateDesc).trim(),
+                    }
                   : null;
               })
 
@@ -6606,10 +6845,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                    id: rateId ? String(rateId) : null,
+                      id: rateId ? String(rateId) : null,
 
-                    desc: String(rateDesc).trim(),
-                  }
+                      desc: String(rateDesc).trim(),
+                    }
                   : null;
               })
 

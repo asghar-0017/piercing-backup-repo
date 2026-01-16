@@ -103,6 +103,11 @@ export const createInvoiceItemModel = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: true,
       },
+      isDeleted: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
     },
     {
       tableName: "invoice_items",

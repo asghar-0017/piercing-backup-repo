@@ -490,8 +490,8 @@ export default function BasicTable() {
 
   const handleDeleteClick = async (invoice) => {
     const result = await Swal.fire({
-      title: "Delete Invoice",
-      text: `Are you sure you want to delete invoice ${invoice.invoiceNumber}? This action cannot be undone.`,
+      title: "Are you sure you want to delete this invoice?",
+      text: "You can recover it later from Audit Management.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#d33",
@@ -1354,7 +1354,7 @@ export default function BasicTable() {
 
       const result = await Swal.fire({
         title: "Delete Selected Invoices",
-        text: `Are you sure you want to delete ${selectedInvoiceDetails.length} selected invoice(s)? This action cannot be undone.`,
+        text: "You can recover these invoices later from Audit Management.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#d33",

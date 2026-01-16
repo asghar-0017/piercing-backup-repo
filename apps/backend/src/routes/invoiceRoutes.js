@@ -49,6 +49,7 @@ router.get(
 router.get("/invoices/:id", requirePermission("invoice.view"), invoiceController.getInvoiceById);
 router.put("/invoices/:id", requirePermission("invoice.edit"), invoiceController.updateInvoice);
 router.delete("/invoices/:id", requirePermission("invoice.delete"), invoiceController.deleteInvoice);
+router.post("/invoices/:id/recover", requirePermission("invoice.delete"), invoiceController.recoverInvoice);
 router.post("/invoices/:id/submit", requirePermission("invoice.submit"), invoiceController.submitSavedInvoice);
 
 // Get document types from FBR

@@ -37,26 +37,40 @@ class AuditService {
       if (!changedFields && operation === "UPDATE" && oldValues && newValues) {
         changedFields = this.getChangedFields(oldValues, newValues);
       }
-      
+
       // Debug logging
-      console.log('🔍 AuditService Debug - Changed Fields:', JSON.stringify(changedFields, null, 2));
-      console.log('🔍 AuditService Debug - Changed Fields Type:', typeof changedFields);
-      console.log('🔍 AuditService Debug - Changed Fields Keys:', changedFields ? Object.keys(changedFields) : 'null');
+      console.log(
+        "🔍 AuditService Debug - Changed Fields:",
+        JSON.stringify(changedFields, null, 2)
+      );
+      console.log(
+        "🔍 AuditService Debug - Changed Fields Type:",
+        typeof changedFields
+      );
+      console.log(
+        "🔍 AuditService Debug - Changed Fields Keys:",
+        changedFields ? Object.keys(changedFields) : "null"
+      );
 
       // Validate user ID exists in database
       let validUserId = user.id || user.userId || null;
       if (validUserId) {
         try {
           const [userExists] = await masterSequelize.query(
-            'SELECT id FROM users WHERE id = ?',
+            "SELECT id FROM users WHERE id = ?",
             { replacements: [validUserId] }
           );
           if (!userExists || userExists.length === 0) {
-            console.warn(`⚠️ User ID ${validUserId} does not exist in database, setting to null`);
+            console.warn(
+              `⚠️ User ID ${validUserId} does not exist in database, setting to null`
+            );
             validUserId = null;
           }
         } catch (error) {
-          console.warn(`⚠️ Error validating user ID ${validUserId}:`, error.message);
+          console.warn(
+            `⚠️ Error validating user ID ${validUserId}:`,
+            error.message
+          );
           validUserId = null;
         }
       }
@@ -80,10 +94,13 @@ class AuditService {
         requestId: request.requestId || uuidv4(),
         additionalInfo: additionalInfo ? JSON.stringify(additionalInfo) : null,
       });
-      
+
       // Debug logging after creation
-      console.log('🔍 AuditService Debug - Created audit log ID:', auditLog.id);
-      console.log('🔍 AuditService Debug - Stored changedFields:', auditLog.changedFields);
+      console.log("🔍 AuditService Debug - Created audit log ID:", auditLog.id);
+      console.log(
+        "🔍 AuditService Debug - Stored changedFields:",
+        auditLog.changedFields
+      );
 
       // Update audit summary
       await this.updateAuditSummary({
@@ -109,16 +126,19 @@ class AuditService {
    */
   getChangedFields(oldValues, newValues) {
     const changed = {};
-    const allKeys = new Set([...Object.keys(oldValues || {}), ...Object.keys(newValues || {})]);
+    const allKeys = new Set([
+      ...Object.keys(oldValues || {}),
+      ...Object.keys(newValues || {}),
+    ]);
 
     for (const key of allKeys) {
       const oldVal = oldValues?.[key];
       const newVal = newValues?.[key];
-      
+
       // Convert undefined to null for proper JSON serialization
       const normalizedOldVal = oldVal === undefined ? null : oldVal;
       const normalizedNewVal = newVal === undefined ? null : newVal;
-      
+
       // Only include if values are actually different
       if (normalizedOldVal !== normalizedNewVal) {
         changed[key] = {
@@ -139,32 +159,32 @@ class AuditService {
     if (user.firstName || user.lastName) {
       return `${user.firstName || ""} ${user.lastName || ""}`.trim();
     }
-    
+
     // Check for name field
     if (user.name) {
       return user.name;
     }
-    
+
     // Check for userName field
     if (user.userName) {
       return user.userName;
     }
-    
+
     // Check for email
     if (user.email) {
       return user.email;
     }
-    
+
     // Check for role-based naming
     if (user.role === "admin") {
       return `Admin (${user.id || user.userId || "Unknown"})`;
     }
-    
+
     // If we have an ID but no name, return a generic identifier
     if (user.id || user.userId) {
       return `User #${user.id || user.userId}`;
     }
-    
+
     // Last resort - return "Unknown" instead of null
     return "Unknown";
   }
@@ -172,7 +192,15 @@ class AuditService {
   /**
    * Update audit summary for an entity
    */
-  async updateAuditSummary({ entityType, entityId, operation, user, tenant, newValues, additionalInfo }) {
+  async updateAuditSummary({
+    entityType,
+    entityId,
+    operation,
+    user,
+    tenant,
+    newValues,
+    additionalInfo,
+  }) {
     try {
       const transaction = await masterSequelize.transaction();
 
@@ -188,15 +216,20 @@ class AuditService {
         if (validUserId) {
           try {
             const [userExists] = await masterSequelize.query(
-              'SELECT id FROM users WHERE id = ?',
+              "SELECT id FROM users WHERE id = ?",
               { replacements: [validUserId] }
             );
             if (!userExists || userExists.length === 0) {
-              console.warn(`⚠️ User ID ${validUserId} does not exist in database for audit summary, setting to null`);
+              console.warn(
+                `⚠️ User ID ${validUserId} does not exist in database for audit summary, setting to null`
+              );
               validUserId = null;
             }
           } catch (error) {
-            console.warn(`⚠️ Error validating user ID ${validUserId} for audit summary:`, error.message);
+            console.warn(
+              `⚠️ Error validating user ID ${validUserId} for audit summary:`,
+              error.message
+            );
             validUserId = null;
           }
         }
@@ -210,7 +243,11 @@ class AuditService {
             {
               entityType,
               entityId,
-              entityName: this.getEntityName(entityType, newValues, additionalInfo),
+              entityName: this.getEntityName(
+                entityType,
+                newValues,
+                additionalInfo
+              ),
               totalOperations: 1,
               createdByUserId: validUserId,
               createdByEmail: user.email || null,
@@ -224,14 +261,14 @@ class AuditService {
               tenantName: tenant.name || tenant.sellerBusinessName || null,
               isDeleted: operation === "DELETE",
               deletedByUserId: operation === "DELETE" ? validUserId : null,
-              deletedByEmail: operation === "DELETE" ? (user.email || null) : null,
+              deletedByEmail:
+                operation === "DELETE" ? user.email || null : null,
               deletedByName: operation === "DELETE" ? userDisplayName : null,
               deletedAt: operation === "DELETE" ? now : null,
             },
             { transaction }
           );
         } else {
-          // Update existing summary
           const updateData = {
             totalOperations: summary.totalOperations + 1,
             lastModifiedByUserId: validUserId,
@@ -241,17 +278,35 @@ class AuditService {
           };
 
           // Update entity name if it's a CREATE operation or if name changed
-          if (operation === "CREATE" || this.shouldUpdateEntityName(entityType, newValues, summary.entityName)) {
-            updateData.entityName = this.getEntityName(entityType, newValues, additionalInfo);
+          if (
+            operation === "CREATE" ||
+            this.shouldUpdateEntityName(
+              entityType,
+              newValues,
+              summary.entityName
+            )
+          ) {
+            updateData.entityName = this.getEntityName(
+              entityType,
+              newValues,
+              additionalInfo
+            );
           }
 
-          // Handle deletion
           if (operation === "DELETE") {
             updateData.isDeleted = true;
             updateData.deletedByUserId = validUserId;
             updateData.deletedByEmail = user.email || null;
             updateData.deletedByName = userDisplayName;
             updateData.deletedAt = now;
+          }
+
+          if (operation === "RECOVER") {
+            updateData.isDeleted = false;
+            updateData.deletedByUserId = null;
+            updateData.deletedByEmail = null;
+            updateData.deletedByName = null;
+            updateData.deletedAt = null;
           }
 
           await summary.update(updateData, { transaction });
@@ -277,13 +332,25 @@ class AuditService {
 
     switch (entityType) {
       case "invoice":
-        return newValues.invoice_number || newValues.system_invoice_id || `Invoice ${newValues.id}`;
+        return (
+          newValues.invoice_number ||
+          newValues.system_invoice_id ||
+          `Invoice ${newValues.id}`
+        );
       case "buyer":
-        return newValues.buyerBusinessName || newValues.buyerNTNCNIC || `Buyer ${newValues.id}`;
+        return (
+          newValues.buyerBusinessName ||
+          newValues.buyerNTNCNIC ||
+          `Buyer ${newValues.id}`
+        );
       case "product":
         return newValues.name || `Product ${newValues.id}`;
       case "user":
-        return newValues.email || `${newValues.firstName || ""} ${newValues.lastName || ""}`.trim() || `User ${newValues.id}`;
+        return (
+          newValues.email ||
+          `${newValues.firstName || ""} ${newValues.lastName || ""}`.trim() ||
+          `User ${newValues.id}`
+        );
       default:
         return `${entityType} ${newValues.id}`;
     }
@@ -304,9 +371,15 @@ class AuditService {
    */
   async getAuditLogs(filters = {}, pagination = {}) {
     try {
-      console.log('🔍 AuditService Debug - getAuditLogs called with filters:', filters);
-      console.log('🔍 AuditService Debug - getAuditLogs called with pagination:', pagination);
-      
+      console.log(
+        "🔍 AuditService Debug - getAuditLogs called with filters:",
+        filters
+      );
+      console.log(
+        "🔍 AuditService Debug - getAuditLogs called with pagination:",
+        pagination
+      );
+
       const {
         entityType,
         entityId,
@@ -319,7 +392,12 @@ class AuditService {
         search,
       } = filters;
 
-      const { page = 1, limit = 50, sortBy = "created_at", sortOrder = "DESC" } = pagination;
+      const {
+        page = 1,
+        limit = 50,
+        sortBy = "created_at",
+        sortOrder = "DESC",
+      } = pagination;
 
       const where = {};
       const include = [];
@@ -348,7 +426,10 @@ class AuditService {
         ];
       }
 
-      console.log('🔍 AuditService Debug - Final where clause:', JSON.stringify(where, null, 2));
+      console.log(
+        "🔍 AuditService Debug - Final where clause:",
+        JSON.stringify(where, null, 2)
+      );
       const offset = (page - 1) * limit;
 
       const { rows, count } = await AuditLog.findAndCountAll({
@@ -359,23 +440,161 @@ class AuditService {
         offset,
       });
 
-      console.log('🔍 AuditService Debug - Query result count:', count);
-      console.log('🔍 AuditService Debug - Retrieved logs count:', rows.length);
+      console.log("🔍 AuditService Debug - Query result count:", count);
+      console.log("🔍 AuditService Debug - Retrieved logs count:", rows.length);
 
-      // Debug logging for retrieved logs
-      if (rows.length > 0) {
-        console.log('🔍 AuditService Debug - First log changedFields:', rows[0].changedFields);
-        console.log('🔍 AuditService Debug - First log changedFields type:', typeof rows[0].changedFields);
+      // First, get all DELETE logs and check for recent SUBMIT_TO_FBR operations
+      // This helps us identify automatic deletions even if the flag wasn't set
+      const deleteLogs = rows.filter((log) => log.operation === "DELETE");
+      const automaticDeleteIds = new Set();
+
+      console.log(
+        `🔍 Found ${deleteLogs.length} DELETE logs to check for automatic deletion`
+      );
+
+      if (deleteLogs.length > 0) {
+        // Check each DELETE log to see if it should be filtered
+        for (const deleteLog of deleteLogs) {
+          let shouldFilter = false;
+
+          // Method 1: Check if explicitly flagged as automatic
+          if (deleteLog.additionalInfo) {
+            try {
+              const additionalInfo =
+                typeof deleteLog.additionalInfo === "string"
+                  ? JSON.parse(deleteLog.additionalInfo)
+                  : deleteLog.additionalInfo;
+
+              if (additionalInfo.isAutomaticDeletion === true) {
+                shouldFilter = true;
+                console.log(
+                  `✅ DELETE log #${deleteLog.id} for invoice #${deleteLog.entityId} - flagged as automatic`
+                );
+              } else {
+                console.log(
+                  `ℹ️ DELETE log #${deleteLog.id} - isAutomaticDeletion: ${additionalInfo.isAutomaticDeletion}`
+                );
+              }
+            } catch (parseError) {
+              console.warn(
+                `⚠️ Error parsing additionalInfo for DELETE log #${deleteLog.id}:`,
+                parseError.message
+              );
+            }
+          }
+
+          // Method 2: Fallback - check if deleted invoice had "saved" or "draft" status
+          // and there's a recent SUBMIT_TO_FBR by the same user
+          if (!shouldFilter && deleteLog.oldValues) {
+            try {
+              const oldValues =
+                typeof deleteLog.oldValues === "string"
+                  ? JSON.parse(deleteLog.oldValues)
+                  : deleteLog.oldValues;
+
+              if (
+                oldValues &&
+                (oldValues.status === "saved" || oldValues.status === "draft")
+              ) {
+                console.log(
+                  `🔍 DELETE log #${deleteLog.id} - checking fallback: status="${oldValues.status}", userId=${deleteLog.userId}`
+                );
+
+                // Check for SUBMIT_TO_FBR by same user within 2 minutes before or after deletion
+                const deletionTime = new Date(deleteLog.created_at);
+                const twoMinutesBefore = new Date(
+                  deletionTime.getTime() - 2 * 60 * 1000
+                );
+                const twoMinutesAfter = new Date(
+                  deletionTime.getTime() + 2 * 60 * 1000
+                );
+
+                const recentFbrSubmission = await AuditLog.findOne({
+                  where: {
+                    entityType: "invoice",
+                    operation: "SUBMIT_TO_FBR",
+                    userId: deleteLog.userId,
+                    created_at: {
+                      [Op.between]: [twoMinutesBefore, twoMinutesAfter],
+                    },
+                  },
+                });
+
+                if (recentFbrSubmission) {
+                  shouldFilter = true;
+                  console.log(
+                    `✅ DELETE log #${deleteLog.id} for invoice #${deleteLog.entityId} - detected as automatic (fallback check, FBR submission ID: ${recentFbrSubmission.id})`
+                  );
+                } else {
+                  console.log(
+                    `❌ DELETE log #${deleteLog.id} - no recent FBR submission found in window`
+                  );
+                }
+              }
+            } catch (parseError) {
+              console.warn(
+                `⚠️ Error parsing oldValues for DELETE log #${deleteLog.id}:`,
+                parseError.message
+              );
+            }
+          }
+
+          if (shouldFilter) {
+            automaticDeleteIds.add(deleteLog.id);
+          }
+        }
       }
 
+      console.log(
+        `🔍 Total automatic DELETE logs to filter: ${automaticDeleteIds.size}`
+      );
+
+      // Filter out automatic DELETE operations
+      const filteredLogs = rows.filter((log) => {
+        if (log.operation === "DELETE" && automaticDeleteIds.has(log.id)) {
+          console.log(
+            `🔍 Filtering out automatic DELETE log #${log.id} for invoice #${log.entityId}`
+          );
+          return false;
+        }
+        return true;
+      });
+
+      const filteredCount = filteredLogs.length;
+      const filteredOutCount = rows.length - filteredCount;
+      console.log(
+        "🔍 AuditService Debug - Filtered logs count:",
+        filteredCount
+      );
+      console.log(
+        "🔍 AuditService Debug - Filtered out:",
+        filteredOutCount,
+        "automatic deletions"
+      );
+
+      // Debug logging for retrieved logs
+      if (filteredLogs.length > 0) {
+        console.log(
+          "🔍 AuditService Debug - First log changedFields:",
+          filteredLogs[0].changedFields
+        );
+        console.log(
+          "🔍 AuditService Debug - First log changedFields type:",
+          typeof filteredLogs[0].changedFields
+        );
+      }
+
+      // Note: We can't accurately adjust the total count without querying all records
+      // So we'll use the filtered count for this page, but keep the original total
+      // The frontend will handle pagination correctly based on what's returned
       return {
-        logs: rows,
+        logs: filteredLogs,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: count,
-          totalPages: Math.ceil(count / limit),
-          hasMore: page * limit < count,
+          total: count, // Keep original total (may include filtered items)
+          totalPages: Math.ceil(count / limit), // Keep original pages
+          hasMore: page * limit < count, // Based on original count
         },
       };
     } catch (error) {
@@ -399,7 +618,12 @@ class AuditService {
         search,
       } = filters;
 
-      const { page = 1, limit = 50, sortBy = "last_modified_at", sortOrder = "DESC" } = pagination;
+      const {
+        page = 1,
+        limit = 50,
+        sortBy = "last_modified_at",
+        sortOrder = "DESC",
+      } = pagination;
 
       const where = {};
 
@@ -472,7 +696,10 @@ class AuditService {
    */
   async getAuditStatistics(filters = {}) {
     try {
-      console.log('🔍 AuditService Debug - Getting audit statistics with filters:', filters);
+      console.log(
+        "🔍 AuditService Debug - Getting audit statistics with filters:",
+        filters
+      );
       const { tenantId, startDate, endDate } = filters;
 
       const where = {};
@@ -482,8 +709,8 @@ class AuditService {
         if (startDate) where.created_at[Op.gte] = new Date(startDate);
         if (endDate) where.created_at[Op.lte] = new Date(endDate);
       }
-      
-      console.log('🔍 AuditService Debug - Where clause:', where);
+
+      console.log("🔍 AuditService Debug - Where clause:", where);
 
       const [
         totalOperations,
@@ -523,7 +750,9 @@ class AuditService {
           ],
           where,
           group: ["userName", "userEmail"],
-          order: [[masterSequelize.fn("COUNT", masterSequelize.col("id")), "DESC"]],
+          order: [
+            [masterSequelize.fn("COUNT", masterSequelize.col("id")), "DESC"],
+          ],
           limit: 10,
           raw: true,
         }),
@@ -555,8 +784,8 @@ class AuditService {
         })),
         recentActivity,
       };
-      
-      console.log('🔍 AuditService Debug - Statistics result:', result);
+
+      console.log("🔍 AuditService Debug - Statistics result:", result);
       return result;
     } catch (error) {
       console.error("Error fetching audit statistics:", error);
@@ -569,15 +798,37 @@ class AuditService {
    */
   async getEntityEditHistory(entityType, entityId) {
     try {
-      console.log(`🔍 AuditService Debug - Getting edit history for ${entityType} #${entityId}`);
-      
+      console.log(
+        `🔍 AuditService Debug - Getting edit history for ${entityType} #${entityId}`
+      );
+
       // Get all audit logs for this entity, ordered by creation time
-      const logs = await AuditLog.findAll({
-        where: { 
-          entityType, 
-          entityId 
+      // Filter out automatic DELETE operations
+      const allLogs = await AuditLog.findAll({
+        where: {
+          entityType,
+          entityId,
         },
         order: [["created_at", "ASC"]], // Chronological order
+      });
+
+      // Filter out automatic DELETE operations
+      const logs = allLogs.filter((log) => {
+        if (log.operation === "DELETE" && log.additionalInfo) {
+          try {
+            const additionalInfo =
+              typeof log.additionalInfo === "string"
+                ? JSON.parse(log.additionalInfo)
+                : log.additionalInfo;
+
+            if (additionalInfo.isAutomaticDeletion === true) {
+              return false;
+            }
+          } catch (parseError) {
+            // If we can't parse additionalInfo, include the log
+          }
+        }
+        return true;
       });
 
       if (logs.length === 0) {
@@ -592,8 +843,8 @@ class AuditService {
             lastModifiedBy: null,
             firstCreated: null,
             lastModified: null,
-            isDeleted: false
-          }
+            isDeleted: false,
+          },
         };
       }
 
@@ -605,7 +856,7 @@ class AuditService {
       for (let i = 0; i < logs.length; i++) {
         const log = logs[i];
         const logData = log.toJSON();
-        
+
         // Parse JSON fields
         let oldValues = null;
         let newValues = null;
@@ -614,51 +865,67 @@ class AuditService {
         try {
           oldValues = logData.oldValues ? JSON.parse(logData.oldValues) : null;
           newValues = logData.newValues ? JSON.parse(logData.newValues) : null;
-          changedFields = logData.changedFields ? JSON.parse(logData.changedFields) : null;
+          changedFields = logData.changedFields
+            ? JSON.parse(logData.changedFields)
+            : null;
         } catch (parseError) {
           console.warn(`Error parsing JSON for log ${log.id}:`, parseError);
         }
 
         // Determine entity name from the first CREATE or first available data
         let entityName = null;
-        if (log.operation === 'CREATE' && newValues) {
+        if (log.operation === "CREATE" && newValues) {
           entityName = this.extractEntityName(newValues, entityType);
         } else if (currentState) {
           entityName = this.extractEntityName(currentState, entityType);
         }
 
-        // Build timeline entry
+        // Build timeline entry with proper fallbacks for user information
         const timelineEntry = {
           id: log.id,
           operation: log.operation,
           user: {
             id: log.userId,
-            name: log.userName,
-            email: log.userEmail,
-            role: log.userRole
+            name:
+              log.userName ||
+              (log.userEmail ? log.userEmail.split("@")[0] : null) ||
+              "Unknown",
+            email: log.userEmail || "N/A",
+            role: log.userRole,
           },
+          // Also include userName and userEmail at top level for compatibility
+          userName:
+            log.userName ||
+            (log.userEmail ? log.userEmail.split("@")[0] : null) ||
+            "Unknown",
+          userEmail: log.userEmail || "N/A",
           timestamp: log.created_at,
+          created_at: log.created_at, // Include both timestamp and created_at for compatibility
           oldValues: oldValues,
           newValues: newValues,
           changedFields: changedFields,
           ipAddress: log.ipAddress,
           tenant: {
             id: log.tenantId,
-            name: log.tenantName
+            name: log.tenantName,
           },
-          additionalInfo: log.additionalInfo ? JSON.parse(log.additionalInfo) : null
+          additionalInfo: log.additionalInfo
+            ? JSON.parse(log.additionalInfo)
+            : null,
         };
 
-        // Update current state based on operation
-        if (log.operation === 'CREATE') {
+        if (log.operation === "CREATE") {
           currentState = newValues;
           previousState = null;
-        } else if (log.operation === 'UPDATE') {
+        } else if (log.operation === "UPDATE") {
           previousState = currentState;
           currentState = newValues;
-        } else if (log.operation === 'DELETE') {
+        } else if (log.operation === "DELETE") {
           previousState = currentState;
           currentState = null;
+        } else if (log.operation === "RECOVER") {
+          previousState = currentState;
+          currentState = newValues || currentState;
         }
 
         timelineEntry.currentState = currentState;
@@ -667,36 +934,63 @@ class AuditService {
         timeline.push(timelineEntry);
       }
 
-      // Build summary
       const firstLog = logs[0];
       const lastLog = logs[logs.length - 1];
-      const createLog = logs.find(log => log.operation === 'CREATE');
-      const lastUpdateLog = logs.filter(log => log.operation === 'UPDATE').pop();
-      const deleteLog = logs.find(log => log.operation === 'DELETE');
+      const createLog =
+        logs.find(
+          (log) =>
+            log.operation === "CREATE" ||
+            log.operation === "SUBMIT_TO_FBR" ||
+            log.operation === "SAVE_DRAFT" ||
+            log.operation === "SAVE_AND_VALIDATE"
+        ) || firstLog;
+      const lastUpdateLog = logs
+        .filter(
+          (log) =>
+            log.operation === "UPDATE" ||
+            log.operation === "SAVE_DRAFT" ||
+            log.operation === "SAVE_AND_VALIDATE"
+        )
+        .pop();
+      const deleteLogs = logs.filter((log) => log.operation === "DELETE");
+      const recoverLogs = logs.filter((log) => log.operation === "RECOVER");
+      const lastDeleteLog =
+        deleteLogs.length > 0 ? deleteLogs[deleteLogs.length - 1] : null;
+      const lastRecoverLog =
+        recoverLogs.length > 0 ? recoverLogs[recoverLogs.length - 1] : null;
+      let isDeleted = false;
+      if (lastDeleteLog) {
+        if (
+          !lastRecoverLog ||
+          lastRecoverLog.created_at < lastDeleteLog.created_at
+        ) {
+          isDeleted = true;
+        }
+      }
+      const lastModifiedLog = lastUpdateLog || createLog || lastLog;
+
+      // Helper function to get user info with fallbacks
+      const getUserInfo = (log) => {
+        if (!log) return null;
+        return {
+          id: log.userId,
+          name:
+            log.userName ||
+            (log.userEmail ? log.userEmail.split("@")[0] : null) ||
+            "Unknown",
+          email: log.userEmail || "N/A",
+          role: log.userRole,
+        };
+      };
 
       const summary = {
         totalOperations: logs.length,
-        createdBy: createLog ? {
-          id: createLog.userId,
-          name: createLog.userName,
-          email: createLog.userEmail,
-          role: createLog.userRole
-        } : null,
-        lastModifiedBy: lastUpdateLog ? {
-          id: lastUpdateLog.userId,
-          name: lastUpdateLog.userName,
-          email: lastUpdateLog.userEmail,
-          role: lastUpdateLog.userRole
-        } : (createLog ? {
-          id: createLog.userId,
-          name: createLog.userName,
-          email: createLog.userEmail,
-          role: createLog.userRole
-        } : null),
+        createdBy: getUserInfo(createLog),
+        lastModifiedBy: getUserInfo(lastModifiedLog),
         firstCreated: firstLog.created_at,
         lastModified: lastLog.created_at,
-        isDeleted: !!deleteLog,
-        entityName: this.extractEntityName(currentState, entityType)
+        isDeleted: isDeleted,
+        entityName: this.extractEntityName(currentState, entityType),
       };
 
       return {
@@ -706,9 +1000,8 @@ class AuditService {
         timeline,
         summary,
         currentState,
-        isDeleted: summary.isDeleted
+        isDeleted: summary.isDeleted,
       };
-
     } catch (error) {
       console.error("Error getting entity edit history:", error);
       throw error;
@@ -722,13 +1015,28 @@ class AuditService {
     if (!data) return null;
 
     switch (entityType) {
-      case 'invoice':
-        return data.invoice_number || data.system_invoice_id || data.fbr_invoice_number || `Invoice #${data.id}`;
-      case 'buyer':
-        return data.buyerBusinessName || data.businessName || data.name || `Buyer #${data.id}`;
-      case 'product':
-        return data.product_name || data.name || data.productName || `Product #${data.id}`;
-      case 'user':
+      case "invoice":
+        return (
+          data.invoice_number ||
+          data.system_invoice_id ||
+          data.fbr_invoice_number ||
+          `Invoice #${data.id}`
+        );
+      case "buyer":
+        return (
+          data.buyerBusinessName ||
+          data.businessName ||
+          data.name ||
+          `Buyer #${data.id}`
+        );
+      case "product":
+        return (
+          data.product_name ||
+          data.name ||
+          data.productName ||
+          `Product #${data.id}`
+        );
+      case "user":
         return data.userName || data.name || data.email || `User #${data.id}`;
       default:
         return data.name || data.title || `${entityType} #${data.id}`;

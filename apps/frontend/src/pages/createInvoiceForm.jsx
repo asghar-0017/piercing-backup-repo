@@ -269,6 +269,8 @@ export default function CreateInvoice() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const searchDebounceRef = React.useRef(null);
   const [productInputValue, setProductInputValue] = useState("");
+  const isManualBuyerClearRef = useRef(false);
+  const isManualProductClearRef = useRef(false);
 
   const normalizeHsCode = (hsCode) => {
     if (!hsCode) return "";
@@ -1287,6 +1289,7 @@ export default function CreateInvoice() {
             matchingBuyer.buyerBusinessName
           );
           setSelectedBuyerId(matchingBuyer.id);
+          setSelectedBuyer(matchingBuyer); // Explicitly set selectedBuyer object
           // Sync Input Value Explicitly
           if (matchingBuyer) {
             const label = matchingBuyer.buyerBusinessName
@@ -1334,6 +1337,7 @@ export default function CreateInvoice() {
 
                 // Immediately restore since we found the buyer
                 setSelectedBuyerId(found.id);
+                setSelectedBuyer(found); // Explicitly set selectedBuyer object
                 const label = found.buyerBusinessName
                   ? `${found.buyerBusinessName} (${found.buyerNTNCNIC})`
                   : "";
@@ -1814,8 +1818,7 @@ export default function CreateInvoice() {
   useEffect(() => {
     if (!selectedBuyerId) {
       setSelectedBuyer(null);
-      // Also clear input if ID is cleared
-      setBuyerInputValue("");
+      // Also clear input if ID is cleared - REMOVED to prevent text loss on backspace
       return;
     }
 
@@ -2078,8 +2081,9 @@ export default function CreateInvoice() {
         item.isValueSalesManual = false;
       }
 
-      if (field === "sroScheduleNo" && value) {
-        item.isSROItemEnabled = true;
+      if (field === "sroScheduleNo") {
+        const v = (value || "").trim().toLowerCase();
+        item.isSROItemEnabled = Boolean(value) && v !== "n/a";
         item.sroItemSerialNo = "";
       }
 
@@ -4350,53 +4354,57 @@ export default function CreateInvoice() {
                 key={`buyer-autocomplete`}
                 fullWidth
                 size="small"
-                options={[
-                  ...buyers,
-                  ...(loadingBuyers && buyerHasMore
-                    ? [
-                        {
-                          id: "__loading__",
-                          buyerBusinessName: "Loading more...",
-                        },
-                      ]
-                    : []),
-                ]}
+                options={(() => {
+                  const currentSelected =
+                    buyers.find((b) => b.id === selectedBuyerId) ||
+                    selectedBuyer;
+                  const filteredBuyers = buyers.filter(
+                    (b) => b.id !== selectedBuyerId
+                  );
+                  const result = [];
+                  if (currentSelected && currentSelected.id !== "__loading__") {
+                    result.push(currentSelected);
+                  }
+                  result.push(...filteredBuyers);
+                  if (loadingBuyers && buyerHasMore) {
+                    result.push({
+                      id: "__loading__",
+                      buyerBusinessName: "Loading more...",
+                    });
+                  }
+                  return result;
+                })()}
                 filterOptions={(x) => x}
                 getOptionLabel={(option) =>
                   option.buyerBusinessName
                     ? `${option.buyerBusinessName} (${option.buyerNTNCNIC})`
                     : ""
                 }
-                value={(() => {
-                  const currentSelected = buyers.find(
-                    (b) => b.id === selectedBuyerId
-                  );
-                  // Only pass value if the input text actually matches the selected buyer's label
-                  // This prevents the text from being forced back to the full name while typing/searching
-                  if (currentSelected) {
-                    const label = currentSelected.buyerBusinessName
-                      ? `${currentSelected.buyerBusinessName} (${currentSelected.buyerNTNCNIC})`
-                      : "";
-                    if (buyerInputValue === label) return currentSelected;
-                  }
-                  return null;
-                })()}
+                value={
+                  buyers.find((b) => b.id === selectedBuyerId) ||
+                  selectedBuyer ||
+                  null
+                }
                 inputValue={buyerInputValue}
                 onInputChange={(_, newInputValue, reason) => {
                   console.log("onInputChange", {
                     newInputValue,
                     reason,
                     current: buyerInputValue,
+                    isManualClear: isManualBuyerClearRef.current,
                   });
 
                   // CRITICAL FIX: Prevent Autocomplete from auto-clearing text when value switches to null
-                  // When we backspace to search, value becomes null (mismatch), which triggers 'reset' with empty string
-                  // We must ignore this specific reset to preserve the user's search text
-                  if (reason === "reset" && newInputValue === "") {
-                    // Only allow reset to empty if we really want it (e.g. current input is already empty or clearing)
-                    // But if we have text, this is likely an unwanted side-effect of the value prop change
-                    if (buyerInputValue.length > 0) {
-                      console.log("Blocking unwanted reset");
+                  // When we backspace to search, if we clear the selection (set value to null), Autocomplete
+                  // normally triggers a 'reset' with an empty string. We catch this and block it.
+                  if (reason === "reset") {
+                    if (isManualBuyerClearRef.current) {
+                      console.log("Blocking unwanted reset from manual clear");
+                      isManualBuyerClearRef.current = false;
+                      return;
+                    }
+                    if (newInputValue === "" && buyerInputValue.length > 0) {
+                      console.log("Blocking unwanted empty reset");
                       return;
                     }
                   }
@@ -4411,12 +4419,28 @@ export default function CreateInvoice() {
                     setSelectedBuyerId("");
                     setBuyerSearch("");
                     setBuyers([]);
-                    // Don't triggering search fetch for empty string immediately or let it be handled by existing empty check?
-                    // Existing logic sets search to "" but might trigger empty search?
-                    // Let's rely on standard search debounce below but clearing ID is key.
                   }
 
                   if (reason === "input") {
+                    // Check if new input matches the currently selected buyer's label
+                    // If it doesn't match, we should clear the selection so the text doesn't "reappear"
+                    const currentSelected =
+                      buyers.find((b) => b.id === selectedBuyerId) ||
+                      selectedBuyer;
+                    if (currentSelected) {
+                      const label = currentSelected.buyerBusinessName
+                        ? `${currentSelected.buyerBusinessName} (${currentSelected.buyerNTNCNIC})`
+                        : "";
+                      if (newInputValue !== label) {
+                        console.log(
+                          "Input deviation detected, clearing selection"
+                        );
+                        isManualBuyerClearRef.current = true; // Mark that we are clearing it
+                        setSelectedBuyer(null);
+                        setSelectedBuyerId("");
+                      }
+                    }
+
                     setBuyerSearch(newInputValue);
                     if (buyerSearchDebounceRef.current) {
                       clearTimeout(buyerSearchDebounceRef.current);
@@ -4476,6 +4500,7 @@ export default function CreateInvoice() {
                   if (!newValue) {
                     setSelectedBuyer(null);
                     setSelectedBuyerId("");
+                    setBuyerInputValue(""); // Explicitly clear input on clear action
                     return;
                   }
 
@@ -4954,20 +4979,10 @@ export default function CreateInvoice() {
                       options={(() => {
                         const currentId = selectedProductIdByItem[index];
                         const itemName = formData.items[index]?.name || "";
-
-                        // Find by ID or Name
-                        let foundOption = products.find(
-                          (p) => String(p.id) === String(currentId)
-                        );
-                        if (!foundOption && itemName) {
-                          foundOption = products.find(
-                            (p) => p.name === itemName
-                          );
-                        }
-
-                        // Synthesize selected product if not in list
-                        const selectedProduct =
-                          foundOption ||
+                        const currentSelected =
+                          products.find(
+                            (p) => String(p.id) === String(currentId)
+                          ) ||
                           (currentId || itemName
                             ? {
                                 id: currentId || `temp-${itemName}`,
@@ -4980,15 +4995,15 @@ export default function CreateInvoice() {
                             : null);
 
                         const opts = [{ id: "__add__", name: "Add Product" }];
-                        if (selectedProduct) {
-                          opts.push(selectedProduct);
+                        if (currentSelected) {
+                          opts.push(currentSelected);
                         }
 
-                        // Add other products, avoiding duplicates with selectedProduct
+                        // Add other products, avoiding duplicates with currentSelected
                         products.forEach((p) => {
                           if (
-                            !selectedProduct ||
-                            String(p.id) !== String(selectedProduct.id)
+                            !currentSelected ||
+                            String(p.id) !== String(currentSelected.id)
                           ) {
                             opts.push(p);
                           }
@@ -5014,13 +5029,17 @@ export default function CreateInvoice() {
                         if (found) return found;
 
                         if (currentId || itemName) {
-                          return {
-                            id: currentId || `temp-${itemName}`,
-                            name: itemName || "Selected Product",
-                            hsCode: formData.items[index]?.hsCode || "",
-                            description:
-                              formData.items[index]?.productDescription || "",
-                          };
+                          // Only return a temp object if the input matches the name exactly
+                          // This prevents the "reappearing" text when the user has already edited the input
+                          if (productInputValue === itemName) {
+                            return {
+                              id: currentId || `temp-${itemName}`,
+                              name: itemName || "Selected Product",
+                              hsCode: formData.items[index]?.hsCode || "",
+                              description:
+                                formData.items[index]?.productDescription || "",
+                            };
+                          }
                         }
                         return null;
                       })()}
@@ -5030,12 +5049,20 @@ export default function CreateInvoice() {
                           newValue,
                           reason,
                           index,
+                          current: productInputValue,
+                          isManualClear: isManualProductClearRef.current,
                         });
 
                         // Ignore unwanted resets that clear the text when value mismatches during typing
-                        // BUT allow if reason is "clear" (user clicked X)
-                        if (reason === "reset" && newValue === "") {
-                          if (productInputValue.length > 0) {
+                        if (reason === "reset") {
+                          if (isManualProductClearRef.current) {
+                            console.log(
+                              "Blocking unwanted product reset from manual clear"
+                            );
+                            isManualProductClearRef.current = false;
+                            return;
+                          }
+                          if (newValue === "" && productInputValue.length > 0) {
                             console.log("Blocking unwanted product reset");
                             return;
                           }
@@ -5044,6 +5071,22 @@ export default function CreateInvoice() {
                         setProductInputValue(newValue);
 
                         if (reason === "input") {
+                          // Clear selection if input deviates from the current selected name
+                          const itemName = formData.items[index]?.name || "";
+                          if (itemName && newValue !== itemName) {
+                            console.log(
+                              "Product input deviation, clearing selection"
+                            );
+                            isManualProductClearRef.current = true;
+                            setSelectedProductIdByItem((prev) => ({
+                              ...prev,
+                              [index]: undefined,
+                            }));
+                            handleItemChange(index, "name", "");
+                            // We don't necessarily clear hsCode/description here to allow the user to search/edit
+                            // But clearing name is key to stop the 'value' prop from fighting back
+                          }
+
                           setProductSearch(newValue);
                           if (searchDebounceRef.current) {
                             clearTimeout(searchDebounceRef.current);
@@ -5251,13 +5294,16 @@ export default function CreateInvoice() {
                   selectedProvince={formData.sellerProvince}
                   sellerProvince={formData.sellerProvince}
                 />
-                <SROItem
-                  key={`SROItem-${index}`}
-                  index={index}
-                  disabled={!item.isSROItemEnabled}
-                  item={item}
-                  handleItemChange={handleItemChange}
-                />
+                {item.sroScheduleNo &&
+                item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
+                  <SROItem
+                    key={`SROItem-${index}`}
+                    index={index}
+                    disabled={!item.isSROItemEnabled}
+                    item={item}
+                    handleItemChange={handleItemChange}
+                  />
+                ) : null}
               </Box>
 
               <Box
