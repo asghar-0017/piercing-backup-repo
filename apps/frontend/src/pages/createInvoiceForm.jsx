@@ -241,6 +241,7 @@ export default function CreateInvoice() {
   });
   const [isEditMode, setIsEditMode] = React.useState(false);
   const [editInvoiceNumber, setEditInvoiceNumber] = React.useState("");
+  const [invoiceDateError, setInvoiceDateError] = React.useState("");
 
   // Add state for tracking added items
   const [addedItems, setAddedItems] = React.useState([]);
@@ -919,6 +920,15 @@ export default function CreateInvoice() {
   }, [formData]);
 
   const handleChange = (name, value) => {
+    if (name === "invoiceDate") {
+      if (value && dayjs(value).isAfter(dayjs(), "day")) {
+        setInvoiceDateError(
+          "This date exceeds the current date. Please select today or a past date."
+        );
+      } else {
+        setInvoiceDateError("");
+      }
+    }
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -2857,6 +2867,19 @@ export default function CreateInvoice() {
   const handleSave = async () => {
     setSaveLoading(true);
     try {
+      if (dayjs(formData.invoiceDate).isAfter(dayjs(), "day")) {
+        setInvoiceDateError(
+          "This date exceeds the current date. Please select today or a past date."
+        );
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "This date exceeds the current date. Please select today or a past date.",
+          confirmButtonColor: "#d33",
+        });
+        setSaveLoading(false);
+        return;
+      }
       // Any new save invalidates prior validation
       setIsSubmitVisible(false);
       // Basic validation for save
@@ -3004,14 +3027,21 @@ export default function CreateInvoice() {
       );
 
       if (response.status === 201) {
-        Swal.fire({
+        const result = await Swal.fire({
           icon: "success",
           title: "Invoice Saved Successfully!",
           text: `Draft saved with number: ${response.data.data.invoice_number}`,
+          showCancelButton: true,
+          confirmButtonText: "Create New",
+          cancelButtonText: "Stay Here",
           confirmButtonColor: "#28a745",
+          cancelButtonColor: "#6c757d",
+          reverseButtons: true,
         });
-        // If this was a new draft, start editing that id from now on
-        if (!editingId && response.data?.data?.invoice_id) {
+
+        if (result.isConfirmed) {
+          window.location.reload();
+        } else if (!editingId && response.data?.data?.invoice_id) {
           setEditingId(response.data.data.invoice_id);
         }
       }
@@ -3109,6 +3139,19 @@ export default function CreateInvoice() {
   const handleSaveAndValidate = async () => {
     setSaveValidateLoading(true);
     try {
+      if (dayjs(formData.invoiceDate).isAfter(dayjs(), "day")) {
+        setInvoiceDateError(
+          "This date exceeds the current date. Please select today or a past date."
+        );
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "This date exceeds the current date. Please select today or a past date.",
+          confirmButtonColor: "#d33",
+        });
+        setSaveValidateLoading(false);
+        return;
+      }
       // Basic validation for save and validate
       if (!selectedTenant) {
         Swal.fire({
@@ -3475,6 +3518,19 @@ export default function CreateInvoice() {
     }
     setLoading(true);
     try {
+      if (dayjs(formData.invoiceDate).isAfter(dayjs(), "day")) {
+        setInvoiceDateError(
+          "This date exceeds the current date. Please select today or a past date."
+        );
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "This date exceeds the current date. Please select today or a past date.",
+          confirmButtonColor: "#d33",
+        });
+        setLoading(false);
+        return;
+      }
       // Validate that a tenant is selected and seller information is populated
       if (!selectedTenant) {
         Swal.fire({
@@ -4251,6 +4307,8 @@ export default function CreateInvoice() {
                   textField: {
                     fullWidth: true,
                     size: "small",
+                    error: Boolean(invoiceDateError),
+                    helperText: invoiceDateError || "",
                     sx: {
                       "& .MuiOutlinedInput-root": {
                         "& fieldset": { borderColor: "#e5e7eb" },

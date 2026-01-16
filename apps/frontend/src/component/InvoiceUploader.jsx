@@ -40,7 +40,9 @@ import * as XLSX from "xlsx";
 import { useFileProcessor } from "../hooks/useFileProcessor";
 import { useStreamingUpload } from "../hooks/useStreamingUpload";
 
-// Utility function to convert Excel date to YYYY-MM-DD format
+const FUTURE_DATE_ERROR_MESSAGE =
+  "Invoice date exceeds the current date. Please select today or a past date.";
+
 const convertExcelDateToYYYYMMDD = (excelDate) => {
   if (!excelDate || excelDate === "") return "";
 
@@ -131,6 +133,16 @@ const convertExcelDateToYYYYMMDD = (excelDate) => {
   return "";
 };
 
+const isFutureDate = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime() > today.getTime();
+};
+
 const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   const [file, setFile] = useState(null);
   const [previewData, setPreviewData] = useState([]);
@@ -145,11 +157,19 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   const [showResults, setShowResults] = useState(false);
   const [totalRowsInFile, setTotalRowsInFile] = useState(0);
 
-  // Debug: Monitor uploadResults changes
   useEffect(() => {
     console.log("uploadResults state changed:", uploadResults);
     console.log("showResults state changed:", showResults);
   }, [uploadResults, showResults]);
+
+  useEffect(() => {
+    const hasFutureDateError = previewData.some(
+      (invoice) => invoice && isFutureDate(invoice.invoiceDate)
+    );
+    if (hasFutureDateError) {
+      toast.error(FUTURE_DATE_ERROR_MESSAGE);
+    }
+  }, [previewData]);
 
   const fileInputRef = useRef(null);
 
@@ -264,36 +284,36 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     Discount: "item_discount",
     "Total Values": "item_totalValues",
     // Additional mappings for common variations
-    "dn_invoice_ref_no": "invoiceRefNo",
-    "invoice_ref_no": "invoiceRefNo",
-    "invoice_ref_number": "invoiceRefNo",
-    "invoice_number": "invoiceRefNo",
-    "internal_invoice_no": "companyInvoiceRefNo",
-    "internal_invoice_number": "companyInvoiceRefNo",
-    "buyer_ntn_cnic": "buyerNTNCNIC",
-    "buyer_ntn": "buyerNTNCNIC",
-    "transaction_type": "transctypeId",
-    "transctype_id": "transctypeId",
-    "product_name": "item_productName",
-    "hs_code": "item_hsCode",
-    "hscode": "item_hsCode",
-    "quantity": "item_quantity",
-    "unit_price": "item_unitPrice",
-    "unit_cost": "item_unitPrice",
-    "total_values": "item_totalValues",
-    "value_sales_excluding_st": "item_valueSalesExcludingST",
-    "sales_tax_applicable": "item_salesTaxApplicable",
-    "st_withheld_at_source": "item_salesTaxWithheldAtSource",
-    "extra_tax": "item_extraTax",
-    "further_tax": "item_furtherTax",
-    "fed_payable": "item_fedPayable",
-    "discount": "item_discount",
-    "unit_of_measurement": "item_uoM",
-    "uom": "item_uoM",
-    "rate": "item_rate",
-    "sro_schedule_no": "item_sroScheduleNo",
-    "sro_item_serial_no": "item_sroItemSerialNo",
-    "sale_type": "item_saleType",
+    dn_invoice_ref_no: "invoiceRefNo",
+    invoice_ref_no: "invoiceRefNo",
+    invoice_ref_number: "invoiceRefNo",
+    invoice_number: "invoiceRefNo",
+    internal_invoice_no: "companyInvoiceRefNo",
+    internal_invoice_number: "companyInvoiceRefNo",
+    buyer_ntn_cnic: "buyerNTNCNIC",
+    buyer_ntn: "buyerNTNCNIC",
+    transaction_type: "transctypeId",
+    transctype_id: "transctypeId",
+    product_name: "item_productName",
+    hs_code: "item_hsCode",
+    hscode: "item_hsCode",
+    quantity: "item_quantity",
+    unit_price: "item_unitPrice",
+    unit_cost: "item_unitPrice",
+    total_values: "item_totalValues",
+    value_sales_excluding_st: "item_valueSalesExcludingST",
+    sales_tax_applicable: "item_salesTaxApplicable",
+    st_withheld_at_source: "item_salesTaxWithheldAtSource",
+    extra_tax: "item_extraTax",
+    further_tax: "item_furtherTax",
+    fed_payable: "item_fedPayable",
+    discount: "item_discount",
+    unit_of_measurement: "item_uoM",
+    uom: "item_uoM",
+    rate: "item_rate",
+    sro_schedule_no: "item_sroScheduleNo",
+    sro_item_serial_no: "item_sroItemSerialNo",
+    sale_type: "item_saleType",
   };
 
   const normalizeHeader = (h) => {
@@ -591,7 +611,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           setTotalRowsInFile(result.totalRows);
         } else {
           // Fallback: estimate from invoices/items
-          const estRows = invoices.reduce((acc, inv) => acc + (inv.items?.length || 1), 0);
+          const estRows = invoices.reduce(
+            (acc, inv) => acc + (inv.items?.length || 1),
+            0
+          );
           setTotalRowsInFile(estRows);
         }
 
@@ -957,7 +980,6 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       return;
     }
 
-
     setErrors([]);
     setPreviewData(validData);
 
@@ -975,11 +997,19 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     const seenInvoicesInCsv = new Set();
     const existingRefNos = new Set(
       existingInvoicesFromDb.map((ex) =>
-        String(ex.invoiceData.companyInvoiceRefNo || "").trim().toLowerCase()
+        String(ex.invoiceData.companyInvoiceRefNo || "")
+          .trim()
+          .toLowerCase()
       )
     );
 
-    const invoiceMandatory = ["invoiceType", "invoiceDate", "companyInvoiceRefNo", "buyerNTNCNIC", "transctypeId"];
+    const invoiceMandatory = [
+      "invoiceType",
+      "invoiceDate",
+      "companyInvoiceRefNo",
+      "buyerNTNCNIC",
+      "transctypeId",
+    ];
     const itemMandatory = [
       "item_sroScheduleNo",
       "item_sroItemSerialNo",
@@ -989,60 +1019,61 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       "item_quantity",
       "item_rate",
       "item_unitPrice",
-      "item_salesTaxApplicable"
+      "item_salesTaxApplicable",
     ];
 
-    return invoices.map(invoice => {
-      // Validation Checks (Required Fields)
-      const missingInvoiceFields = invoiceMandatory.filter(key => {
+    return invoices.map((invoice) => {
+      const errorMessages = [];
+
+      invoiceMandatory.forEach((key) => {
         const val = invoice[key];
-        return val === undefined || val === null || String(val).trim() === "";
+        if (val === undefined || val === null || String(val).trim() === "") {
+          const fieldLabel =
+            mandatoryFields.find((f) => f.key === key)?.label || key;
+          errorMessages.push(`This field is required: ${fieldLabel}`);
+        }
       });
 
-      if (missingInvoiceFields.length > 0) {
-        const fieldLabel = mandatoryFields.find(f => f.key === missingInvoiceFields[0])?.label || missingInvoiceFields[0];
+      if (isFutureDate(invoice.invoiceDate)) {
+        errorMessages.push(FUTURE_DATE_ERROR_MESSAGE);
+      }
+
+      if (invoice.items && Array.isArray(invoice.items)) {
+        invoice.items.forEach((item) => {
+          itemMandatory.forEach((key) => {
+            const val = item[key];
+            const isEmpty =
+              val === undefined || val === null || String(val).trim() === "";
+            const isZeroButRequiredNonZero =
+              [
+                "item_rate",
+                "item_quantity",
+                "item_unitPrice",
+                "item_valueSalesExcludingST",
+              ].includes(key) &&
+              (val === 0 || val === "0");
+
+            if (isEmpty || isZeroButRequiredNonZero) {
+              const fieldLabel =
+                mandatoryFields.find((f) => f.key === key)?.label || key;
+              errorMessages.push(`This field is required: ${fieldLabel}`);
+            }
+          });
+        });
+      }
+
+      if (errorMessages.length > 0) {
         return {
           ...invoice,
-          _status: 'error',
-          _details: `This field is required: ${fieldLabel}`
+          _status: "error",
+          _details: errorMessages.join(" | "),
         };
       }
 
-      // Check item-level fields
-      if (invoice.items && Array.isArray(invoice.items)) {
-        for (const item of invoice.items) {
-          const missingItemFields = itemMandatory.filter(key => {
-            const val = item[key];
-            const isEmpty = val === undefined || val === null || String(val).trim() === "";
-
-            // For critical numeric fields, also treat 0 as missing/error 
-            // (since the worker defaults empty numeric cells to 0)
-            const isZeroButRequiredNonZero = [
-              "item_rate",
-              "item_quantity",
-              "item_unitPrice",
-              "item_valueSalesExcludingST"
-            ].includes(key) && (val === 0 || val === "0");
-
-            return isEmpty || isZeroButRequiredNonZero;
-          });
-
-          if (missingItemFields.length > 0) {
-            const fieldLabel = mandatoryFields.find(f => f.key === missingItemFields[0])?.label || missingItemFields[0];
-            return {
-              ...invoice,
-              _status: 'error',
-              _details: `This field is required: ${fieldLabel}`
-            };
-          }
-        }
-      }
-
-      // 4. Ready to upload
       return {
         ...invoice,
-        _status: 'ready',
-        _details: 'Ready'
+        _status: "ready",
+        _details: "Ready",
       };
     });
   };
@@ -1079,7 +1110,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       // Skip API call if no data to check
       if (!limitedData || limitedData.length === 0) {
-        console.log("No data to check for existing invoices, skipping API call");
+        console.log(
+          "No data to check for existing invoices, skipping API call"
+        );
         setExistingInvoices([]);
         setNewInvoices([]);
         return;
@@ -1113,7 +1146,6 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       setCheckingExisting(false);
     }
   };
-
 
   const handleUpload = async () => {
     if (!file || previewData.length === 0) {
@@ -1360,7 +1392,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       });
 
       // Use calculated statuses from previewData if available, otherwise recalculate
-      const invoicesWithStatus = previewData.map(inv => {
+      const invoicesWithStatus = previewData.map((inv) => {
         // If it's already an invoice object with status, use it
         if (inv._status) return inv;
 
@@ -1372,12 +1404,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       const finalInvoicesToUpload = [];
 
       invoicesWithStatus.forEach((invoice) => {
-        if (invoice._status === 'error') {
+        if (invoice._status === "error") {
           validationErrors.push({
             row: invoice._row,
-            error: invoice._details
+            error: invoice._details,
           });
-        } else if (invoice._status === 'ready') {
+        } else if (invoice._status === "ready") {
           finalInvoicesToUpload.push(invoice);
         }
       });
@@ -1388,7 +1420,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       if (invoicesToUpload.length === 0) {
         if (validationErrors.length > 0) {
           setErrors(validationErrors);
-          toast.error("No valid invoices to upload. Please fix the errors in the CSV.");
+          toast.error(
+            "No valid invoices to upload. Please fix the errors in the CSV."
+          );
         } else {
           toast.error("No valid invoices to upload.");
         }
@@ -1399,7 +1433,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       // If there are some errors but also some valid ones, we proceed but notify
       if (validationErrors.length > 0) {
         setErrors(validationErrors);
-        toast.warning(`${validationErrors.length} invoices have errors and will be skipped. Proceeding with ${invoicesToUpload.length} valid invoices.`);
+        toast.warning(
+          `${validationErrors.length} invoices have errors and will be skipped. Proceeding with ${invoicesToUpload.length} valid invoices.`
+        );
       }
 
       // 4. Upload Rules: Proceed with valid invoices
@@ -1420,7 +1456,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
         if (result.success) {
           console.log("Streaming upload result:", result);
-          const { successfulInvoices, failedInvoices, errors, summary } = result;
+          const { successfulInvoices, failedInvoices, errors, summary } =
+            result;
 
           // Store detailed results for display
           const detailedResults = {
@@ -1428,7 +1465,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               successful: successfulInvoices,
               failed: failedInvoices,
               total: successfulInvoices + failedInvoices,
-              totalRows: totalRowsInFile
+              totalRows: totalRowsInFile,
             },
             errors: errors || [],
             performance: result.performance || null,
@@ -1440,7 +1477,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           if (successfulInvoices > 0) {
             // Create a map of successful invoice indices
             const successfulIndices = new Set();
-            const errorRows = new Set(errors.map(error => error.row));
+            const errorRows = new Set(errors.map((error) => error.row));
 
             // Only include invoices that don't have errors
             invoicesToUpload.forEach((invoice, index) => {
@@ -1449,13 +1486,16 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               }
             });
 
-            detailedResults.successfulInvoices = Array.from(successfulIndices).map((index) => {
+            detailedResults.successfulInvoices = Array.from(
+              successfulIndices
+            ).map((index) => {
               const invoice = invoicesToUpload[index];
               return {
                 row: index + 1,
-                invoiceNumber: invoice.internalInvoiceNo || `Invoice ${index + 1}`,
-                buyerName: invoice.buyerNTNCNIC || '',
-                status: 'success'
+                invoiceNumber:
+                  invoice.internalInvoiceNo || `Invoice ${index + 1}`,
+                buyerName: invoice.buyerNTNCNIC || "",
+                status: "success",
               };
             });
           }
@@ -1465,22 +1505,29 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             console.log("🔍 Processing errors:", errors);
             detailedResults.failedInvoices = errors.map((error, index) => {
               // Find the actual invoice data from the original upload
-              const originalInvoice = invoicesToUpload.find((inv, idx) => idx + 1 === error.row) ||
+              const originalInvoice =
+                invoicesToUpload.find((inv, idx) => idx + 1 === error.row) ||
                 invoicesToUpload[error.row - 1] ||
                 invoicesToUpload[index];
 
               const failedInvoice = {
                 row: error.row || index + 1,
-                invoiceNumber: originalInvoice?.internalInvoiceNo || `Invoice ${error.row || index + 1}`,
-                buyerName: originalInvoice?.buyerBusinessName || '',
-                error: error.error || error.errors?.join(', ') || 'Unknown error',
-                status: 'failed'
+                invoiceNumber:
+                  originalInvoice?.internalInvoiceNo ||
+                  `Invoice ${error.row || index + 1}`,
+                buyerName: originalInvoice?.buyerBusinessName || "",
+                error:
+                  error.error || error.errors?.join(", ") || "Unknown error",
+                status: "failed",
               };
 
               console.log("🔍 Created failed invoice:", failedInvoice);
               return failedInvoice;
             });
-            console.log("🔍 Final failedInvoices array:", detailedResults.failedInvoices);
+            console.log(
+              "🔍 Final failedInvoices array:",
+              detailedResults.failedInvoices
+            );
           }
 
           // Set results and show them
@@ -1496,11 +1543,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             console.log("Timeout check - showResults:", showResults);
 
             // Force re-render by updating state again
-            setUploadResults(prev => {
+            setUploadResults((prev) => {
               console.log("Force update uploadResults:", prev);
               return prev;
             });
-            setShowResults(prev => {
+            setShowResults((prev) => {
               console.log("Force update showResults:", prev);
               return prev;
             });
@@ -1508,7 +1555,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
           // Check if there are any errors (including product validation errors)
           const hasErrors = errors && errors.length > 0;
-          const actualSuccessfulCount = detailedResults.successfulInvoices.length;
+          const actualSuccessfulCount =
+            detailedResults.successfulInvoices.length;
           const actualFailedCount = detailedResults.failedInvoices.length;
 
           if (hasErrors) {
@@ -1528,16 +1576,24 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           }
         } else {
           // Handle streaming upload failure - check if it's a validation error
-          if (result && result.error && result.error.response && result.error.response.status === 400) {
+          if (
+            result &&
+            result.error &&
+            result.error.response &&
+            result.error.response.status === 400
+          ) {
             const errorData = result.error.response.data;
-            console.log("Streaming upload failed with validation errors:", errorData);
+            console.log(
+              "Streaming upload failed with validation errors:",
+              errorData
+            );
 
             // Process errors from the new fail-all validation structure
             const errors = errorData.data?.errors || [];
 
             // Group errors by invoice row to avoid counting duplicates
             const errorsByInvoice = {};
-            errors.forEach(error => {
+            errors.forEach((error) => {
               const row = error.row || 1;
               if (!errorsByInvoice[row]) {
                 errorsByInvoice[row] = [];
@@ -1549,7 +1605,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             const summary = errorData.data?.summary || {
               successful: 0,
               failed: uniqueFailedInvoices,
-              total: uniqueFailedInvoices
+              total: uniqueFailedInvoices,
             };
 
             // Create detailed results for display - group errors by invoice
@@ -1558,14 +1614,16 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               errors,
               performance: null,
               successfulInvoices: [],
-              failedInvoices: Object.entries(errorsByInvoice).map(([row, invoiceErrors]) => ({
-                row: parseInt(row),
-                invoiceNumber: `Invoice ${row}`,
-                buyerName: 'N/A',
-                error: invoiceErrors.map(e => e.error).join('; '), // Combine multiple errors for same invoice
-                status: 'failed',
-                allErrors: invoiceErrors // Store all errors for detailed display
-              })),
+              failedInvoices: Object.entries(errorsByInvoice).map(
+                ([row, invoiceErrors]) => ({
+                  row: parseInt(row),
+                  invoiceNumber: `Invoice ${row}`,
+                  buyerName: "N/A",
+                  error: invoiceErrors.map((e) => e.error).join("; "), // Combine multiple errors for same invoice
+                  status: "failed",
+                  allErrors: invoiceErrors, // Store all errors for detailed display
+                })
+              ),
             };
 
             setUploadResults(detailedResults);
@@ -1573,18 +1631,27 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
             // Show detailed error message with specific error types
             if (errors.length > 0) {
-              const buyerErrors = errors.filter(e => e.error.includes('Buyer with NTN')).length;
-              const productErrors = errors.filter(e => e.error.includes('Product')).length;
+              const buyerErrors = errors.filter((e) =>
+                e.error.includes("Buyer with NTN")
+              ).length;
+              const productErrors = errors.filter((e) =>
+                e.error.includes("Product")
+              ).length;
               const otherErrors = errors.length - buyerErrors - productErrors;
 
               let errorMessage = `Validation failed. ${uniqueFailedInvoices} invoice(s) have errors. No invoices will be created.`;
-              if (buyerErrors > 0) errorMessage += ` (${buyerErrors} buyer validation errors)`;
-              if (productErrors > 0) errorMessage += ` (${productErrors} product validation errors)`;
-              if (otherErrors > 0) errorMessage += ` (${otherErrors} other errors)`;
+              if (buyerErrors > 0)
+                errorMessage += ` (${buyerErrors} buyer validation errors)`;
+              if (productErrors > 0)
+                errorMessage += ` (${productErrors} product validation errors)`;
+              if (otherErrors > 0)
+                errorMessage += ` (${otherErrors} other errors)`;
 
               toast.error(errorMessage, { autoClose: 10000 });
             } else {
-              toast.error(`Upload failed: ${errorData.message || 'Unknown error'}`);
+              toast.error(
+                `Upload failed: ${errorData.message || "Unknown error"}`
+              );
             }
           } else {
             throw new Error("Streaming upload failed");
@@ -1608,7 +1675,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             const detailedResults = {
               summary: {
                 ...summary,
-                totalRows: totalRowsInFile
+                totalRows: totalRowsInFile,
               },
               errors: errors || [],
               performance,
@@ -1620,7 +1687,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             if (summary.successful > 0) {
               // Create a map of successful invoice indices
               const successfulIndices = new Set();
-              const errorRows = new Set(errors.map(error => error.row));
+              const errorRows = new Set(errors.map((error) => error.row));
 
               // Only include invoices that don't have errors
               invoicesToUpload.forEach((invoice, index) => {
@@ -1629,14 +1696,21 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 }
               });
 
-              detailedResults.successfulInvoices = Array.from(successfulIndices).map((index) => {
+              detailedResults.successfulInvoices = Array.from(
+                successfulIndices
+              ).map((index) => {
                 const invoice = invoicesToUpload[index];
                 return {
                   row: index + 1,
-                  invoiceNumber: invoice.internalInvoiceNo || `Invoice ${index + 1}`,
-                  buyerName: invoice.buyerBusinessName || '',
-                  totalAmount: invoice.item_totalValues || invoice.totalValues || invoice.totalAmount || 0,
-                  status: 'success'
+                  invoiceNumber:
+                    invoice.internalInvoiceNo || `Invoice ${index + 1}`,
+                  buyerName: invoice.buyerBusinessName || "",
+                  totalAmount:
+                    invoice.item_totalValues ||
+                    invoice.totalValues ||
+                    invoice.totalAmount ||
+                    0,
+                  status: "success",
                 };
               });
             }
@@ -1646,22 +1720,32 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               console.log("🔍 Regular upload - Processing errors:", errors);
               detailedResults.failedInvoices = errors.map((error, index) => {
                 // Find the actual invoice data from the original upload
-                const originalInvoice = invoicesToUpload.find((inv, idx) => idx + 1 === error.row) ||
+                const originalInvoice =
+                  invoicesToUpload.find((inv, idx) => idx + 1 === error.row) ||
                   invoicesToUpload[error.row - 1] ||
                   invoicesToUpload[index];
 
                 const failedInvoice = {
                   row: error.row || index + 1,
-                  invoiceNumber: originalInvoice?.internalInvoiceNo || `Invoice ${error.row || index + 1}`,
-                  buyerName: originalInvoice?.buyerBusinessName || '',
-                  error: error.error || error.errors?.join(', ') || 'Unknown error',
-                  status: 'failed'
+                  invoiceNumber:
+                    originalInvoice?.internalInvoiceNo ||
+                    `Invoice ${error.row || index + 1}`,
+                  buyerName: originalInvoice?.buyerBusinessName || "",
+                  error:
+                    error.error || error.errors?.join(", ") || "Unknown error",
+                  status: "failed",
                 };
 
-                console.log("🔍 Regular upload - Created failed invoice:", failedInvoice);
+                console.log(
+                  "🔍 Regular upload - Created failed invoice:",
+                  failedInvoice
+                );
                 return failedInvoice;
               });
-              console.log("🔍 Regular upload - Final failedInvoices array:", detailedResults.failedInvoices);
+              console.log(
+                "🔍 Regular upload - Final failedInvoices array:",
+                detailedResults.failedInvoices
+              );
             }
 
             setUploadResults(detailedResults);
@@ -1670,7 +1754,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
             // Check if there are any errors (including product validation errors)
             const hasErrors = errors && errors.length > 0;
-            const actualSuccessfulCount = detailedResults.successfulInvoices.length;
+            const actualSuccessfulCount =
+              detailedResults.successfulInvoices.length;
             const actualFailedCount = detailedResults.failedInvoices.length;
 
             if (hasErrors) {
@@ -1696,10 +1781,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               performance: null,
               successfulInvoices: invoicesToUpload.map((invoice, index) => ({
                 row: index + 1,
-                invoiceNumber: invoice.internalInvoiceNo || `Invoice ${index + 1}`,
-                buyerName: invoice.buyerBusinessName || '',
-                totalAmount: invoice.item_totalValues || invoice.totalValues || invoice.totalAmount || 0,
-                status: 'success'
+                invoiceNumber:
+                  invoice.internalInvoiceNo || `Invoice ${index + 1}`,
+                buyerName: invoice.buyerBusinessName || "",
+                totalAmount:
+                  invoice.item_totalValues ||
+                  invoice.totalValues ||
+                  invoice.totalAmount ||
+                  0,
+                status: "success",
               })),
               failedInvoices: [],
             };
@@ -1721,7 +1811,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
             // Group errors by invoice row to avoid counting duplicates
             const errorsByInvoice = {};
-            errors.forEach(error => {
+            errors.forEach((error) => {
               const row = error.row || 1;
               if (!errorsByInvoice[row]) {
                 errorsByInvoice[row] = [];
@@ -1733,7 +1823,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             const summary = errorData.data?.summary || {
               successful: 0,
               failed: uniqueFailedInvoices,
-              total: uniqueFailedInvoices
+              total: uniqueFailedInvoices,
             };
 
             // Create detailed results for display - group errors by invoice
@@ -1742,14 +1832,16 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               errors,
               performance: null,
               successfulInvoices: [],
-              failedInvoices: Object.entries(errorsByInvoice).map(([row, invoiceErrors]) => ({
-                row: parseInt(row),
-                invoiceNumber: `Invoice ${row}`,
-                buyerName: 'N/A',
-                error: invoiceErrors.map(e => e.error).join('; '), // Combine multiple errors for same invoice
-                status: 'failed',
-                allErrors: invoiceErrors // Store all errors for detailed display
-              })),
+              failedInvoices: Object.entries(errorsByInvoice).map(
+                ([row, invoiceErrors]) => ({
+                  row: parseInt(row),
+                  invoiceNumber: `Invoice ${row}`,
+                  buyerName: "N/A",
+                  error: invoiceErrors.map((e) => e.error).join("; "), // Combine multiple errors for same invoice
+                  status: "failed",
+                  allErrors: invoiceErrors, // Store all errors for detailed display
+                })
+              ),
             };
 
             setUploadResults(detailedResults);
@@ -1757,18 +1849,27 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
             // Show detailed error message with specific error types
             if (errors.length > 0) {
-              const buyerErrors = errors.filter(e => e.error.includes('Buyer with NTN')).length;
-              const productErrors = errors.filter(e => e.error.includes('Product')).length;
+              const buyerErrors = errors.filter((e) =>
+                e.error.includes("Buyer with NTN")
+              ).length;
+              const productErrors = errors.filter((e) =>
+                e.error.includes("Product")
+              ).length;
               const otherErrors = errors.length - buyerErrors - productErrors;
 
               let errorMessage = `Validation failed. ${uniqueFailedInvoices} invoice(s) have errors. No invoices will be created.`;
-              if (buyerErrors > 0) errorMessage += ` (${buyerErrors} buyer validation errors)`;
-              if (productErrors > 0) errorMessage += ` (${productErrors} product validation errors)`;
-              if (otherErrors > 0) errorMessage += ` (${otherErrors} other errors)`;
+              if (buyerErrors > 0)
+                errorMessage += ` (${buyerErrors} buyer validation errors)`;
+              if (productErrors > 0)
+                errorMessage += ` (${productErrors} product validation errors)`;
+              if (otherErrors > 0)
+                errorMessage += ` (${otherErrors} other errors)`;
 
               toast.error(errorMessage, { autoClose: 10000 });
             } else {
-              toast.error(`Upload failed: ${errorData.message || 'Unknown error'}`);
+              toast.error(
+                `Upload failed: ${errorData.message || "Unknown error"}`
+              );
             }
           } else {
             // Handle other errors
@@ -1782,13 +1883,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       console.log("Checking modal closing logic...");
       console.log("uploadResults:", uploadResults);
       console.log("uploadResults.summary:", uploadResults?.summary);
-      console.log("uploadResults.summary.failed:", uploadResults?.summary?.failed);
+      console.log(
+        "uploadResults.summary.failed:",
+        uploadResults?.summary?.failed
+      );
 
       // Don't close the modal automatically - let the user decide when to close
       console.log("Upload completed - keeping modal open to show results");
       console.log("Final uploadResults:", uploadResults);
       console.log("Final showResults:", showResults);
-
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Error uploading invoices. Please try again.");
@@ -1862,10 +1965,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       open={isOpen}
       onClose={(event, reason) => {
         console.log("Dialog onClose called with reason:", reason);
-        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+        if (reason === "backdropClick" || reason === "escapeKeyDown") {
           // Don't close if there are results to show
           if (uploadResults && showResults) {
-            console.log("Preventing dialog close - results are being displayed");
+            console.log(
+              "Preventing dialog close - results are being displayed"
+            );
             return;
           }
         }
@@ -1905,8 +2010,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             All buyers must exist in the system before uploading invoices.
             <br />
             <br />
-            <strong>Product Validation:</strong> All products must exist in the system.
-            Products with names that don't match existing products will cause upload errors.
+            <strong>Product Validation:</strong> All products must exist in the
+            system. Products with names that don't match existing products will
+            cause upload errors.
             <br />
             <br />
             <strong>New Feature:</strong> Rows with the same{" "}
@@ -1931,13 +2037,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                   setDownloadingTemplate(true);
 
                   // Download template from public folder
-                  const templateUrl = '/invoiceTemplate/invoice_template.xlsx';
+                  const templateUrl = "/invoiceTemplate/invoice_template.xlsx";
 
                   // Fetch the template file from public folder
                   const response = await fetch(templateUrl);
 
                   if (!response.ok) {
-                    throw new Error(`Failed to fetch template: ${response.statusText}`);
+                    throw new Error(
+                      `Failed to fetch template: ${response.statusText}`
+                    );
                   }
 
                   // Create blob and download
@@ -1954,16 +2062,26 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                   toast.success("Excel template downloaded successfully!");
                 } catch (error) {
                   console.error("Error downloading template:", error);
-                  toast.error("Could not download Excel template. Please try again.");
+                  toast.error(
+                    "Could not download Excel template. Please try again."
+                  );
                 } finally {
                   setDownloadingTemplate(false);
                 }
               }}
               size="small"
               disabled={downloadingTemplate}
-              startIcon={downloadingTemplate ? <CircularProgress size={16} /> : <Download />}
+              startIcon={
+                downloadingTemplate ? (
+                  <CircularProgress size={16} />
+                ) : (
+                  <Download />
+                )
+              }
             >
-              {downloadingTemplate ? "Downloading..." : "Download Excel Template"}
+              {downloadingTemplate
+                ? "Downloading..."
+                : "Download Excel Template"}
             </Button>
           </Box>
 
@@ -2194,59 +2312,181 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             </Box>
 
             {/* Summary of validation results */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-              <Paper sx={{ p: 1.5, flex: 1, minWidth: '120px', bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.300' }}>
-                <Typography variant="caption" color="text.secondary" display="block">Total Groups</Typography>
+            <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
+              <Paper
+                sx={{
+                  p: 1.5,
+                  flex: 1,
+                  minWidth: "120px",
+                  bgcolor: "grey.50",
+                  border: "1px solid",
+                  borderColor: "grey.300",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  display="block"
+                >
+                  Total Groups
+                </Typography>
                 <Typography variant="h6">{previewData.length}</Typography>
               </Paper>
-              <Paper sx={{ p: 1.5, flex: 1, minWidth: '120px', bgcolor: '#e8f5e9', border: '1px solid', borderColor: '#c8e6c9' }}>
-                <Typography variant="caption" color="success.main" display="block">Ready</Typography>
-                <Typography variant="h6" color="success.main">{previewData.filter(i => i._status === 'ready').length}</Typography>
+              <Paper
+                sx={{
+                  p: 1.5,
+                  flex: 1,
+                  minWidth: "120px",
+                  bgcolor: "#e8f5e9",
+                  border: "1px solid",
+                  borderColor: "#c8e6c9",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  color="success.main"
+                  display="block"
+                >
+                  Ready
+                </Typography>
+                <Typography variant="h6" color="success.main">
+                  {previewData.filter((i) => i._status === "ready").length}
+                </Typography>
               </Paper>
-              <Paper sx={{ p: 1.5, flex: 1, minWidth: '120px', bgcolor: '#ffebee', border: '1px solid', borderColor: '#ffcdd2' }}>
-                <Typography variant="caption" color="error.main" display="block">Errors</Typography>
-                <Typography variant="h6" color="error.main">{previewData.filter(i => i._status === 'error').length}</Typography>
+              <Paper
+                sx={{
+                  p: 1.5,
+                  flex: 1,
+                  minWidth: "120px",
+                  bgcolor: "#ffebee",
+                  border: "1px solid",
+                  borderColor: "#ffcdd2",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  color="error.main"
+                  display="block"
+                >
+                  Errors
+                </Typography>
+                <Typography variant="h6" color="error.main">
+                  {previewData.filter((i) => i._status === "error").length}
+                </Typography>
               </Paper>
             </Box>
 
             {showPreview && (
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 500 }}>
+              <TableContainer
+                component={Paper}
+                variant="outlined"
+                sx={{ maxHeight: 500 }}
+              >
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5", width: 140 }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5", width: 60 }}>Row</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}>Company Ref No</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}>Buyer NTN</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}>Items</TableCell>
-                      <TableCell sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}>Validation Details</TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: "bold",
+                          backgroundColor: "#f5f5f5",
+                          width: 140,
+                        }}
+                      >
+                        Status
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontWeight: "bold",
+                          backgroundColor: "#f5f5f5",
+                          width: 60,
+                        }}
+                      >
+                        Row
+                      </TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}
+                      >
+                        Company Ref No
+                      </TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}
+                      >
+                        Buyer NTN
+                      </TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}
+                      >
+                        Items
+                      </TableCell>
+                      <TableCell
+                        sx={{ fontWeight: "bold", backgroundColor: "#f5f5f5" }}
+                      >
+                        Validation Details
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {previewData.map((row, index) => (
-                      <TableRow key={index} sx={{
-                        bgcolor: row._status === 'error' ? '#fff4f4' : (row._status === 'ready' ? '#f1f8e9' : 'inherit'),
-                        '&:hover': { bgcolor: row._status === 'error' ? '#ffe8e8' : (row._status === 'ready' ? '#e8f5e9' : '#f5f5f5') }
-                      }}>
+                      <TableRow
+                        key={index}
+                        sx={{
+                          bgcolor:
+                            row._status === "error"
+                              ? "#fff4f4"
+                              : row._status === "ready"
+                                ? "#f1f8e9"
+                                : "inherit",
+                          "&:hover": {
+                            bgcolor:
+                              row._status === "error"
+                                ? "#ffe8e8"
+                                : row._status === "ready"
+                                  ? "#e8f5e9"
+                                  : "#f5f5f5",
+                          },
+                        }}
+                      >
                         <TableCell>
-                          {row._status === 'ready' && (
-                            <Chip label="Ready" size="small" color="success" icon={<CheckCircle />} />
+                          {row._status === "ready" && (
+                            <Chip
+                              label="Ready"
+                              size="small"
+                              color="success"
+                              icon={<CheckCircle />}
+                            />
                           )}
-                          {row._status === 'error' && (
-                            <Chip label="Error" size="small" color="error" icon={<ErrorIcon />} />
+                          {row._status === "error" && (
+                            <Chip
+                              label="Error"
+                              size="small"
+                              color="error"
+                              icon={<ErrorIcon />}
+                            />
                           )}
                         </TableCell>
                         <TableCell>{row._row || index + 1}</TableCell>
-                        <TableCell sx={{ fontWeight: 500 }}>{row.companyInvoiceRefNo || "-"}</TableCell>
+                        <TableCell sx={{ fontWeight: 500 }}>
+                          {row.companyInvoiceRefNo || "-"}
+                        </TableCell>
                         <TableCell>{row.buyerNTNCNIC || "-"}</TableCell>
                         <TableCell>
-                          <Chip label={row.items?.length || 0} size="small" variant="outlined" />
+                          <Chip
+                            label={row.items?.length || 0}
+                            size="small"
+                            variant="outlined"
+                          />
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{
-                            color: row._status === 'error' ? 'error.main' : 'text.secondary',
-                            fontWeight: row._status === 'error' ? 500 : 400
-                          }}>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color:
+                                row._status === "error"
+                                  ? "error.main"
+                                  : "text.secondary",
+                              fontWeight: row._status === "error" ? 500 : 400,
+                            }}
+                          >
                             {row._details || "-"}
                           </Typography>
                         </TableCell>
@@ -2261,53 +2501,136 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
         {/* Upload Status / Loading */}
         {checkingExisting && (
-          <Box display="flex" alignItems="center" gap={2} mb={2} sx={{ p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
+          <Box
+            display="flex"
+            alignItems="center"
+            gap={2}
+            mb={2}
+            sx={{ p: 2, bgcolor: "info.50", borderRadius: 1 }}
+          >
             <CircularProgress size={20} />
-            <Typography variant="body2">Checking database for existing invoices...</Typography>
+            <Typography variant="body2">
+              Checking database for existing invoices...
+            </Typography>
           </Box>
         )}
 
         {/* Upload Results Display (Success/Failure after upload) */}
         {uploadResults && showResults && (
-          <Box sx={{ mt: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
-            <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+          <Box
+            sx={{
+              mt: 3,
+              p: 2,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+            }}
+          >
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 2 }}
+            >
               <Typography variant="h6">Upload Results</Typography>
-              <IconButton size="small" onClick={() => setShowResults(false)}><Close /></IconButton>
+              <IconButton size="small" onClick={() => setShowResults(false)}>
+                <Close />
+              </IconButton>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-              <Paper sx={{ p: 2, flex: 1, minWidth: '150px', bgcolor: 'success.main', color: 'white', textAlign: 'center', borderRadius: 2 }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{uploadResults.successfulInvoices?.length || 0}</Typography>
+            <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
+              <Paper
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: "150px",
+                  bgcolor: "success.main",
+                  color: "white",
+                  textAlign: "center",
+                  borderRadius: 2,
+                }}
+              >
+                <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+                  {uploadResults.successfulInvoices?.length || 0}
+                </Typography>
                 <Typography variant="body2">Success</Typography>
               </Paper>
-              <Paper sx={{ p: 2, flex: 1, minWidth: '150px', bgcolor: 'error.main', color: 'white', textAlign: 'center', borderRadius: 2 }}>
-                <Typography variant="h4" sx={{ fontWeight: 'bold' }}>{uploadResults.failedInvoices?.length || 0}</Typography>
+              <Paper
+                sx={{
+                  p: 2,
+                  flex: 1,
+                  minWidth: "150px",
+                  bgcolor: "error.main",
+                  color: "white",
+                  textAlign: "center",
+                  borderRadius: 2,
+                }}
+              >
+                <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+                  {uploadResults.failedInvoices?.length || 0}
+                </Typography>
                 <Typography variant="body2">Failed</Typography>
               </Paper>
             </Box>
 
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
+            <TableContainer
+              component={Paper}
+              variant="outlined"
+              sx={{ maxHeight: 300 }}
+            >
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5' }}>Invoice</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5' }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', bgcolor: '#f5f5f5' }}>Details</TableCell>
+                    <TableCell sx={{ fontWeight: "bold", bgcolor: "#f5f5f5" }}>
+                      Invoice
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold", bgcolor: "#f5f5f5" }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: "bold", bgcolor: "#f5f5f5" }}>
+                      Details
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {uploadResults.successfulInvoices?.map((inv, idx) => (
                     <TableRow key={`success-${idx}`}>
-                      <TableCell>{inv.invoiceNumber || `Row ${inv.row}`}</TableCell>
-                      <TableCell><Chip label="Success" size="small" color="success" icon={<CheckCircle />} /></TableCell>
-                      <TableCell><Typography variant="body2" color="success.main">Uploaded successfully</Typography></TableCell>
+                      <TableCell>
+                        {inv.invoiceNumber || `Row ${inv.row}`}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label="Success"
+                          size="small"
+                          color="success"
+                          icon={<CheckCircle />}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="success.main">
+                          Uploaded successfully
+                        </Typography>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {uploadResults.failedInvoices?.map((inv, idx) => (
                     <TableRow key={`fail-${idx}`}>
-                      <TableCell>{inv.invoiceNumber || `Row ${inv.row}`}</TableCell>
-                      <TableCell><Chip label="Failed" size="small" color="error" icon={<ErrorIcon />} /></TableCell>
-                      <TableCell><Typography variant="body2" color="error.main">{inv.error}</Typography></TableCell>
+                      <TableCell>
+                        {inv.invoiceNumber || `Row ${inv.row}`}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label="Failed"
+                          size="small"
+                          color="error"
+                          icon={<ErrorIcon />}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="error.main">
+                          {inv.error}
+                        </Typography>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -2345,7 +2668,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             !file ||
             previewData.length === 0 ||
             uploading ||
-            checkingExisting
+            checkingExisting ||
+            previewData.some(
+              (invoice) => invoice && isFutureDate(invoice.invoiceDate)
+            )
           }
           startIcon={
             uploading ? <CircularProgress size={20} /> : <FileUpload />
@@ -2353,31 +2679,33 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         >
           {uploading
             ? "Uploading..."
-            : uploadResults && uploadResults.summary && uploadResults.summary.successful > 0
+            : uploadResults &&
+                uploadResults.summary &&
+                uploadResults.summary.successful > 0
               ? `Upload Again (${(() => {
-                const uniqueInvoices = new Set();
-                previewData.forEach((row) => {
-                  const companyInvoiceRefNo =
-                    row.companyInvoiceRefNo?.trim() ||
-                    `row_${row._row || "unknown"}`;
-                  uniqueInvoices.add(companyInvoiceRefNo);
-                });
-                return uniqueInvoices.size;
-              })()} Invoices)`
+                  const uniqueInvoices = new Set();
+                  previewData.forEach((row) => {
+                    const companyInvoiceRefNo =
+                      row.companyInvoiceRefNo?.trim() ||
+                      `row_${row._row || "unknown"}`;
+                    uniqueInvoices.add(companyInvoiceRefNo);
+                  });
+                  return uniqueInvoices.size;
+                })()} Invoices)`
               : (() => {
-                // Count unique invoices after grouping by companyInvoiceRefNo
-                const uniqueInvoices = new Set();
-                previewData.forEach((row) => {
-                  const companyInvoiceRefNo =
-                    row.companyInvoiceRefNo?.trim() ||
-                    `row_${row._row || "unknown"}`;
-                  uniqueInvoices.add(companyInvoiceRefNo);
-                });
-                return `Upload ${uniqueInvoices.size} Invoices as Drafts`;
-              })()}
+                  // Count unique invoices after grouping by companyInvoiceRefNo
+                  const uniqueInvoices = new Set();
+                  previewData.forEach((row) => {
+                    const companyInvoiceRefNo =
+                      row.companyInvoiceRefNo?.trim() ||
+                      `row_${row._row || "unknown"}`;
+                    uniqueInvoices.add(companyInvoiceRefNo);
+                  });
+                  return `Upload ${uniqueInvoices.size} Invoices as Drafts`;
+                })()}
         </Button>
       </DialogActions>
-    </Dialog >
+    </Dialog>
   );
 };
 
