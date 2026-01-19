@@ -17,26 +17,26 @@ const mysqlConnector = async (dbConfig, logger) => {
     }
 
     // Run automatic schema synchronization
-    if (process.env.AUTO_SCHEMA_SYNC !== 'false') {
-      logger.info("🔄 Running automatic schema synchronization...");
-      try {
-        const schemaSync = new AutoSchemaSync();
-        schemaSync.silent = process.env.SCHEMA_SYNC_SILENT === 'true';
-        const result = await schemaSync.run({ keepConnectionOpen: true });
+    // if (process.env.AUTO_SCHEMA_SYNC !== 'false') {
+    //   logger.info("🔄 Running automatic schema synchronization...");
+    //   try {
+    //     const schemaSync = new AutoSchemaSync();
+    //     schemaSync.silent = process.env.SCHEMA_SYNC_SILENT === 'true';
+    //     const result = await schemaSync.run({ keepConnectionOpen: true });
         
-        if (result.success) {
-          logger.info("✅ Schema synchronization completed successfully");
-        } else {
-          logger.info("⚠️ Schema synchronization had issues, but continuing...");
-          if (result.error) {
-            logger.error(`Schema sync error: ${result.error}`);
-          }
-        }
-      } catch (error) {
-        logger.error(`Schema sync failed: ${error.message}`);
-        // Don't exit - let the application continue
-      }
-    }
+    //     if (result.success) {
+    //       logger.info("✅ Schema synchronization completed successfully");
+    //     } else {
+    //       logger.info("⚠️ Schema synchronization had issues, but continuing...");
+    //       if (result.error) {
+    //         logger.error(`Schema sync error: ${result.error}`);
+    //       }
+    //     }
+    //   } catch (error) {
+    //     logger.error(`Schema sync failed: ${error.message}`);
+    //     // Don't exit - let the application continue
+    //   }
+    // }
 
     // Initialize master database tables (fallback for any missed tables)
     await initializeMasterDatabase();
