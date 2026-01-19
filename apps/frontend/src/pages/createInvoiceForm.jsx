@@ -656,9 +656,9 @@ export default function CreateInvoice() {
       const matchingProduct = products.find(
         (product) =>
           normalizeHsCode(product.hsCode).toLowerCase() ===
-            normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
+          normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
           (product.name || "").trim().toLowerCase() ===
-            (formData.items[0].name || "").trim().toLowerCase()
+          (formData.items[0].name || "").trim().toLowerCase()
       );
 
       if (matchingProduct) {
@@ -738,7 +738,7 @@ export default function CreateInvoice() {
       } catch (error) {
         setTransactionTypesError(
           error.message ||
-            "Failed to fetch transaction types from API. Please check your connection and try again."
+          "Failed to fetch transaction types from API. Please check your connection and try again."
         );
       } finally {
         setTransactionTypesLoading(false);
@@ -875,7 +875,7 @@ export default function CreateInvoice() {
         } catch (error) {
           setTransactionTypesError(
             error.message ||
-              "Failed to fetch transaction types from API. Please check your connection and try again."
+            "Failed to fetch transaction types from API. Please check your connection and try again."
           );
         } finally {
           setTransactionTypesLoading(false);
@@ -1182,9 +1182,9 @@ export default function CreateInvoice() {
         setIsEditMode(true);
         setEditInvoiceNumber(
           invoiceData.invoiceNumber ||
-            invoiceData.companyInvoiceRefNo ||
-            invoiceData.invoiceRefNo ||
-            ""
+          invoiceData.companyInvoiceRefNo ||
+          invoiceData.invoiceRefNo ||
+          ""
         );
         localStorage.removeItem("editInvoiceData");
 
@@ -1408,9 +1408,9 @@ export default function CreateInvoice() {
             matchingProduct = products.find(
               (product) =>
                 (product.name || "").trim().toLowerCase() ===
-                  (itemData.name || "").trim().toLowerCase() &&
+                (itemData.name || "").trim().toLowerCase() &&
                 normalizeHsCode(product.hsCode).toLowerCase() ===
-                  normalizeHsCode(itemData.hsCode).toLowerCase()
+                normalizeHsCode(itemData.hsCode).toLowerCase()
             );
           }
 
@@ -2506,9 +2506,9 @@ export default function CreateInvoice() {
         targetProduct = products.find(
           (p) =>
             normalizeHsCode(p.hsCode).toLowerCase() ===
-              normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+            normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
             (p.name || "").trim().toLowerCase() ===
-              (itemToEdit.name || "").trim().toLowerCase()
+            (itemToEdit.name || "").trim().toLowerCase()
         );
       }
 
@@ -2552,9 +2552,9 @@ export default function CreateInvoice() {
               targetProduct = fetchedList.find(
                 (p) =>
                   normalizeHsCode(p.hsCode).toLowerCase() ===
-                    normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+                  normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
                   (p.name || "").trim().toLowerCase() ===
-                    (itemToEdit.name || "").trim().toLowerCase()
+                  (itemToEdit.name || "").trim().toLowerCase()
               );
             }
 
@@ -2771,44 +2771,44 @@ export default function CreateInvoice() {
       const items =
         prev.items.length > 0
           ? prev.items.map((item) => ({
-              ...item,
-              // Don't update product description - keep existing or clear if no HS code
-              productDescription: item.hsCode ? item.productDescription : "",
-              saleType: saleType,
-              rate: isEditing ? item.rate : "", // Preserve rate when editing
-            }))
+            ...item,
+            // Don't update product description - keep existing or clear if no HS code
+            productDescription: item.hsCode ? item.productDescription : "",
+            saleType: saleType,
+            rate: isEditing ? item.rate : "", // Preserve rate when editing
+          }))
           : [
-              {
-                hsCode: "",
-                productDescription: "", // Don't set scenario description automatically
-                rate: "",
-                quantity: "1",
-                unitPrice: "0.00",
-                retailPrice: "0",
-                totalValues: "0",
-                valueSalesExcludingST: "0",
-                salesTaxApplicable: "0",
-                salesTaxWithheldAtSource: "0",
-                sroScheduleNo: "",
-                sroItemSerialNo: "",
-                billOfLadingUoM: "",
-                uoM: "",
-                extraTax: "",
-                furtherTax: "0",
-                fedPayable: "0",
-                discount: "0",
-                advanceIncomeTax: "0",
-                saleType,
-                isSROScheduleEnabled: false,
-                isSROItemEnabled: false,
-                isValueSalesManual: false,
-                isTotalValuesManual: false,
-                isSalesTaxManual: false,
-                isSalesTaxWithheldManual: false,
-                isFurtherTaxManual: false,
-                isFedPayableManual: false,
-              },
-            ];
+            {
+              hsCode: "",
+              productDescription: "", // Don't set scenario description automatically
+              rate: "",
+              quantity: "1",
+              unitPrice: "0.00",
+              retailPrice: "0",
+              totalValues: "0",
+              valueSalesExcludingST: "0",
+              salesTaxApplicable: "0",
+              salesTaxWithheldAtSource: "0",
+              sroScheduleNo: "",
+              sroItemSerialNo: "",
+              billOfLadingUoM: "",
+              uoM: "",
+              extraTax: "",
+              furtherTax: "0",
+              fedPayable: "0",
+              discount: "0",
+              advanceIncomeTax: "0",
+              saleType,
+              isSROScheduleEnabled: false,
+              isSROItemEnabled: false,
+              isValueSalesManual: false,
+              isTotalValuesManual: false,
+              isSalesTaxManual: false,
+              isSalesTaxWithheldManual: false,
+              isFurtherTaxManual: false,
+              isFedPayableManual: false,
+            },
+          ];
       return {
         ...prev,
         transctypeId: transctypeId,
@@ -3050,9 +3050,8 @@ export default function CreateInvoice() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: `Failed to save invoice: ${
-          error.response?.data?.message || error.message
-        }`,
+        text: `Failed to save invoice: ${error.response?.data?.message || error.message
+          }`,
         confirmButtonColor: "#d33",
       });
     } finally {
@@ -3603,29 +3602,26 @@ export default function CreateInvoice() {
           // },
           {
             field: "valueSalesExcludingST",
-            message: `Value Sales Excluding ST is required for item ${
-              index + 1
-            }`,
+            message: `Value Sales Excluding ST is required for item ${index + 1
+              }`,
           },
           ...(item.rate && item.rate.toLowerCase() === "exempt"
             ? [
-                {
-                  field: "sroScheduleNo",
-                  message: `SRO Schedule Number is required for exempt item ${
-                    index + 1
+              {
+                field: "sroScheduleNo",
+                message: `SRO Schedule Number is required for exempt item ${index + 1
                   }`,
-                },
-                {
-                  field: "sroItemSerialNo",
-                  message: `SRO Item Serial Number is required for exempt item ${
-                    index + 1
+              },
+              {
+                field: "sroItemSerialNo",
+                message: `SRO Item Serial Number is required for exempt item ${index + 1
                   }`,
-                },
-              ]
+              },
+            ]
             : []),
           ...(item.rate &&
-          item.rate.includes("/bill") &&
-          formData.scenarioId === "SN018"
+            item.rate.includes("/bill") &&
+            formData.scenarioId === "SN018"
             ? []
             : []),
         ];
@@ -3890,10 +3886,12 @@ export default function CreateInvoice() {
         reverseButtons: true,
       }).then((result) => {
         if (result.isConfirmed) {
-          navigate("/your-invoices");
-        } else {
-          resetForm();
+          const apiKey = API_CONFIG.apiKeyLocal;
+          const link = `${apiKey}/print-invoice/${fbrInvoiceNumber}?tenantId=${selectedTenant.tenant_id}`;
+          window.open(link, "_blank");
         }
+
+        resetForm();
         // Always reset editingId after successful submission
         setEditingId(null);
       });
@@ -4675,7 +4673,7 @@ export default function CreateInvoice() {
                         } catch (error) {
                           setTransactionTypesError(
                             error.message ||
-                              "Failed to fetch transaction types from API. Please check your connection and try again."
+                            "Failed to fetch transaction types from API. Please check your connection and try again."
                           );
                         } finally {
                           setTransactionTypesLoading(false);
@@ -5043,13 +5041,13 @@ export default function CreateInvoice() {
                           ) ||
                           (currentId || itemName
                             ? {
-                                id: currentId || `temp-${itemName}`,
-                                name: itemName || "Selected Product",
-                                hsCode: formData.items[index]?.hsCode || "",
-                                description:
-                                  formData.items[index]?.productDescription ||
-                                  "",
-                              }
+                              id: currentId || `temp-${itemName}`,
+                              name: itemName || "Selected Product",
+                              hsCode: formData.items[index]?.hsCode || "",
+                              description:
+                                formData.items[index]?.productDescription ||
+                                "",
+                            }
                             : null);
 
                         const opts = [{ id: "__add__", name: "Add Product" }];
@@ -5353,7 +5351,7 @@ export default function CreateInvoice() {
                   sellerProvince={formData.sellerProvince}
                 />
                 {item.sroScheduleNo &&
-                item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
+                  item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
                   <SROItem
                     key={`SROItem-${index}`}
                     index={index}
@@ -5411,11 +5409,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.valueSalesExcludingST === "0.00" ||
-                      item.valueSalesExcludingST === "0"
+                        item.valueSalesExcludingST === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                            item.valueSalesExcludingST
-                          )
+                          item.valueSalesExcludingST
+                        )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5533,11 +5531,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.salesTaxWithheldAtSource === "0.00" ||
-                      item.salesTaxWithheldAtSource === "0"
+                        item.salesTaxWithheldAtSource === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                            item.salesTaxWithheldAtSource
-                          )
+                          item.salesTaxWithheldAtSource
+                        )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5696,7 +5694,7 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.advanceIncomeTax === "0.00" ||
-                      item.advanceIncomeTax === "0"
+                        item.advanceIncomeTax === "0"
                         ? ""
                         : formatWithCommasWhileTyping(item.advanceIncomeTax)
                     }
@@ -5978,7 +5976,7 @@ export default function CreateInvoice() {
                                     "&:hover": {
                                       background:
                                         editingItemIndex &&
-                                        editingItemIndex !== item.id
+                                          editingItemIndex !== item.id
                                           ? "rgba(0, 0, 0, 0.04)"
                                           : "rgba(99, 102, 241, 0.1)",
                                     },
@@ -6124,23 +6122,23 @@ export default function CreateInvoice() {
         </Box>
         {(allLoading ||
           (selectedTenant && !tokensLoaded && !loadingTimeout)) && (
-          <Box
-            sx={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              bgcolor: "rgba(255,255,255,0.7)",
-              zIndex: 9999,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CircularProgress size={50} color="primary" />
-          </Box>
-        )}
+            <Box
+              sx={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
+                bgcolor: "rgba(255,255,255,0.7)",
+                zIndex: 9999,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress size={50} color="primary" />
+            </Box>
+          )}
 
         {/* Buyer Modal */}
         <BuyerModal

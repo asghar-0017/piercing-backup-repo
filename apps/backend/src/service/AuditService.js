@@ -34,7 +34,12 @@ class AuditService {
 
       // Use provided changedFields or calculate if not provided
       let changedFields = auditData.changedFields;
-      if (!changedFields && operation === "UPDATE" && oldValues && newValues) {
+      if (
+        !changedFields &&
+        (operation === "UPDATE" || operation === "SUBMIT_TO_FBR") &&
+        oldValues &&
+        newValues
+      ) {
         changedFields = this.getChangedFields(oldValues, newValues);
       }
 
@@ -992,6 +997,142 @@ class AuditService {
         isDeleted: isDeleted,
         entityName: this.extractEntityName(currentState, entityType),
       };
+
+      // Stitching Logic: If the first operation is SUBMIT_TO_FBR, look for a preceding deleted draft
+      // likely created by the "Save Draft -> Submit -> New Invoice + Delete Old" flow.
+      if (
+        logs.length > 0 &&
+        logs[0].operation === "SUBMIT_TO_FBR"
+      ) {
+        console.log(
+          `🔍 AuditService - Invoice #${entityId} starts with SUBMIT_TO_FBR. Looking for preceding deleted draft...`
+        );
+
+        const firstLog = logs[0];
+        const submissionTime = new Date(firstLog.created_at);
+        const searchWindowStart = new Date(submissionTime.getTime() - 5 * 60 * 1000); // Look back 5 minutes
+        const searchWindowEnd = new Date(submissionTime.getTime() + 1 * 60 * 1000);   // Look forward 1 minute (just in case of slight clock skew/async delay)
+
+        // Find recently deleted invoices by the same user
+        const deletedInvoices = await AuditLog.findAll({
+          where: {
+            entityType: "invoice",
+            operation: "DELETE",
+            userId: firstLog.userId,
+            created_at: {
+              [Op.between]: [searchWindowStart, searchWindowEnd],
+            },
+            // Ensure we don't pick up the current invoice if it was somehow deleted and recreated with same ID (unlikely here but good safety)
+            entityId: { [Op.ne]: entityId }
+          },
+          order: [["created_at", "DESC"]], // Most recent deletion first
+        });
+
+        if (deletedInvoices.length > 0) {
+          // We found candidates. Now try to match content to be sure.
+          // We'll check if the deleted invoice had a matching "internal_invoice_no" or "system_invoice_id" 
+          // in its oldValues compared to the current invoice's newValues.
+
+          let matchingDeletedInvoiceId = null;
+
+          // Parse current invoice data from the SUBMIT_TO_FBR newValues (or oldValues if available)
+          let currentInvoiceData = null;
+          try {
+            currentInvoiceData = firstLog.newValues ? JSON.parse(firstLog.newValues) : (firstLog.oldValues ? JSON.parse(firstLog.oldValues) : null);
+          } catch (e) { }
+
+          if (currentInvoiceData) {
+            for (const delLog of deletedInvoices) {
+              try {
+                const deletedSnapshot = delLog.oldValues ? JSON.parse(delLog.oldValues) : null;
+                if (!deletedSnapshot) continue;
+
+                // Matching criteria:
+                // 1. Internal Invoice No match (strongest if set)
+                // 2. Company Invoice Ref No match
+                // 3. System Invoice ID?? (Might be different if new one generated)
+                // 4. Invoice Number?? (Drafts usually have DRAFT_...)
+
+                const matchByInternal = currentInvoiceData.internal_invoice_no && deletedSnapshot.internal_invoice_no &&
+                  currentInvoiceData.internal_invoice_no === deletedSnapshot.internal_invoice_no;
+
+                const matchByRef = currentInvoiceData.companyInvoiceRefNo && deletedSnapshot.companyInvoiceRefNo &&
+                  currentInvoiceData.companyInvoiceRefNo === deletedSnapshot.companyInvoiceRefNo;
+
+                // Also consider matching if user just deleted the immediate predecessor draft ID
+                // But effectively, if we find *any* deleted draft by this user in the last few seconds, it's highly likely the one.
+                // Let's rely on the timestamp proximity and user ID as primary, confirmed by data if possible.
+
+                if (matchByInternal || matchByRef || true) { // defaulting to timestamp match for now as IDs might change
+                  // Found potential match
+                  matchingDeletedInvoiceId = delLog.entityId;
+                  console.log(`✅ Found matching deleted draft invoice #${matchingDeletedInvoiceId} for submitted invoice #${entityId}`);
+                  break;
+                }
+              } catch (e) { console.warn("Error parsing deleted log values", e); }
+            }
+          }
+
+          if (matchingDeletedInvoiceId) {
+            // Fetch history of the deleted invoice
+            const deletedInvoiceLogs = await AuditLog.findAll({
+              where: {
+                entityType: "invoice",
+                entityId: matchingDeletedInvoiceId
+              },
+              order: [["created_at", "ASC"]]
+            });
+
+            // Filter out the 'DELETE' operation itself and any 'automatic deletion' logic
+            const validHistoryLogs = deletedInvoiceLogs.filter(l => l.operation !== "DELETE");
+
+            // Convert them to timeline entries
+            const stitchedEntries = validHistoryLogs.map(log => {
+              const logEntry = log.toJSON();
+              // Parse JSONs
+              let oldV = null, newV = null, chg = null;
+              try { oldV = logEntry.oldValues ? JSON.parse(logEntry.oldValues) : null; } catch (e) { }
+              try { newV = logEntry.newValues ? JSON.parse(logEntry.newValues) : null; } catch (e) { }
+              try { chg = logEntry.changedFields ? JSON.parse(logEntry.changedFields) : null; } catch (e) { }
+
+              return {
+                id: log.id,
+                operation: log.operation, // Preserve original operation (SAVE_DRAFT, etc.)
+                user: {
+                  id: log.userId,
+                  name: log.userName || "Unknown",
+                  email: log.userEmail || "N/A",
+                  role: log.userRole
+                },
+                userName: log.userName || "Unknown",
+                userEmail: log.userEmail || "N/A",
+                timestamp: log.created_at,
+                created_at: log.created_at,
+                oldValues: oldV,
+                newValues: newV,
+                changedFields: chg,
+                ipAddress: log.ipAddress,
+                tenant: { id: log.tenantId, name: log.tenantName },
+                additionalInfo: log.additionalInfo ? JSON.parse(log.additionalInfo) : null,
+                currentState: newV,
+                previousState: oldV,
+                isStitched: true, // Marker for frontend if needed
+                originalEntityId: log.entityId // Reference to old ID
+              };
+            });
+
+            // Prepend stitched entries to the timeline
+            timeline.unshift(...stitchedEntries);
+
+            // Update summary info if needed (e.g. firstCreated might now be earlier)
+            if (stitchedEntries.length > 0) {
+              const originalCreate = stitchedEntries.find(e => e.operation === "CREATE") || stitchedEntries[0];
+              summary.firstCreated = originalCreate.timestamp;
+              summary.createdBy = originalCreate.user;
+            }
+          }
+        }
+      }
 
       return {
         entityType,

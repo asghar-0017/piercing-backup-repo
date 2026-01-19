@@ -663,30 +663,30 @@ export const createInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoiceItemsForAudit
           ? invoiceItemsForAudit.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues
       {
@@ -1114,30 +1114,30 @@ export const saveInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: items
           ? items.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues
       {
@@ -1688,30 +1688,30 @@ export const saveAndValidateInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: items
           ? items.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues
       {
@@ -1740,13 +1740,13 @@ export const saveAndValidateInvoice = async (req, res) => {
         status: result.status,
         fbrValidation: fbrValidationResult
           ? {
-              success: true,
-              result: fbrValidationResult,
-            }
+            success: true,
+            result: fbrValidationResult,
+          }
           : {
-              success: false,
-              reason: "No FBR token or credentials available",
-            },
+            success: false,
+            reason: "No FBR token or credentials available",
+          },
       },
     });
   } catch (error) {
@@ -2714,10 +2714,10 @@ export const getAllInvoices = async (req, res) => {
         updated_at: plainInvoice.updated_at,
         ...(req.user?.role === "admin"
           ? {
-              created_by_user_id: plainInvoice.created_by_user_id,
-              created_by_email: plainInvoice.created_by_email,
-              created_by_name: plainInvoice.created_by_name,
-            }
+            created_by_user_id: plainInvoice.created_by_user_id,
+            created_by_email: plainInvoice.created_by_email,
+            created_by_name: plainInvoice.created_by_name,
+          }
           : {}),
       };
     });
@@ -4425,30 +4425,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // oldValues (before submission)
       {
@@ -4487,30 +4487,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues (after submission)
       {
@@ -4600,13 +4600,13 @@ export const bulkCreateInvoices = async (req, res) => {
       totalInvoices: invoices.length,
       sampleInvoice: invoices[0]
         ? {
-            invoiceType: invoices[0].invoiceType,
-            invoiceDate: invoices[0].invoiceDate,
-            companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
-            internalInvoiceNo: invoices[0].internalInvoiceNo,
-            buyerBusinessName: invoices[0].buyerBusinessName,
-            itemsCount: invoices[0].items?.length || 0,
-          }
+          invoiceType: invoices[0].invoiceType,
+          invoiceDate: invoices[0].invoiceDate,
+          companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
+          internalInvoiceNo: invoices[0].internalInvoiceNo,
+          buyerBusinessName: invoices[0].buyerBusinessName,
+          itemsCount: invoices[0].items?.length || 0,
+        }
         : null,
       sampleInternalInvoiceNo: invoices[0]?.internalInvoiceNo,
       hasInternalInvoiceNo: !!invoices[0]?.internalInvoiceNo,
@@ -4630,15 +4630,15 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingBuyers =
       uniqueBuyerNTNs.length > 0
         ? await Buyer.findAll({
-            where: { buyerNTNCNIC: uniqueBuyerNTNs },
-            attributes: [
-              "buyerNTNCNIC",
-              "buyerBusinessName",
-              "buyerProvince",
-              "buyerAddress",
-              "buyerRegistrationType",
-            ],
-          })
+          where: { buyerNTNCNIC: uniqueBuyerNTNs },
+          attributes: [
+            "buyerNTNCNIC",
+            "buyerBusinessName",
+            "buyerProvince",
+            "buyerAddress",
+            "buyerRegistrationType",
+          ],
+        })
         : [];
 
     // DEBUG: Also check total buyers in database
@@ -4690,13 +4690,13 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingProducts =
       uniqueProductNames.length > 0
         ? await Product.findAll({
-            where: {
-              name: {
-                [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
-              },
+          where: {
+            name: {
+              [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
             },
-            attributes: ["id", "name", "description", "hsCode", "uom"],
-          })
+          },
+          attributes: ["id", "name", "description", "hsCode", "uom"],
+        })
         : [];
 
     // Create lookup maps for O(1) access - case insensitive
@@ -5715,6 +5715,45 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // Log audit event for bulk invoice creation
     if (allCreatedInvoices && allCreatedInvoices.length > 0) {
+      // Create individual audit logs for each invoice (for history tracking)
+      try {
+        const auditEntries = allCreatedInvoices.map((invoice) => ({
+          entityType: "invoice",
+          entityId: invoice.id,
+          operation: "CREATE",
+          userId: req.user?.userId || req.user?.id || null,
+          userEmail: req.user?.email || null,
+          userName:
+            req.user?.firstName || req.user?.lastName
+              ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+              : req.user?.userName || "Unknown",
+          userRole: req.user?.role || null,
+          tenantId: req.tenant?.id || req.tenant?.tenantId || null,
+          tenantName: req.tenant?.seller_business_name || req.tenant?.name || null,
+          oldValues: null,
+          newValues: JSON.stringify(invoice),
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.get ? req.get("User-Agent") : null,
+          requestId: req.headers?.["x-request-id"] || `bulk_${Date.now()}`,
+          created_at: new Date(),
+          additionalInfo: JSON.stringify({
+            source: "bulk_upload",
+            processId,
+            bulkBatchId: processId,
+          }),
+        }));
+
+        await AuditLog.bulkCreate(auditEntries);
+        console.log(
+          `✅ Individual audit logs created for ${allCreatedInvoices.length} invoices`
+        );
+      } catch (individualAuditError) {
+        console.error(
+          "⚠️ Failed to log individual audit events:",
+          individualAuditError
+        );
+      }
+
       try {
         await logAuditEvent(
           req,
@@ -6570,16 +6609,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
         provinceMap = Array.isArray(provinces)
           ? provinces.reduce((acc, p) => {
-              const desc =
-                p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
+            const desc =
+              p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
 
-              const code =
-                p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
+            const code =
+              p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
 
-              if (desc && code) acc[desc.toUpperCase()] = code;
+            if (desc && code) acc[desc.toUpperCase()] = code;
 
-              return acc;
-            }, {})
+            return acc;
+          }, {})
           : {};
 
         const tenantProvince = (
@@ -6782,10 +6821,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                      id: rateId ? String(rateId) : null,
+                    id: rateId ? String(rateId) : null,
 
-                      desc: String(rateDesc).trim(),
-                    }
+                    desc: String(rateDesc).trim(),
+                  }
                   : null;
               })
 
@@ -6851,10 +6890,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                      id: rateId ? String(rateId) : null,
+                    id: rateId ? String(rateId) : null,
 
-                      desc: String(rateDesc).trim(),
-                    }
+                    desc: String(rateDesc).trim(),
+                  }
                   : null;
               })
 
@@ -7818,17 +7857,17 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
       // item_sroItemSerialNo dropdown
       template.getCell(r, headerIndex("item_sroItemSerialNo")).dataValidation =
-        {
-          type: "list",
-          allowBlank: true,
-          formulae: [
-            `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
-          ],
-          showErrorMessage: true,
-          errorStyle: "warning",
-          errorTitle: "Invalid SRO Item",
-          error: "Select a valid SRO Item from the dropdown list.",
-        };
+      {
+        type: "list",
+        allowBlank: true,
+        formulae: [
+          `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
+        ],
+        showErrorMessage: true,
+        errorStyle: "warning",
+        errorTitle: "Invalid SRO Item",
+        error: "Select a valid SRO Item from the dropdown list.",
+      };
 
       // item_uoM dropdown
       template.getCell(r, headerIndex("item_uoM")).dataValidation = {

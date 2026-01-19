@@ -68,7 +68,8 @@ export default function BasicTable() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [invoiceDate, setInvoiceDate] = useState(null);
+  const [fromDate, setFromDate] = useState(null);
+  const [toDate, setToDate] = useState(null);
   const [goToPage, setGoToPage] = useState("");
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -222,9 +223,11 @@ export default function BasicTable() {
         params.append("status", statusFilter);
       }
 
-      if (invoiceDate) {
-        params.append("start_date", dayjs(invoiceDate).format("YYYY-MM-DD"));
-        params.append("end_date", dayjs(invoiceDate).format("YYYY-MM-DD"));
+      if (fromDate) {
+        params.append("start_date", dayjs(fromDate).format("YYYY-MM-DD"));
+      }
+      if (toDate) {
+        params.append("end_date", dayjs(toDate).format("YYYY-MM-DD"));
       }
 
       // Add sorting parameters
@@ -280,7 +283,7 @@ export default function BasicTable() {
       // Trigger API call for any changes
       getMyInvoices(true);
     }
-  }, [debouncedSearch, page, rowsPerPage, saleType, statusFilter, invoiceDate]);
+  }, [debouncedSearch, page, rowsPerPage, saleType, statusFilter, fromDate, toDate]);
 
   const handleButtonClick = async (invoice) => {
     try {
@@ -382,9 +385,9 @@ export default function BasicTable() {
 
   const handleBulkUpload = async (invoicesData, options = {}) => {
     const {
-      onProgress = () => {},
-      onChunkComplete = () => {},
-      onError = () => {},
+      onProgress = () => { },
+      onChunkComplete = () => { },
+      onError = () => { },
       chunkSize = 1000,
     } = options;
 
@@ -1934,12 +1937,34 @@ export default function BasicTable() {
               <MenuItem value="saved">Saved</MenuItem>
               <MenuItem value="posted">Posted</MenuItem>
             </TextField>
+
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DatePicker
-                label="Invoice Date"
-                value={invoiceDate}
+                label="From Date"
+                value={fromDate}
                 onChange={(val) => {
-                  setInvoiceDate(val);
+                  setFromDate(val);
+                  setPage(1);
+                }}
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    sx: { minWidth: 140 },
+                    InputProps: {
+                      endAdornment: searchLoading && (
+                        <InputAdornment position="end">
+                          <CircularProgress size={16} />
+                        </InputAdornment>
+                      ),
+                    },
+                  },
+                }}
+              />
+              <DatePicker
+                label="To Date"
+                value={toDate}
+                onChange={(val) => {
+                  setToDate(val);
                   setPage(1);
                 }}
                 slotProps={{
@@ -2045,7 +2070,7 @@ export default function BasicTable() {
                           <Checkbox
                             checked={
                               selectedInvoices.size ===
-                                filteredInvoices.length &&
+                              filteredInvoices.length &&
                               filteredInvoices.length > 0
                             }
                             indeterminate={
@@ -2074,10 +2099,10 @@ export default function BasicTable() {
                           key={heading}
                           align={
                             heading === "S.No" ||
-                            heading === "System ID" ||
-                            heading === "Invoice Number" ||
-                            heading === "Company Invoice #" ||
-                            heading === "Invoice Date"
+                              heading === "System ID" ||
+                              heading === "Invoice Number" ||
+                              heading === "Company Invoice #" ||
+                              heading === "Invoice Date"
                               ? "left"
                               : "center"
                           }
@@ -2087,15 +2112,15 @@ export default function BasicTable() {
                             letterSpacing: 0.3,
                             cursor:
                               heading === "Company Invoice #" ||
-                              heading === "Invoice Date"
+                                heading === "Invoice Date"
                                 ? "pointer"
                                 : "default",
                             "&:hover":
                               heading === "Company Invoice #" ||
-                              heading === "Invoice Date"
+                                heading === "Invoice Date"
                                 ? {
-                                    backgroundColor: "#f5f5f5",
-                                  }
+                                  backgroundColor: "#f5f5f5",
+                                }
                                 : {},
                           }}
                           onClick={
@@ -2304,8 +2329,8 @@ export default function BasicTable() {
                         <TableCell align="center">
                           {row.items && row.items.length > 0
                             ? row.items
-                                .map((item) => item.productDescription || "N/A")
-                                .join(", ")
+                              .map((item) => item.productDescription || "N/A")
+                              .join(", ")
                             : "N/A"}
                         </TableCell>
                         {isAdmin && (
@@ -2381,57 +2406,57 @@ export default function BasicTable() {
                             </Tooltip>
                             {(row.status === "draft" ||
                               row.status === "saved") && (
-                              <>
-                                <PermissionGate permission="invoice.update">
-                                  <Tooltip
-                                    title={`Edit ${row.status === "draft" ? "Draft" : "Saved"} Invoice`}
-                                  >
-                                    <Button
-                                      variant="outlined"
-                                      color="warning"
-                                      size="small"
-                                      onClick={() => handleEditInvoice(row)}
-                                      sx={{
-                                        minWidth: "32px",
-                                        width: "32px",
-                                        height: "32px",
-                                        p: 0,
-                                        "&:hover": {
-                                          backgroundColor: "warning.main",
-                                          color: "warning.contrastText",
-                                          borderColor: "warning.main",
-                                        },
-                                      }}
+                                <>
+                                  <PermissionGate permission="invoice.update">
+                                    <Tooltip
+                                      title={`Edit ${row.status === "draft" ? "Draft" : "Saved"} Invoice`}
                                     >
-                                      <EditIcon fontSize="small" />
-                                    </Button>
-                                  </Tooltip>
-                                </PermissionGate>
-                                <PermissionGate permission="invoice.delete">
-                                  <Tooltip title="Delete Invoice">
-                                    <Button
-                                      variant="outlined"
-                                      color="error"
-                                      size="small"
-                                      onClick={() => handleDeleteClick(row)}
-                                      sx={{
-                                        minWidth: "32px",
-                                        width: "32px",
-                                        height: "32px",
-                                        p: 0,
-                                        "&:hover": {
-                                          backgroundColor: "error.main",
-                                          color: "error.contrastText",
-                                          borderColor: "error.main",
-                                        },
-                                      }}
-                                    >
-                                      <DeleteIcon fontSize="small" />
-                                    </Button>
-                                  </Tooltip>
-                                </PermissionGate>
-                              </>
-                            )}
+                                      <Button
+                                        variant="outlined"
+                                        color="warning"
+                                        size="small"
+                                        onClick={() => handleEditInvoice(row)}
+                                        sx={{
+                                          minWidth: "32px",
+                                          width: "32px",
+                                          height: "32px",
+                                          p: 0,
+                                          "&:hover": {
+                                            backgroundColor: "warning.main",
+                                            color: "warning.contrastText",
+                                            borderColor: "warning.main",
+                                          },
+                                        }}
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </Button>
+                                    </Tooltip>
+                                  </PermissionGate>
+                                  <PermissionGate permission="invoice.delete">
+                                    <Tooltip title="Delete Invoice">
+                                      <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="small"
+                                        onClick={() => handleDeleteClick(row)}
+                                        sx={{
+                                          minWidth: "32px",
+                                          width: "32px",
+                                          height: "32px",
+                                          p: 0,
+                                          "&:hover": {
+                                            backgroundColor: "error.main",
+                                            color: "error.contrastText",
+                                            borderColor: "error.main",
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </Button>
+                                    </Tooltip>
+                                  </PermissionGate>
+                                </>
+                              )}
                           </Box>
                         </TableCell>
                       </TableRow>
