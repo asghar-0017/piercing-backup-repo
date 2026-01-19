@@ -283,6 +283,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "item_extraTax",
     "item_furtherTax",
     "item_fedPayable",
+    "item_advanceIncomeTax",
     "item_discount",
     "item_totalValues",
   ];
@@ -333,6 +334,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Extra Tax": "item_extraTax",
     "Further Tax": "item_furtherTax",
     "FED Payable": "item_fedPayable",
+    "Advance Income Tax": "item_advanceIncomeTax",
     Discount: "item_discount",
     "Total Values": "item_totalValues",
     // Additional mappings for common variations
@@ -1322,6 +1324,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           if (cleanedItem.item_fedPayable) {
             cleanedItem.fedPayable = cleanedItem.item_fedPayable;
           }
+          if (cleanedItem.item_advanceIncomeTax) {
+            cleanedItem.advanceIncomeTax = cleanedItem.item_advanceIncomeTax;
+          }
           if (cleanedItem.item_discount) {
             cleanedItem.discount = cleanedItem.item_discount;
           }
@@ -2145,28 +2150,31 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               onClick={async () => {
                 try {
                   setDownloadingTemplate(true);
-                  
+
                   if (!selectedTenant) {
-                    toast.error("Please select a company before downloading the template");
+                    toast.error(
+                      "Please select a company before downloading the template",
+                    );
                     return;
                   }
-                  
+
                   // Download template from API endpoint
                   const response = await api.get(
                     `/tenant/${selectedTenant.tenant_id}/invoices/template.xlsx`,
                     {
-                      responseType: 'blob',
+                      responseType: "blob",
                       headers: {
-                        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                      }
-                    }
+                        Accept:
+                          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                      },
+                    },
                   );
-                  
+
                   // Create blob and download
                   const blob = new Blob([response.data], {
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                   });
-                  
+
                   const url = window.URL.createObjectURL(blob);
                   const link = document.createElement("a");
                   link.href = url;
@@ -2175,23 +2183,32 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                   link.click();
                   document.body.removeChild(link);
                   window.URL.revokeObjectURL(url);
-                  
+
                   toast.success("Excel template downloaded successfully!");
                 } catch (error) {
                   console.error("Error downloading template:", error);
-                  toast.error("Could not download Excel template. Please try again.");
+                  toast.error(
+                    "Could not download Excel template. Please try again.",
+                  );
                 } finally {
                   setDownloadingTemplate(false);
                 }
               }}
               size="small"
               disabled={downloadingTemplate || !selectedTenant}
-              startIcon={downloadingTemplate ? <CircularProgress size={16} /> : <Download />}
+              startIcon={
+                downloadingTemplate ? (
+                  <CircularProgress size={16} />
+                ) : (
+                  <Download />
+                )
+              }
             >
-              {downloadingTemplate ? "Downloading..." : "Download Excel Template (Backend)"}
+              {downloadingTemplate
+                ? "Downloading..."
+                : "Download Excel Template (Backend)"}
             </Button>
-          </Box>
-          */}
+          </Box> */}
 
           {/* File Processing Progress */}
           {isProcessing && (

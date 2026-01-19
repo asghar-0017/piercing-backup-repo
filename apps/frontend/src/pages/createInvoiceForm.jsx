@@ -346,12 +346,12 @@ export default function CreateInvoice() {
 
         const currentDate = dayjs().format("YYYY-MM-DD");
         console.log(
-          `Checking FBR status for NTN: ${buyer.buyerNTNCNIC}, Date: ${currentDate}`
+          `Checking FBR status for NTN: ${buyer.buyerNTNCNIC}, Date: ${currentDate}`,
         );
 
         const result = await checkRegistrationStatusWithDate(
           buyer.buyerNTNCNIC,
-          currentDate
+          currentDate,
         );
 
         console.log("FBR API result:", result);
@@ -384,10 +384,10 @@ export default function CreateInvoice() {
                 const totalAfterDiscount =
                   calculatedTotalBeforeDiscount - discountAmount;
                 const taxWithheld = parseFloat(
-                  item.salesTaxWithheldAtSource || 0
+                  item.salesTaxWithheldAtSource || 0,
                 );
                 const calculatedTotal = Number(
-                  (totalAfterDiscount + taxWithheld).toFixed(2)
+                  (totalAfterDiscount + taxWithheld).toFixed(2),
                 );
 
                 return {
@@ -416,10 +416,10 @@ export default function CreateInvoice() {
               const totalAfterDiscount =
                 calculatedTotalBeforeDiscount - discountAmount;
               const taxWithheld = parseFloat(
-                item.salesTaxWithheldAtSource || 0
+                item.salesTaxWithheldAtSource || 0,
               );
               const calculatedTotal = Number(
-                (totalAfterDiscount + taxWithheld).toFixed(2)
+                (totalAfterDiscount + taxWithheld).toFixed(2),
               );
 
               return {
@@ -468,7 +468,7 @@ export default function CreateInvoice() {
               calculatedTotalBeforeDiscount - discountAmount;
             const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
             const calculatedTotal = Number(
-              (totalAfterDiscount + taxWithheld).toFixed(2)
+              (totalAfterDiscount + taxWithheld).toFixed(2),
             );
 
             return {
@@ -514,7 +514,7 @@ export default function CreateInvoice() {
               calculatedTotalBeforeDiscount - discountAmount;
             const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
             const calculatedTotal = Number(
-              (totalAfterDiscount + taxWithheld).toFixed(2)
+              (totalAfterDiscount + taxWithheld).toFixed(2),
             );
 
             return {
@@ -556,7 +556,7 @@ export default function CreateInvoice() {
     console.log("selectedProductIdByItem changed:", selectedProductIdByItem);
     if (selectedProductIdByItem[0] && products.length > 0) {
       const selectedProduct = products.find(
-        (p) => p.id === selectedProductIdByItem[0]
+        (p) => p.id === selectedProductIdByItem[0],
       );
       console.log("Selected product details:", selectedProduct);
     }
@@ -632,12 +632,12 @@ export default function CreateInvoice() {
       const matchingBuyer = buyers.find(
         (buyer) =>
           buyer.buyerNTNCNIC === formData.buyerNTNCNIC &&
-          buyer.buyerBusinessName === formData.buyerBusinessName
+          buyer.buyerBusinessName === formData.buyerBusinessName,
       );
       if (matchingBuyer && matchingBuyer.id !== selectedBuyerId) {
         console.log(
           "Updating buyer selection to match form data:",
-          matchingBuyer.id
+          matchingBuyer.id,
         );
         setSelectedBuyerId(matchingBuyer.id);
       }
@@ -656,16 +656,16 @@ export default function CreateInvoice() {
       const matchingProduct = products.find(
         (product) =>
           normalizeHsCode(product.hsCode).toLowerCase() ===
-          normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
+            normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
           (product.name || "").trim().toLowerCase() ===
-          (formData.items[0].name || "").trim().toLowerCase()
+            (formData.items[0].name || "").trim().toLowerCase(),
       );
 
       if (matchingProduct) {
         if (matchingProduct.id !== selectedProductIdByItem[0]) {
           console.log(
             "Updating product selection to match form data:",
-            matchingProduct.id
+            matchingProduct.id,
           );
           setSelectedProductIdByItem((prev) => ({
             ...prev,
@@ -688,7 +688,7 @@ export default function CreateInvoice() {
       // Check if we have the required dependencies
       if (!selectedTenant || !tokensLoaded) {
         setTransactionTypesError(
-          "Please ensure a Company is selected and credentials are loaded."
+          "Please ensure a Company is selected and credentials are loaded.",
         );
         return;
       }
@@ -699,7 +699,7 @@ export default function CreateInvoice() {
         localStorage.getItem("sandboxProductionToken");
       if (!token) {
         setTransactionTypesError(
-          "No FBR token found. Please ensure the Company is selected and credentials are loaded."
+          "No FBR token found. Please ensure the Company is selected and credentials are loaded.",
         );
         return;
       }
@@ -738,7 +738,7 @@ export default function CreateInvoice() {
       } catch (error) {
         setTransactionTypesError(
           error.message ||
-          "Failed to fetch transaction types from API. Please check your connection and try again."
+            "Failed to fetch transaction types from API. Please check your connection and try again.",
         );
       } finally {
         setTransactionTypesLoading(false);
@@ -833,7 +833,7 @@ export default function CreateInvoice() {
   React.useEffect(() => {
     const isEditing = localStorage.getItem("editingInvoice") === "true";
     const hasExistingTransctype = Boolean(
-      transactionTypeId || formData.transctypeId
+      transactionTypeId || formData.transctypeId,
     );
 
     if (
@@ -869,13 +869,13 @@ export default function CreateInvoice() {
             setTransactionTypes(transactionTypesArray);
           } else {
             setTransactionTypesError(
-              "API returned empty transaction types list"
+              "API returned empty transaction types list",
             );
           }
         } catch (error) {
           setTransactionTypesError(
             error.message ||
-            "Failed to fetch transaction types from API. Please check your connection and try again."
+              "Failed to fetch transaction types from API. Please check your connection and try again.",
           );
         } finally {
           setTransactionTypesLoading(false);
@@ -923,7 +923,7 @@ export default function CreateInvoice() {
     if (name === "invoiceDate") {
       if (value && dayjs(value).isAfter(dayjs(), "day")) {
         setInvoiceDateError(
-          "This date exceeds the current date. Please select today or a past date."
+          "This date exceeds the current date. Please select today or a past date.",
         );
       } else {
         setInvoiceDateError("");
@@ -978,7 +978,7 @@ export default function CreateInvoice() {
         // Check if we need to wait for invoice types to load
         if (invoiceTypes.length === 0) {
           console.log(
-            "Invoice types not loaded yet, will retry when they're available"
+            "Invoice types not loaded yet, will retry when they're available",
           );
         }
 
@@ -990,7 +990,7 @@ export default function CreateInvoice() {
           if (typeof invoiceTypeValue === "string") {
             // Check if it matches any of the available descriptions
             const matchingType = invoiceTypes.find(
-              (type) => type.docDescription === invoiceTypeValue
+              (type) => type.docDescription === invoiceTypeValue,
             );
             if (matchingType) return invoiceTypeValue;
           }
@@ -998,7 +998,7 @@ export default function CreateInvoice() {
           // If it's a number/ID, try to find the description
           if (!isNaN(invoiceTypeValue)) {
             const matchingType = invoiceTypes.find(
-              (type) => type.docTypeId === parseInt(invoiceTypeValue)
+              (type) => type.docTypeId === parseInt(invoiceTypeValue),
             );
             if (matchingType) return matchingType.docDescription;
           }
@@ -1096,6 +1096,7 @@ export default function CreateInvoice() {
             furtherTax: item.furtherTax || "0",
             fedPayable: item.fedPayable || "0",
             discount: item.discount || "0",
+            advanceIncomeTax: item.advanceIncomeTax || "0",
             isValueSalesManual: false,
             isTotalValuesManual: false,
             isSalesTaxManual: false,
@@ -1110,7 +1111,7 @@ export default function CreateInvoice() {
         console.log("Final form data set:", formDataFromInvoice);
         console.log(
           "Invoice type in form data:",
-          formDataFromInvoice.invoiceType
+          formDataFromInvoice.invoiceType,
         );
 
         // Set the transactionTypeId and other required data for editing
@@ -1152,7 +1153,7 @@ export default function CreateInvoice() {
               buyerProvince: invoiceData.buyerProvince,
               buyerAddress: invoiceData.buyerAddress,
               buyerRegistrationType: invoiceData.buyerRegistrationType,
-            })
+            }),
           );
         }
 
@@ -1172,7 +1173,7 @@ export default function CreateInvoice() {
 
           localStorage.setItem(
             "editingProductData",
-            JSON.stringify(productData)
+            JSON.stringify(productData),
           );
 
           console.log("Stored product data for editing:", productData);
@@ -1182,9 +1183,9 @@ export default function CreateInvoice() {
         setIsEditMode(true);
         setEditInvoiceNumber(
           invoiceData.invoiceNumber ||
-          invoiceData.companyInvoiceRefNo ||
-          invoiceData.invoiceRefNo ||
-          ""
+            invoiceData.companyInvoiceRefNo ||
+            invoiceData.invoiceRefNo ||
+            "",
         );
         localStorage.removeItem("editInvoiceData");
 
@@ -1211,7 +1212,7 @@ export default function CreateInvoice() {
         const invoiceData = JSON.parse(editInvoiceData);
         console.log(
           "Retrying to load invoice data with invoice types:",
-          invoiceTypes
+          invoiceTypes,
         );
 
         // Helper function to find invoice type description by ID or description
@@ -1222,7 +1223,7 @@ export default function CreateInvoice() {
           if (typeof invoiceTypeValue === "string") {
             // Check if it matches any of the available descriptions
             const matchingType = invoiceTypes.find(
-              (type) => type.docDescription === invoiceTypeValue
+              (type) => type.docDescription === invoiceTypeValue,
             );
             if (matchingType) return invoiceTypeValue;
           }
@@ -1230,7 +1231,7 @@ export default function CreateInvoice() {
           // If it's a number/ID, try to find the description
           if (!isNaN(invoiceTypeValue)) {
             const matchingType = invoiceTypes.find(
-              (type) => type.docTypeId === parseInt(invoiceTypeValue)
+              (type) => type.docTypeId === parseInt(invoiceTypeValue),
             );
             if (matchingType) return matchingType.docDescription;
           }
@@ -1296,7 +1297,7 @@ export default function CreateInvoice() {
         if (matchingBuyer) {
           console.log(
             "Found buyer for restoration:",
-            matchingBuyer.buyerBusinessName
+            matchingBuyer.buyerBusinessName,
           );
           setSelectedBuyerId(matchingBuyer.id);
           setSelectedBuyer(matchingBuyer); // Explicitly set selectedBuyer object
@@ -1312,7 +1313,7 @@ export default function CreateInvoice() {
           // If not found in current list, try to fetch it
           console.log(
             "Buyer not found in current list, searching API...",
-            buyerData
+            buyerData,
           );
           try {
             // Search by NTN if available, otherwise name
@@ -1325,7 +1326,7 @@ export default function CreateInvoice() {
                 params: {
                   search: searchTerm,
                 },
-              }
+              },
             );
 
             if (response.data.success && response.data.data.buyers) {
@@ -1375,7 +1376,7 @@ export default function CreateInvoice() {
     // Also try to restore buyer information for items being edited when buyers are loaded
     if (editingItemIndex && buyers.length > 0) {
       console.log(
-        "Buyers loaded, attempting to restore buyer for editing item"
+        "Buyers loaded, attempting to restore buyer for editing item",
       );
     }
   }, [buyers, loadingBuyers, selectedTenant, editingItemIndex]);
@@ -1390,7 +1391,7 @@ export default function CreateInvoice() {
 
         console.log(
           "Restoring products for editing individual item:",
-          editingItemIndex
+          editingItemIndex,
         );
 
         // Find the specific item being edited
@@ -1408,9 +1409,9 @@ export default function CreateInvoice() {
             matchingProduct = products.find(
               (product) =>
                 (product.name || "").trim().toLowerCase() ===
-                (itemData.name || "").trim().toLowerCase() &&
+                  (itemData.name || "").trim().toLowerCase() &&
                 normalizeHsCode(product.hsCode).toLowerCase() ===
-                normalizeHsCode(itemData.hsCode).toLowerCase()
+                  normalizeHsCode(itemData.hsCode).toLowerCase(),
             );
           }
 
@@ -1435,7 +1436,7 @@ export default function CreateInvoice() {
           } else {
             console.log(
               `No matching product found for editing item:`,
-              itemData
+              itemData,
             );
           }
         }
@@ -1456,7 +1457,7 @@ export default function CreateInvoice() {
       setFormData((prev) => {
         const updatedItems = prev.items.map((item) => {
           const valueSales = parseFloat(
-            parseFloat(item.valueSalesExcludingST || 0).toFixed(2)
+            parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
           );
           const quantity = parseFloat(item.quantity || 0);
           const unitCost = quantity > 0 ? valueSales / quantity : 0;
@@ -1477,7 +1478,7 @@ export default function CreateInvoice() {
       // The rate field should already be set from the form data initialization
       // This effect ensures that if there are any timing issues, the rate is preserved
       const hasRateValues = formData.items.some(
-        (item) => item.rate && item.rate.trim() !== ""
+        (item) => item.rate && item.rate.trim() !== "",
       );
       if (hasRateValues) {
         // Ensure the editing flag is maintained until rates are loaded
@@ -1517,7 +1518,7 @@ export default function CreateInvoice() {
               setProvince(data.data);
               localStorage.setItem(
                 "provinceResponse",
-                JSON.stringify(data.data)
+                JSON.stringify(data.data),
               );
             } else {
               console.error("Failed to fetch provinces:", data.message);
@@ -1549,7 +1550,7 @@ export default function CreateInvoice() {
               `/api/tenant/${selectedTenant.tenant_id}/document-types`,
               {
                 headers: { Authorization: `Bearer ${token}` },
-              }
+              },
             );
 
             if (response.ok) {
@@ -1558,7 +1559,7 @@ export default function CreateInvoice() {
             } else {
               console.error(
                 "Doctypecode API failed with status:",
-                response.status
+                response.status,
               );
               setInvoiceTypes([
                 { docTypeId: 4, docDescription: "Sale Invoice" },
@@ -1617,7 +1618,7 @@ export default function CreateInvoice() {
                   setProvince(data.data);
                   localStorage.setItem(
                     "provinceResponse",
-                    JSON.stringify(data.data)
+                    JSON.stringify(data.data),
                   );
                 } else {
                   console.error("Failed to fetch provinces:", data.message);
@@ -1649,7 +1650,7 @@ export default function CreateInvoice() {
                   `/api/tenant/${selectedTenant.tenant_id}/document-types`,
                   {
                     headers: { Authorization: `Bearer ${token}` },
-                  }
+                  },
                 );
 
                 if (response.ok) {
@@ -1658,7 +1659,7 @@ export default function CreateInvoice() {
                 } else {
                   console.error(
                     "Doctypecode API failed with status:",
-                    response.status
+                    response.status,
                   );
                   setInvoiceTypes([
                     { docTypeId: 4, docDescription: "Sale Invoice" },
@@ -1730,7 +1731,7 @@ export default function CreateInvoice() {
           `/tenant/${selectedTenant.tenant_id}/buyers`,
           {
             params: { page, limit: 25, search: search || undefined },
-          }
+          },
         );
 
         if (response.data.success) {
@@ -1738,7 +1739,7 @@ export default function CreateInvoice() {
           const pagination = response.data.data?.pagination || {};
           setBuyers((prev) => (append ? [...prev, ...rows] : rows));
           setBuyerHasMore(
-            (pagination.current_page || page) < (pagination.total_pages || 1)
+            (pagination.current_page || page) < (pagination.total_pages || 1),
           );
           setBuyerPage(pagination.current_page || page);
         } else {
@@ -1783,7 +1784,7 @@ export default function CreateInvoice() {
               limit: 25,
               search: search || undefined,
             },
-          }
+          },
         );
         if (response.data.success) {
           const rows = response.data.data || [];
@@ -1800,7 +1801,7 @@ export default function CreateInvoice() {
         setLoadingProducts(false);
       }
     },
-    [selectedTenant, loadingProducts]
+    [selectedTenant, loadingProducts],
   );
 
   // Initialize/reset products when tenant changes
@@ -1872,7 +1873,7 @@ export default function CreateInvoice() {
       // Create new buyer
       const response = await api.post(
         `/tenant/${selectedTenant.tenant_id}/buyers`,
-        transformedData
+        transformedData,
       );
 
       // Add the new buyer to the list
@@ -1943,7 +1944,7 @@ export default function CreateInvoice() {
           description: productData.description,
           hsCode: productData.hsCode,
           uom: productData.uoM || productData.uom,
-        }
+        },
       );
       const saved = response.data.data;
       setProducts((prev) => [...prev, saved]);
@@ -2032,7 +2033,7 @@ export default function CreateInvoice() {
   const handleItemChange = (index, field, value) => {
     console.log(
       `handleItemChange called for index ${index}, field ${field}, value:`,
-      value
+      value,
     );
     setFormData((prev) => {
       const updatedItems = [...prev.items];
@@ -2106,7 +2107,7 @@ export default function CreateInvoice() {
       // Auto-calculate unit cost and sales tax if not manual
       if (!item.isValueSalesManual) {
         const valueSales = parseFloat(
-          parseFloat(item.valueSalesExcludingST || 0).toFixed(2)
+          parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
         );
         const quantity = parseFloat(item.quantity || 0);
 
@@ -2163,7 +2164,7 @@ export default function CreateInvoice() {
       } else if (item.isValueSalesManual) {
         // If user manually entered value sales, update unit cost and then sales tax if not manual
         const valueSales = parseFloat(
-          parseFloat(item.valueSalesExcludingST || 0).toFixed(2)
+          parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
         );
         const quantity = parseFloat(item.quantity || 0);
         const unitCost = quantity > 0 ? valueSales / quantity : 0;
@@ -2232,7 +2233,7 @@ export default function CreateInvoice() {
         const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
 
         const calculatedTotal = Number(
-          (totalAfterDiscount + taxWithheld).toFixed(2)
+          (totalAfterDiscount + taxWithheld).toFixed(2),
         );
         item.totalValues = calculatedTotal.toString();
       }
@@ -2435,7 +2436,7 @@ export default function CreateInvoice() {
       setFormData((prev) => {
         console.log(
           "editAddedItem: prev formData.items[0].uoM:",
-          prev.items[0]?.uoM
+          prev.items[0]?.uoM,
         );
         return {
           ...prev,
@@ -2487,7 +2488,7 @@ export default function CreateInvoice() {
 
         console.log(
           "Stored product data for editing individual item:",
-          productData
+          productData,
         );
       }
 
@@ -2506,9 +2507,9 @@ export default function CreateInvoice() {
         targetProduct = products.find(
           (p) =>
             normalizeHsCode(p.hsCode).toLowerCase() ===
-            normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+              normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
             (p.name || "").trim().toLowerCase() ===
-            (itemToEdit.name || "").trim().toLowerCase()
+              (itemToEdit.name || "").trim().toLowerCase(),
         );
       }
 
@@ -2534,7 +2535,7 @@ export default function CreateInvoice() {
                 search: searchTerm,
                 limit: 100,
               },
-            }
+            },
           );
 
           if (response.data.success && response.data.data) {
@@ -2543,7 +2544,7 @@ export default function CreateInvoice() {
             // Priority A: Strict ID match (if we had an ID)
             if (itemToEdit.productId) {
               targetProduct = fetchedList.find(
-                (p) => p.id === itemToEdit.productId
+                (p) => p.id === itemToEdit.productId,
               );
             }
 
@@ -2552,9 +2553,9 @@ export default function CreateInvoice() {
               targetProduct = fetchedList.find(
                 (p) =>
                   normalizeHsCode(p.hsCode).toLowerCase() ===
-                  normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+                    normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
                   (p.name || "").trim().toLowerCase() ===
-                  (itemToEdit.name || "").trim().toLowerCase()
+                    (itemToEdit.name || "").trim().toLowerCase(),
               );
             }
 
@@ -2572,7 +2573,7 @@ export default function CreateInvoice() {
         } catch (error) {
           console.error(
             "Error fetching specific product for restoration:",
-            error
+            error,
           );
         }
       } else if (targetProduct) {
@@ -2666,7 +2667,7 @@ export default function CreateInvoice() {
         const match = types.find(
           (t) =>
             (getTransactionTypeDesc(t) || "").trim() ===
-            (itemToEdit.saleType || "").trim()
+            (itemToEdit.saleType || "").trim(),
         );
         if (match) {
           const id = getTransactionTypeId(match);
@@ -2771,44 +2772,44 @@ export default function CreateInvoice() {
       const items =
         prev.items.length > 0
           ? prev.items.map((item) => ({
-            ...item,
-            // Don't update product description - keep existing or clear if no HS code
-            productDescription: item.hsCode ? item.productDescription : "",
-            saleType: saleType,
-            rate: isEditing ? item.rate : "", // Preserve rate when editing
-          }))
+              ...item,
+              // Don't update product description - keep existing or clear if no HS code
+              productDescription: item.hsCode ? item.productDescription : "",
+              saleType: saleType,
+              rate: isEditing ? item.rate : "", // Preserve rate when editing
+            }))
           : [
-            {
-              hsCode: "",
-              productDescription: "", // Don't set scenario description automatically
-              rate: "",
-              quantity: "1",
-              unitPrice: "0.00",
-              retailPrice: "0",
-              totalValues: "0",
-              valueSalesExcludingST: "0",
-              salesTaxApplicable: "0",
-              salesTaxWithheldAtSource: "0",
-              sroScheduleNo: "",
-              sroItemSerialNo: "",
-              billOfLadingUoM: "",
-              uoM: "",
-              extraTax: "",
-              furtherTax: "0",
-              fedPayable: "0",
-              discount: "0",
-              advanceIncomeTax: "0",
-              saleType,
-              isSROScheduleEnabled: false,
-              isSROItemEnabled: false,
-              isValueSalesManual: false,
-              isTotalValuesManual: false,
-              isSalesTaxManual: false,
-              isSalesTaxWithheldManual: false,
-              isFurtherTaxManual: false,
-              isFedPayableManual: false,
-            },
-          ];
+              {
+                hsCode: "",
+                productDescription: "", // Don't set scenario description automatically
+                rate: "",
+                quantity: "1",
+                unitPrice: "0.00",
+                retailPrice: "0",
+                totalValues: "0",
+                valueSalesExcludingST: "0",
+                salesTaxApplicable: "0",
+                salesTaxWithheldAtSource: "0",
+                sroScheduleNo: "",
+                sroItemSerialNo: "",
+                billOfLadingUoM: "",
+                uoM: "",
+                extraTax: "",
+                furtherTax: "0",
+                fedPayable: "0",
+                discount: "0",
+                advanceIncomeTax: "0",
+                saleType,
+                isSROScheduleEnabled: false,
+                isSROItemEnabled: false,
+                isValueSalesManual: false,
+                isTotalValuesManual: false,
+                isSalesTaxManual: false,
+                isSalesTaxWithheldManual: false,
+                isFurtherTaxManual: false,
+                isFedPayableManual: false,
+              },
+            ];
       return {
         ...prev,
         transctypeId: transctypeId,
@@ -2833,7 +2834,7 @@ export default function CreateInvoice() {
     ];
 
     const hasBuyerOrInvoiceData = nonSellerFields.some((key) =>
-      isNonEmptyString(data[key])
+      isNonEmptyString(data[key]),
     );
 
     // Check both formData.items and addedItems for data
@@ -2869,7 +2870,7 @@ export default function CreateInvoice() {
     try {
       if (dayjs(formData.invoiceDate).isAfter(dayjs(), "day")) {
         setInvoiceDateError(
-          "This date exceeds the current date. Please select today or a past date."
+          "This date exceeds the current date. Please select today or a past date.",
         );
         Swal.fire({
           icon: "error",
@@ -2940,7 +2941,7 @@ export default function CreateInvoice() {
               isFedPayableManual,
               ...rest
             },
-            index
+            index,
           ) => {
             const baseItem = {
               ...rest,
@@ -2948,12 +2949,12 @@ export default function CreateInvoice() {
               quantity: rest.quantity === "" ? 0 : parseFloat(rest.quantity),
               unitPrice: Number(Number(rest.unitPrice || 0).toFixed(2)),
               valueSalesExcludingST: Number(
-                Number(rest.valueSalesExcludingST || 0).toFixed(2)
+                Number(rest.valueSalesExcludingST || 0).toFixed(2),
               ),
               salesTaxApplicable:
                 Math.round(Number(rest.salesTaxApplicable) * 100) / 100,
               salesTaxWithheldAtSource: Number(
-                Number(rest.salesTaxWithheldAtSource || 0).toFixed(2)
+                Number(rest.salesTaxWithheldAtSource || 0).toFixed(2),
               ),
               totalValues: Number(Number(rest.totalValues).toFixed(2)),
               sroScheduleNo: rest.sroScheduleNo?.trim() || null,
@@ -2969,7 +2970,7 @@ export default function CreateInvoice() {
               fedPayable: Number(Number(rest.fedPayable || 0).toFixed(2)),
               discount: Number(Number(rest.discount || 0).toFixed(2)),
               advanceIncomeTax: Number(
-                Number(rest.advanceIncomeTax || 0).toFixed(2)
+                Number(rest.advanceIncomeTax || 0).toFixed(2),
               ),
             };
 
@@ -2978,7 +2979,7 @@ export default function CreateInvoice() {
             }
 
             return baseItem;
-          }
+          },
         ),
       };
 
@@ -2988,12 +2989,12 @@ export default function CreateInvoice() {
         quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
         unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
         valueSalesExcludingST: Number(
-          Number(item.valueSalesExcludingST || 0).toFixed(2)
+          Number(item.valueSalesExcludingST || 0).toFixed(2),
         ),
         salesTaxApplicable:
           Math.round(Number(item.salesTaxApplicable) * 100) / 100,
         salesTaxWithheldAtSource: Number(
-          Number(item.salesTaxWithheldAtSource || 0).toFixed(2)
+          Number(item.salesTaxWithheldAtSource || 0).toFixed(2),
         ),
         totalValues: Number(Number(item.totalValues).toFixed(2)),
         furtherTax: Number(Number(item.furtherTax || 0).toFixed(2)),
@@ -3015,15 +3016,15 @@ export default function CreateInvoice() {
         : backendData;
       console.log(
         "Saving invoice with payload:",
-        JSON.stringify(payload, null, 2)
+        JSON.stringify(payload, null, 2),
       );
       console.log(
         "Items being saved:",
-        payload.items.map((item) => ({ name: item.name, hsCode: item.hsCode }))
+        payload.items.map((item) => ({ name: item.name, hsCode: item.hsCode })),
       );
       const response = await api.post(
         `/tenant/${selectedTenant.tenant_id}/invoices/save`,
-        payload
+        payload,
       );
 
       if (response.status === 201) {
@@ -3050,8 +3051,9 @@ export default function CreateInvoice() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: `Failed to save invoice: ${error.response?.data?.message || error.message
-          }`,
+        text: `Failed to save invoice: ${
+          error.response?.data?.message || error.message
+        }`,
         confirmButtonColor: "#d33",
       });
     } finally {
@@ -3095,7 +3097,7 @@ export default function CreateInvoice() {
     // Validate retail price format (should be a valid number with up to 2 decimal places)
     if (item.retailPrice && !/^\d+(\.\d{1,2})?$/.test(item.retailPrice)) {
       errors.push(
-        "Retail Price must be a valid number with up to 2 decimal places"
+        "Retail Price must be a valid number with up to 2 decimal places",
       );
     }
 
@@ -3140,7 +3142,7 @@ export default function CreateInvoice() {
     try {
       if (dayjs(formData.invoiceDate).isAfter(dayjs(), "day")) {
         setInvoiceDateError(
-          "This date exceeds the current date. Please select today or a past date."
+          "This date exceeds the current date. Please select today or a past date.",
         );
         Swal.fire({
           icon: "error",
@@ -3205,7 +3207,7 @@ export default function CreateInvoice() {
         const errorMessages = validationErrors
           .map(
             (error) =>
-              `Item ${error.itemNumber} validation failed: ${error.errors.join(", ")}`
+              `Item ${error.itemNumber} validation failed: ${error.errors.join(", ")}`,
           )
           .join("\n");
 
@@ -3244,7 +3246,7 @@ export default function CreateInvoice() {
               advanceIncomeTax, // Remove from FBR API payload
               ...rest
             },
-            index
+            index,
           ) => {
             const baseItem = {
               ...rest,
@@ -3252,12 +3254,12 @@ export default function CreateInvoice() {
               quantity: rest.quantity === "" ? 0 : parseFloat(rest.quantity),
               unitPrice: Number(Number(rest.unitPrice || 0).toFixed(2)),
               valueSalesExcludingST: Number(
-                Number(rest.valueSalesExcludingST || 0).toFixed(2)
+                Number(rest.valueSalesExcludingST || 0).toFixed(2),
               ),
               salesTaxApplicable:
                 Math.round(Number(rest.salesTaxApplicable) * 100) / 100,
               salesTaxWithheldAtSource: Number(
-                Number(rest.salesTaxWithheldAtSource || 0).toFixed(2)
+                Number(rest.salesTaxWithheldAtSource || 0).toFixed(2),
               ),
               totalValues: Number(Number(rest.totalValues).toFixed(2)),
               sroScheduleNo: rest.sroScheduleNo?.trim() || null,
@@ -3279,14 +3281,14 @@ export default function CreateInvoice() {
             }
 
             return baseItem;
-          }
+          },
         ),
       };
 
       // Validate with FBR API through backend
       const validateRes = await api.post(
         `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=sandbox`,
-        cleanedData
+        cleanedData,
       );
 
       // Handle different FBR response structures
@@ -3307,19 +3309,19 @@ export default function CreateInvoice() {
           quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
           unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
           valueSalesExcludingST: Number(
-            Number(item.valueSalesExcludingST || 0).toFixed(2)
+            Number(item.valueSalesExcludingST || 0).toFixed(2),
           ),
           salesTaxApplicable:
             Math.round(Number(item.salesTaxApplicable) * 100) / 100,
           salesTaxWithheldAtSource: Number(
-            Number(item.salesTaxWithheldAtSource || 0).toFixed(2)
+            Number(item.salesTaxWithheldAtSource || 0).toFixed(2),
           ),
           totalValues: Number(Number(item.totalValues).toFixed(2)),
           furtherTax: Number(Number(item.furtherTax || 0).toFixed(2)),
           fedPayable: Number(Number(item.fedPayable || 0).toFixed(2)),
           discount: Number(Number(item.discount || 0).toFixed(2)),
           advanceIncomeTax: Number(
-            Number(item.advanceIncomeTax || 0).toFixed(2)
+            Number(item.advanceIncomeTax || 0).toFixed(2),
           ), // Keep in database
         }));
 
@@ -3338,18 +3340,18 @@ export default function CreateInvoice() {
           : backendData;
         console.log(
           "Saving and validating invoice with payload:",
-          JSON.stringify(payload, null, 2)
+          JSON.stringify(payload, null, 2),
         );
         console.log(
           "Items being saved:",
           payload.items.map((item) => ({
             name: item.name,
             hsCode: item.hsCode,
-          }))
+          })),
         );
         const response = await api.post(
           `/tenant/${selectedTenant.tenant_id}/invoices/save-validate`,
-          payload
+          payload,
         );
 
         if (response.status === 201) {
@@ -3456,7 +3458,7 @@ export default function CreateInvoice() {
                 if (status.error) {
                   errorDetails.push(`Item ${index + 1}: ${status.error}`);
                 }
-              }
+              },
             );
           }
         } else {
@@ -3519,7 +3521,7 @@ export default function CreateInvoice() {
     try {
       if (dayjs(formData.invoiceDate).isAfter(dayjs(), "day")) {
         setInvoiceDateError(
-          "This date exceeds the current date. Please select today or a past date."
+          "This date exceeds the current date. Please select today or a past date.",
         );
         Swal.fire({
           icon: "error",
@@ -3602,26 +3604,29 @@ export default function CreateInvoice() {
           // },
           {
             field: "valueSalesExcludingST",
-            message: `Value Sales Excluding ST is required for item ${index + 1
-              }`,
+            message: `Value Sales Excluding ST is required for item ${
+              index + 1
+            }`,
           },
           ...(item.rate && item.rate.toLowerCase() === "exempt"
             ? [
-              {
-                field: "sroScheduleNo",
-                message: `SRO Schedule Number is required for exempt item ${index + 1
+                {
+                  field: "sroScheduleNo",
+                  message: `SRO Schedule Number is required for exempt item ${
+                    index + 1
                   }`,
-              },
-              {
-                field: "sroItemSerialNo",
-                message: `SRO Item Serial Number is required for exempt item ${index + 1
+                },
+                {
+                  field: "sroItemSerialNo",
+                  message: `SRO Item Serial Number is required for exempt item ${
+                    index + 1
                   }`,
-              },
-            ]
+                },
+              ]
             : []),
           ...(item.rate &&
-            item.rate.includes("/bill") &&
-            formData.scenarioId === "SN018"
+          item.rate.includes("/bill") &&
+          formData.scenarioId === "SN018"
             ? []
             : []),
         ];
@@ -3664,7 +3669,7 @@ export default function CreateInvoice() {
             advanceIncomeTax, // Remove from FBR API payload
             ...rest
           },
-          index
+          index,
         ) => {
           // Data cleaning for item
 
@@ -3674,12 +3679,12 @@ export default function CreateInvoice() {
             quantity: rest.quantity === "" ? 0 : parseFloat(rest.quantity),
             unitPrice: Number(Number(rest.unitPrice || 0).toFixed(2)),
             valueSalesExcludingST: Number(
-              Number(rest.valueSalesExcludingST || 0).toFixed(2)
+              Number(rest.valueSalesExcludingST || 0).toFixed(2),
             ),
             salesTaxApplicable:
               Math.round(Number(rest.salesTaxApplicable) * 100) / 100,
             salesTaxWithheldAtSource: Number(
-              Number(rest.salesTaxWithheldAtSource || 0).toFixed(2)
+              Number(rest.salesTaxWithheldAtSource || 0).toFixed(2),
             ),
             totalValues: Number(Number(rest.totalValues).toFixed(2)),
             sroScheduleNo: rest.sroScheduleNo?.trim() || null,
@@ -3703,7 +3708,7 @@ export default function CreateInvoice() {
           }
 
           return baseItem;
-        }
+        },
       );
 
       const sanitizeAddress = (address) =>
@@ -3722,7 +3727,7 @@ export default function CreateInvoice() {
       // STEP 1: Hit FBR API through backend
       const fbrResponse = await api.post(
         `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=sandbox`,
-        cleanedData
+        cleanedData,
       );
 
       // Handle different FBR response structures
@@ -3806,7 +3811,7 @@ export default function CreateInvoice() {
       // Ensure we have a valid FBR invoice number
       if (!fbrInvoiceNumber || fbrInvoiceNumber.trim() === "") {
         throw new Error(
-          "FBR submission failed: No invoice number received from FBR"
+          "FBR submission failed: No invoice number received from FBR",
         );
       }
 
@@ -3820,12 +3825,12 @@ export default function CreateInvoice() {
         quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
         unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
         valueSalesExcludingST: Number(
-          Number(item.valueSalesExcludingST || 0).toFixed(2)
+          Number(item.valueSalesExcludingST || 0).toFixed(2),
         ),
         salesTaxApplicable:
           Math.round(Number(item.salesTaxApplicable) * 100) / 100,
         salesTaxWithheldAtSource: Number(
-          Number(item.salesTaxWithheldAtSource || 0).toFixed(2)
+          Number(item.salesTaxWithheldAtSource || 0).toFixed(2),
         ),
         totalValues: Number(Number(item.totalValues).toFixed(2)),
         furtherTax: Number(Number(item.furtherTax || 0).toFixed(2)),
@@ -3849,12 +3854,12 @@ export default function CreateInvoice() {
       // Call backend API to save invoice
       const backendResponse = await api.post(
         `/tenant/${selectedTenant.tenant_id}/invoices`,
-        backendData
+        backendData,
       );
 
       if (backendResponse.status !== 200) {
         throw new Error(
-          `Failed to save invoice to backend database. Status: ${backendResponse.status}`
+          `Failed to save invoice to backend database. Status: ${backendResponse.status}`,
         );
       }
 
@@ -3862,7 +3867,7 @@ export default function CreateInvoice() {
       if (editingId) {
         try {
           const deleteResponse = await api.delete(
-            `/tenant/${selectedTenant.tenant_id}/invoices/${editingId}`
+            `/tenant/${selectedTenant.tenant_id}/invoices/${editingId}`,
           );
 
           if (deleteResponse.status !== 200) {
@@ -4415,7 +4420,7 @@ export default function CreateInvoice() {
                     buyers.find((b) => b.id === selectedBuyerId) ||
                     selectedBuyer;
                   const filteredBuyers = buyers.filter(
-                    (b) => b.id !== selectedBuyerId
+                    (b) => b.id !== selectedBuyerId,
                   );
                   const result = [];
                   if (currentSelected && currentSelected.id !== "__loading__") {
@@ -4489,7 +4494,7 @@ export default function CreateInvoice() {
                         : "";
                       if (newInputValue !== label) {
                         console.log(
-                          "Input deviation detected, clearing selection"
+                          "Input deviation detected, clearing selection",
                         );
                         isManualBuyerClearRef.current = true; // Mark that we are clearing it
                         setSelectedBuyer(null);
@@ -4508,14 +4513,14 @@ export default function CreateInvoice() {
                       createInvoiceFormFetchers.buyer?.(
                         1,
                         newInputValue,
-                        false
+                        false,
                       );
                     }, 300);
                   }
 
                   if (reason === "blur") {
                     const selectedBuyer = buyers.find(
-                      (b) => b.id === selectedBuyerId
+                      (b) => b.id === selectedBuyerId,
                     );
                     const getBuyerLabel = (option) =>
                       option.buyerBusinessName
@@ -4544,7 +4549,7 @@ export default function CreateInvoice() {
                       createInvoiceFormFetchers.buyer?.(
                         next,
                         buyerSearch,
-                        true
+                        true,
                       );
                     }
                   },
@@ -4667,13 +4672,13 @@ export default function CreateInvoice() {
                             setTransactionTypes(transactionTypesArray);
                           } else {
                             setTransactionTypesError(
-                              "API returned empty transaction types list"
+                              "API returned empty transaction types list",
                             );
                           }
                         } catch (error) {
                           setTransactionTypesError(
                             error.message ||
-                            "Failed to fetch transaction types from API. Please check your connection and try again."
+                              "Failed to fetch transaction types from API. Please check your connection and try again.",
                           );
                         } finally {
                           setTransactionTypesLoading(false);
@@ -4811,7 +4816,7 @@ export default function CreateInvoice() {
                         );
                       };
                       handleTransactionTypeChange(
-                        getTransactionTypeId(newValue)
+                        getTransactionTypeId(newValue),
                       );
                     } else {
                       handleTransactionTypeChange("");
@@ -5037,17 +5042,17 @@ export default function CreateInvoice() {
                         const itemName = formData.items[index]?.name || "";
                         const currentSelected =
                           products.find(
-                            (p) => String(p.id) === String(currentId)
+                            (p) => String(p.id) === String(currentId),
                           ) ||
                           (currentId || itemName
                             ? {
-                              id: currentId || `temp-${itemName}`,
-                              name: itemName || "Selected Product",
-                              hsCode: formData.items[index]?.hsCode || "",
-                              description:
-                                formData.items[index]?.productDescription ||
-                                "",
-                            }
+                                id: currentId || `temp-${itemName}`,
+                                name: itemName || "Selected Product",
+                                hsCode: formData.items[index]?.hsCode || "",
+                                description:
+                                  formData.items[index]?.productDescription ||
+                                  "",
+                              }
                             : null);
 
                         const opts = [{ id: "__add__", name: "Add Product" }];
@@ -5080,7 +5085,7 @@ export default function CreateInvoice() {
                         const itemName = formData.items[index]?.name || "";
 
                         const found = products.find(
-                          (p) => String(p.id) === String(currentId)
+                          (p) => String(p.id) === String(currentId),
                         );
                         if (found) return found;
 
@@ -5113,7 +5118,7 @@ export default function CreateInvoice() {
                         if (reason === "reset") {
                           if (isManualProductClearRef.current) {
                             console.log(
-                              "Blocking unwanted product reset from manual clear"
+                              "Blocking unwanted product reset from manual clear",
                             );
                             isManualProductClearRef.current = false;
                             return;
@@ -5131,7 +5136,7 @@ export default function CreateInvoice() {
                           const itemName = formData.items[index]?.name || "";
                           if (itemName && newValue !== itemName) {
                             console.log(
-                              "Product input deviation, clearing selection"
+                              "Product input deviation, clearing selection",
                             );
                             isManualProductClearRef.current = true;
                             setSelectedProductIdByItem((prev) => ({
@@ -5195,7 +5200,7 @@ export default function CreateInvoice() {
                             newVal,
                             reason,
                             index,
-                          }
+                          },
                         );
                         if (newVal?.id === "__add__") {
                           openProductModal();
@@ -5215,7 +5220,7 @@ export default function CreateInvoice() {
                           newVal?.id !== selectedProductIdByItem[index]
                         ) {
                           console.log(
-                            "Product changed via user interaction, clearing UoM"
+                            "Product changed via user interaction, clearing UoM",
                           );
                           handleItemChange(index, "uoM", "");
                           handleItemChange(index, "billOfLadingUoM", "");
@@ -5226,12 +5231,12 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "hsCode",
-                            newVal.hsCode || ""
+                            newVal.hsCode || "",
                           );
                           handleItemChange(
                             index,
                             "productDescription",
-                            newVal.description || ""
+                            newVal.description || "",
                           );
                         } else {
                           // Clear product fields if selection is cleared
@@ -5286,7 +5291,7 @@ export default function CreateInvoice() {
                             handleItemChange(
                               index,
                               "billOfLadingUoM",
-                              e.target.value
+                              e.target.value,
                             );
                           }
                         }}
@@ -5351,7 +5356,7 @@ export default function CreateInvoice() {
                   sellerProvince={formData.sellerProvince}
                 />
                 {item.sroScheduleNo &&
-                  item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
+                item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
                   <SROItem
                     key={`SROItem-${index}`}
                     index={index}
@@ -5409,22 +5414,22 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.valueSalesExcludingST === "0.00" ||
-                        item.valueSalesExcludingST === "0"
+                      item.valueSalesExcludingST === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                          item.valueSalesExcludingST
-                        )
+                            item.valueSalesExcludingST,
+                          )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(
                           index,
                           "valueSalesExcludingST",
-                          newValue
+                          newValue,
                         );
                       }
                     }}
@@ -5437,7 +5442,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "valueSalesExcludingST",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5459,7 +5464,7 @@ export default function CreateInvoice() {
                   onChange={(e) => {
                     const newValue = handleFloatingNumberInput(
                       e.target.value,
-                      true
+                      true,
                     );
                     if (newValue !== null) {
                       handleItemChange(index, "quantity", newValue);
@@ -5531,22 +5536,22 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.salesTaxWithheldAtSource === "0.00" ||
-                        item.salesTaxWithheldAtSource === "0"
+                      item.salesTaxWithheldAtSource === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                          item.salesTaxWithheldAtSource
-                        )
+                            item.salesTaxWithheldAtSource,
+                          )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(
                           index,
                           "salesTaxWithheldAtSource",
-                          newValue
+                          newValue,
                         );
                       }
                     }}
@@ -5561,7 +5566,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "salesTaxWithheldAtSource",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5583,7 +5588,7 @@ export default function CreateInvoice() {
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(index, "extraTax", newValue);
@@ -5600,7 +5605,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "extraTax",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5622,7 +5627,7 @@ export default function CreateInvoice() {
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(index, "furtherTax", newValue);
@@ -5639,7 +5644,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "furtherTax",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5661,7 +5666,7 @@ export default function CreateInvoice() {
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(index, "fedPayable", newValue);
@@ -5678,7 +5683,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "fedPayable",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5694,14 +5699,14 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.advanceIncomeTax === "0.00" ||
-                        item.advanceIncomeTax === "0"
+                      item.advanceIncomeTax === "0"
                         ? ""
                         : formatWithCommasWhileTyping(item.advanceIncomeTax)
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(index, "advanceIncomeTax", newValue);
@@ -5716,7 +5721,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "advanceIncomeTax",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5738,7 +5743,7 @@ export default function CreateInvoice() {
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
                         e.target.value,
-                        true
+                        true,
                       );
                       if (newValue !== null) {
                         handleItemChange(index, "discount", newValue);
@@ -5755,7 +5760,7 @@ export default function CreateInvoice() {
                           handleItemChange(
                             index,
                             "discount",
-                            numValue.toString()
+                            numValue.toString(),
                           );
                         }
                       }
@@ -5976,7 +5981,7 @@ export default function CreateInvoice() {
                                     "&:hover": {
                                       background:
                                         editingItemIndex &&
-                                          editingItemIndex !== item.id
+                                        editingItemIndex !== item.id
                                           ? "rgba(0, 0, 0, 0.04)"
                                           : "rgba(99, 102, 241, 0.1)",
                                     },
@@ -6122,23 +6127,23 @@ export default function CreateInvoice() {
         </Box>
         {(allLoading ||
           (selectedTenant && !tokensLoaded && !loadingTimeout)) && (
-            <Box
-              sx={{
-                position: "fixed",
-                top: 0,
-                left: 0,
-                width: "100vw",
-                height: "100vh",
-                bgcolor: "rgba(255,255,255,0.7)",
-                zIndex: 9999,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CircularProgress size={50} color="primary" />
-            </Box>
-          )}
+          <Box
+            sx={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              bgcolor: "rgba(255,255,255,0.7)",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CircularProgress size={50} color="primary" />
+          </Box>
+        )}
 
         {/* Buyer Modal */}
         <BuyerModal

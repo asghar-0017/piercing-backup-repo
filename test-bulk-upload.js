@@ -44,7 +44,7 @@ const testBulkUpload = async () => {
 
   try {
     console.log(
-      "🧪 Testing bulk upload with Excel dates and internal invoice numbers..."
+      "🧪 Testing bulk upload with Excel dates and internal invoice numbers...",
     );
     console.log("📊 Test data:", {
       totalInvoices: testInvoices.length,
@@ -64,7 +64,7 @@ const testBulkUpload = async () => {
           invoices: testInvoices,
           chunkSize: 500,
         }),
-      }
+      },
     );
 
     const result = await response.json();

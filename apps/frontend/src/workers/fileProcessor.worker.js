@@ -284,6 +284,7 @@ class FileProcessor {
       "Extra Tax": "item_extraTax",
       "Further Tax": "item_furtherTax",
       "FED Payable": "item_fedPayable",
+      "Advance Income Tax": "item_advanceIncomeTax",
       Discount: "item_discount",
       "Total Values": "item_totalValues",
       // Additional mappings for common variations
@@ -316,6 +317,7 @@ class FileProcessor {
       extra_tax: "item_extraTax",
       further_tax: "item_furtherTax",
       fed_payable: "item_fedPayable",
+      advance_income_tax: "item_advanceIncomeTax",
       discount: "item_discount",
       unit_of_measurement: "item_uoM",
       uom: "item_uoM",
@@ -767,9 +769,11 @@ class FileProcessor {
       "valueSalesExcludingST",
       "fixedNotifiedValueOrRetailPrice",
       "salesTaxApplicable",
+      "salesTaxWithheldAtSource",
       "extraTax",
       "furtherTax",
       "fedPayable",
+      "advanceIncomeTax",
       "discount",
       "rate",
       // Alternative field names
@@ -778,9 +782,11 @@ class FileProcessor {
       "item_totalValues",
       "item_valueSalesExcludingST",
       "item_salesTaxApplicable",
+      "item_salesTaxWithheldAtSource",
       "item_extraTax",
       "item_furtherTax",
       "item_fedPayable",
+      "item_advanceIncomeTax",
       "item_discount",
       "item_rate",
     ];
@@ -825,12 +831,17 @@ class FileProcessor {
       item_totalValues: "totalValues",
       item_valueSalesExcludingST: "valueSalesExcludingST",
       item_salesTaxApplicable: "salesTaxApplicable",
+      item_salesTaxWithheldAtSource: "salesTaxWithheldAtSource",
       item_extraTax: "extraTax",
       item_furtherTax: "furtherTax",
       item_fedPayable: "fedPayable",
+      item_advanceIncomeTax: "advanceIncomeTax",
       item_discount: "discount",
       item_uoM: "uoM",
       item_rate: "rate",
+      item_saleType: "saleType",
+      item_sroScheduleNo: "sroScheduleNo",
+      item_sroItemSerialNo: "sroItemSerialNo",
     };
 
     // Create both mapped and original field names for backend compatibility

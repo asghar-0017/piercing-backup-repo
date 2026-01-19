@@ -155,7 +155,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
 
       if (!tokenValid && retryCount < maxRetries) {
         console.log(
-          `Token validation failed, attempting retry ${retryCount + 1}/${maxRetries}`
+          `Token validation failed, attempting retry ${retryCount + 1}/${maxRetries}`,
         );
         setRetryCount((prev) => prev + 1);
 
@@ -169,7 +169,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
 
       if (!tokenValid) {
         throw new Error(
-          "Unable to load tokens after multiple attempts. Please refresh the page and try again."
+          "Unable to load tokens after multiple attempts. Please refresh the page and try again.",
         );
       }
 
@@ -188,7 +188,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         retryCount < maxRetries
       ) {
         console.log(
-          `Token error detected, attempting retry ${retryCount + 1}/${maxRetries}`
+          `Token error detected, attempting retry ${retryCount + 1}/${maxRetries}`,
         );
         setRetryCount((prev) => prev + 1);
 
@@ -207,11 +207,11 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
           const parsedProvinces = JSON.parse(cachedProvinces);
           console.log(
             "Using cached provinces from localStorage:",
-            parsedProvinces
+            parsedProvinces,
           );
           setProvinces(parsedProvinces);
           setErrorMessage(
-            "Using cached province data. Some provinces may be outdated."
+            "Using cached province data. Some provinces may be outdated.",
           );
           // setShowError(true); // Don't show error if we have cached data to use
           return;
@@ -221,7 +221,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       }
 
       setErrorMessage(
-        error.message || "Failed to fetch provinces. Please try again."
+        error.message || "Failed to fetch provinces. Please try again.",
       );
       setShowError(true);
       setProvinces([]);
@@ -267,14 +267,14 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
           const parsedProvinces = JSON.parse(cachedProvinces);
           console.log(
             "Loading cached provinces on modal open:",
-            parsedProvinces
+            parsedProvinces,
           );
           setProvinces(parsedProvinces);
         }
       } catch (cacheError) {
         console.error(
           "Error loading cached provinces on modal open:",
-          cacheError
+          cacheError,
         );
       }
     }
@@ -345,7 +345,9 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       if (formData.buyerPhoneNumber && formData.buyerPhoneNumber.trim()) {
         const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,15}$/;
         if (!phoneRegex.test(formData.buyerPhoneNumber.trim())) {
-          throw new Error("Please enter a valid phone number (10-15 digits with optional +, spaces, hyphens, or parentheses).");
+          throw new Error(
+            "Please enter a valid phone number (10-15 digits with optional +, spaces, hyphens, or parentheses).",
+          );
         }
       }
 
@@ -374,7 +376,9 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
 
     // If service is known to be down, don't attempt API call
     if (fbrServiceDown) {
-      setBuyerRegistrationHint("FBR API issue - service unavailable. Please set registration type manually.");
+      setBuyerRegistrationHint(
+        "FBR API issue - service unavailable. Please set registration type manually.",
+      );
       setFormData((prev) => ({
         ...prev,
         buyerRegistrationType: "FBR API Issue - Service Unavailable",
@@ -394,9 +398,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       }));
 
       setBuyerRegistrationHint(
-        cachedResult.registrationType === "Registered"
-          ? ""
-          : ""
+        cachedResult.registrationType === "Registered" ? "" : "",
       );
       return;
     }
@@ -418,7 +420,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
           },
           body: JSON.stringify({ registrationNo }),
           signal: controller.signal,
-        }
+        },
       );
 
       clearTimeout(timeoutId);
@@ -427,7 +429,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
         "FBR buyer check response status:",
         response.status,
         "ok:",
-        response.ok
+        response.ok,
       );
 
       if (!response.ok) {
@@ -462,10 +464,12 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       }
 
       // Cache the result for future use
-      setFbrCache(prev => new Map(prev).set(cacheKey, {
-        registrationType: derivedRegistrationType,
-        timestamp: Date.now()
-      }));
+      setFbrCache((prev) =>
+        new Map(prev).set(cacheKey, {
+          registrationType: derivedRegistrationType,
+          timestamp: Date.now(),
+        }),
+      );
 
       setFormData((prev) => ({
         ...prev,
@@ -473,15 +477,17 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       }));
 
       setBuyerRegistrationHint(
-        derivedRegistrationType === "Registered"
-          ? ""
-          : ""
+        derivedRegistrationType === "Registered" ? "" : "",
       );
     } catch (err) {
       console.error("Buyer registration check failed:", err);
 
       // Mark service as down if we get 503 or 500 errors
-      if (err.message.includes('503') || err.message.includes('500') || err.message.includes('Upstream request failed')) {
+      if (
+        err.message.includes("503") ||
+        err.message.includes("500") ||
+        err.message.includes("Upstream request failed")
+      ) {
         setFbrServiceDown(true);
         console.log("FBR service marked as down due to server errors");
       }
@@ -489,16 +495,16 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       let errorMessage = "FBR API issue - service unavailable.";
       let registrationTypeError = "FBR API Issue - Service Unavailable";
 
-      if (err.name === 'AbortError') {
+      if (err.name === "AbortError") {
         errorMessage = "FBR API issue - check timed out.";
         registrationTypeError = "FBR API Issue - Timeout";
-      } else if (err.message.includes('Failed to fetch')) {
+      } else if (err.message.includes("Failed to fetch")) {
         errorMessage = "FBR API issue - service unavailable.";
         registrationTypeError = "FBR API Issue - Service Unavailable";
-      } else if (err.message.includes('503')) {
+      } else if (err.message.includes("503")) {
         errorMessage = "FBR API issue - service temporarily unavailable.";
         registrationTypeError = "FBR API Issue - Service Unavailable";
-      } else if (err.message.includes('500')) {
+      } else if (err.message.includes("500")) {
         errorMessage = "FBR API issue - server error.";
         registrationTypeError = "FBR API Issue - Server Error";
       }
@@ -526,8 +532,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
   // Clean up old cache entries (older than 1 hour) and reset service down flag
   useEffect(() => {
     const cleanupCache = () => {
-      const oneHourAgo = Date.now() - (60 * 60 * 1000);
-      setFbrCache(prev => {
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+      setFbrCache((prev) => {
         const newCache = new Map();
         for (const [key, value] of prev) {
           if (value.timestamp > oneHourAgo) {
@@ -561,7 +567,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
     if (!value) return;
 
     // Only check if the value has reached the correct length
-    const isCorrectLength = (formData.documentType === "NTN" && value.length === 7) ||
+    const isCorrectLength =
+      (formData.documentType === "NTN" && value.length === 7) ||
       (formData.documentType === "CNIC" && value.length === 13);
 
     if (!isCorrectLength) return;
@@ -805,8 +812,15 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                 }}
                 helperText={
                   checkingBuyerRegistration ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#007AFF' }}>
-                      <CircularProgress size={14} sx={{ color: '#007AFF' }} />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        color: "#007AFF",
+                      }}
+                    >
+                      <CircularProgress size={14} sx={{ color: "#007AFF" }} />
                       <span>Checking registration from FBR...</span>
                     </Box>
                   ) : (
@@ -906,18 +920,18 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                     {/* Debug info */}
                     {console.log(
                       "Province dropdown - formData.buyerProvince:",
-                      formData.buyerProvince
+                      formData.buyerProvince,
                     )}
                     {console.log("Province dropdown - provinces:", provinces)}
                     {console.log(
                       "Province dropdown - provinces length:",
-                      provinces.length
+                      provinces.length,
                     )}
 
                     {/* Show current province value if it exists and is not in the FBR list */}
                     {formData.buyerProvince &&
                       !provinces.some(
-                        (p) => p.stateProvinceDesc === formData.buyerProvince
+                        (p) => p.stateProvinceDesc === formData.buyerProvince,
                       ) && (
                         <MenuItem
                           value={formData.buyerProvince}
@@ -1090,7 +1104,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
               />
 
               {/* Phone Number and Registration Type in a row */}
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Box sx={{ display: "flex", gap: 1.5 }}>
                 {/* Phone Number Field */}
                 <TextField
                   label="Phone Number"
@@ -1136,7 +1150,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                     value={
                       checkingBuyerRegistration
                         ? "Checking FBR..."
-                        : formData.buyerRegistrationType || "Will be auto-filled from FBR"
+                        : formData.buyerRegistrationType ||
+                          "Will be auto-filled from FBR"
                     }
                     disabled
                     size="small"
@@ -1174,7 +1189,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                     }}
                     InputProps={{
                       endAdornment: checkingBuyerRegistration ? (
-                        <CircularProgress size={20} sx={{ color: '#007AFF' }} />
+                        <CircularProgress size={20} sx={{ color: "#007AFF" }} />
                       ) : null,
                     }}
                     helperText={
@@ -1217,7 +1232,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                       }}
                     >
                       {buyerRegistrationHint &&
-                        (buyerRegistrationHint.includes("unavailable") || buyerRegistrationHint.includes("FBR API issue"))
+                      (buyerRegistrationHint.includes("unavailable") ||
+                        buyerRegistrationHint.includes("FBR API issue"))
                         ? "Retry FBR Check"
                         : "Check FBR Registration"}
                     </Button>
@@ -1227,7 +1243,9 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
 
               {/* Action buttons with modern styling */}
               <Stack spacing={1} sx={{ mt: { xs: 1, sm: 1.5 } }}>
-                {(isSubmitting || !isFormValid() || (!checkingBuyerRegistration && !fbrFailed)) && (
+                {(isSubmitting ||
+                  !isFormValid() ||
+                  (!checkingBuyerRegistration && !fbrFailed)) && (
                   <Button
                     type="submit"
                     variant="contained"
@@ -1249,7 +1267,9 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                         boxShadow: "0 6px 25px rgba(0, 122, 255, 0.4)",
                       },
                       "&:disabled": {
-                        backgroundColor: isSubmitting ? "rgba(0, 122, 255, 0.6)" : "rgba(0, 0, 0, 0.12)",
+                        backgroundColor: isSubmitting
+                          ? "rgba(0, 122, 255, 0.6)"
+                          : "rgba(0, 0, 0, 0.12)",
                         color: isSubmitting ? "white" : "rgba(0, 0, 0, 0.26)",
                       },
                       transition: "all 0.2s ease-in-out",
@@ -1270,7 +1290,6 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                     )}
                   </Button>
                 )}
-
               </Stack>
             </Stack>
           </Box>

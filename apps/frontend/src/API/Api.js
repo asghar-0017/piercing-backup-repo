@@ -20,7 +20,7 @@ const API_CONFIG = {
     const token = tokenManager.getSandboxToken();
     console.log(
       "API_CONFIG: sandBoxTestToken =",
-      token ? "Available" : "Not available"
+      token ? "Available" : "Not available",
     );
     return token;
   },
@@ -28,7 +28,7 @@ const API_CONFIG = {
     const token = tokenManager.getProductionToken();
     console.log(
       "API_CONFIG: productionToken =",
-      token ? "Available" : "Not available"
+      token ? "Available" : "Not available",
     );
     return token;
   },
@@ -38,7 +38,7 @@ const API_CONFIG = {
       "API_CONFIG: getCurrentToken(",
       environment,
       ") =",
-      token ? `Available (${token.substring(0, 10)}...)` : "Not available"
+      token ? `Available (${token.substring(0, 10)}...)` : "Not available",
     );
     return token;
   },
@@ -85,19 +85,19 @@ api.interceptors.request.use(
           tenantIdToUse = tenant.tenant_id;
           console.log(
             "Using tenant ID from selectedTenant localStorage:",
-            tenantIdToUse
+            tenantIdToUse,
           );
         } catch (error) {
           console.error(
             "Error parsing selected Company from localStorage:",
-            error
+            error,
           );
         }
       } else if (tenantId) {
         tenantIdToUse = tenantId;
         console.log(
           "Using tenant ID from tenantId localStorage:",
-          tenantIdToUse
+          tenantIdToUse,
         );
       }
 
@@ -108,7 +108,7 @@ api.interceptors.request.use(
           tenantIdToUse = urlMatch[1];
           console.log(
             "Extracted tenant ID from URL as fallback:",
-            tenantIdToUse
+            tenantIdToUse,
           );
         }
       }
@@ -140,7 +140,7 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Utility function to get current token state for debugging
@@ -164,7 +164,7 @@ export const debugTokenManager = () => {
   console.log("API_CONFIG.productionToken:", API_CONFIG.productionToken);
   console.log(
     "API_CONFIG.getCurrentToken('sandbox'):",
-    API_CONFIG.getCurrentToken("sandbox")
+    API_CONFIG.getCurrentToken("sandbox"),
   );
   console.log("=== End Token Manager Debug ===");
 };

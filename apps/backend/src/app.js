@@ -27,7 +27,7 @@ import invoiceBackupRoutes from "./routes/invoiceBackupRoutes.js";
 import hsCodeRoutes from "./routes/hsCodeRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
 
-dotenv.config({ path: './.env' });
+dotenv.config({ path: "./.env" });
 
 const app = express();
 
@@ -63,7 +63,7 @@ app.use(
         fontSrc: ["'self'", "https:"],
       },
     },
-  })
+  }),
 );
 app.use(
   cors({
@@ -78,13 +78,13 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-Tenant-ID"],
     credentials: true,
     maxAge: 86400, // 24 hours
-  })
+  }),
 );
 
 app.use(express.static(path.join(__dirname, "public")));
 app.use(
   "/invoices",
-  express.static(path.join(process.cwd(), "public/invoices"))
+  express.static(path.join(process.cwd(), "public/invoices")),
 );
 // MySQL Routes
 app.use("/api/auth", authRoutes);
@@ -126,7 +126,7 @@ app.post("/api/buyer-check", async (req, res) => {
       {
         headers: { "Content-Type": "application/json" },
         timeout: 10000,
-      }
+      },
     );
 
     return res.status(200).json(upstream.data);

@@ -75,14 +75,14 @@ class AutoSchemaSync {
         if (attempt === retries) {
           this.log(
             `Failed ${operationName} after ${retries} attempts: ${error.message}`,
-            "error"
+            "error",
           );
           this.results.errors.push(`${operationName}: ${error.message}`);
           throw error;
         } else {
           this.log(
             `Attempt ${attempt} failed for ${operationName}, retrying in ${this.retryDelay}ms...`,
-            "warn"
+            "warn",
           );
           await this.sleep(this.retryDelay);
         }
@@ -135,14 +135,14 @@ class AutoSchemaSync {
       try {
         await this.retryOperation(
           () => model.sync({ force: false, alter: true }),
-          `Sync master table ${name}`
+          `Sync master table ${name}`,
         );
         this.results.tablesCreated++;
         this.log(`Master table synchronized: ${model.getTableName()}`);
       } catch (error) {
         this.log(
           `Failed to sync master table ${name}: ${error.message}`,
-          "error"
+          "error",
         );
       }
     }
@@ -464,7 +464,7 @@ class AutoSchemaSync {
           const columnExists = await this.columnExists(
             sequelize,
             table,
-            column
+            column,
           );
           if (!columnExists) {
             await this.addMissingColumn(
@@ -473,7 +473,7 @@ class AutoSchemaSync {
               column,
               type,
               allowNull,
-              defaultValue
+              defaultValue,
             );
             this.results.columnsAdded++;
             this.log(`Added column: ${table}.${column} (${databaseType})`);
@@ -481,7 +481,7 @@ class AutoSchemaSync {
             // Update existing column type for DECIMAL fields
             await this.updateColumnType(sequelize, table, column, type);
             this.log(
-              `Updated column type: ${table}.${column} to ${type} (${databaseType})`
+              `Updated column type: ${table}.${column} to ${type} (${databaseType})`,
             );
           }
         }
@@ -490,7 +490,7 @@ class AutoSchemaSync {
         if (!error.message.includes("Duplicate column name")) {
           this.log(
             `Error checking column ${table}.${column}: ${error.message}`,
-            "warn"
+            "warn",
           );
         }
       }
@@ -502,7 +502,7 @@ class AutoSchemaSync {
       const [results] = await sequelize.query(
         `SELECT COUNT(*) as count FROM information_schema.tables 
          WHERE table_schema = DATABASE() AND table_name = ?`,
-        { replacements: [tableName] }
+        { replacements: [tableName] },
       );
       return results[0].count > 0;
     } catch (error) {
@@ -515,7 +515,7 @@ class AutoSchemaSync {
       const [results] = await sequelize.query(
         `SELECT COUNT(*) as count FROM information_schema.columns 
          WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
-        { replacements: [tableName, columnName] }
+        { replacements: [tableName, columnName] },
       );
       return results[0].count > 0;
     } catch (error) {
@@ -529,7 +529,7 @@ class AutoSchemaSync {
     columnName,
     columnType,
     allowNull = true,
-    defaultValue = null
+    defaultValue = null,
   ) {
     let sql = `ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${columnType}`;
 
@@ -555,7 +555,7 @@ class AutoSchemaSync {
         `SELECT DATA_TYPE, NUMERIC_PRECISION, NUMERIC_SCALE 
          FROM information_schema.columns 
          WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?`,
-        { replacements: [tableName, columnName] }
+        { replacements: [tableName, columnName] },
       );
 
       if (results.length === 0) {
@@ -580,7 +580,7 @@ class AutoSchemaSync {
             const sql = `ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${columnName}\` ${newType}`;
             await sequelize.query(sql);
             this.log(
-              `Updated ${tableName}.${columnName} from DECIMAL(${currentPrecision},${currentScale}) to ${newType}`
+              `Updated ${tableName}.${columnName} from DECIMAL(${currentPrecision},${currentScale}) to ${newType}`,
             );
           }
         }
@@ -588,7 +588,7 @@ class AutoSchemaSync {
     } catch (error) {
       this.log(
         `Error updating column type ${tableName}.${columnName}: ${error.message}`,
-        "warn"
+        "warn",
       );
     }
   }
@@ -612,29 +612,29 @@ class AutoSchemaSync {
           const tenantSequelize = createTenantConnection(tenant.database_name);
           await this.retryOperation(
             () => tenantSequelize.authenticate(),
-            `Connect to tenant ${tenant.database_name}`
+            `Connect to tenant ${tenant.database_name}`,
           );
 
           // Check for common missing columns in tenant databases
           await this.checkCommonMissingColumns(
             tenantSequelize,
-            `tenant: ${tenant.seller_business_name}`
+            `tenant: ${tenant.seller_business_name}`,
           );
 
           // Ensure backup tables exist in tenant databases
           await this.ensureBackupTablesExist(
             tenantSequelize,
-            `tenant: ${tenant.seller_business_name}`
+            `tenant: ${tenant.seller_business_name}`,
           );
 
           await tenantSequelize.close();
         } catch (error) {
           this.log(
             `Failed to sync tenant ${tenant.database_name}: ${error.message}`,
-            "warn"
+            "warn",
           );
           this.results.warnings.push(
-            `Tenant ${tenant.database_name}: ${error.message}`
+            `Tenant ${tenant.database_name}: ${error.message}`,
           );
         }
       }
@@ -735,7 +735,7 @@ class AutoSchemaSync {
         if (!error.message.includes("already exists")) {
           this.log(
             `Error creating backup table ${table.name}: ${error.message}`,
-            "warn"
+            "warn",
           );
         }
       }
@@ -800,10 +800,10 @@ class AutoSchemaSync {
         console.log(`   Tables synchronized: ${this.results.tablesCreated}`);
         console.log(`   Columns added: ${this.results.columnsAdded}`);
         console.log(
-          `   Permissions created: ${this.results.permissionsCreated}`
+          `   Permissions created: ${this.results.permissionsCreated}`,
         );
         console.log(
-          `   Permissions updated: ${this.results.permissionsUpdated}`
+          `   Permissions updated: ${this.results.permissionsUpdated}`,
         );
         if (this.results.warnings.length > 0) {
           console.log(`   Warnings: ${this.results.warnings.length}`);
@@ -822,7 +822,7 @@ class AutoSchemaSync {
       const duration = Date.now() - startTime;
       this.log(
         `Schema synchronization failed after ${duration}ms: ${error.message}`,
-        "error"
+        "error",
       );
 
       return {
