@@ -18,6 +18,16 @@ export const createInvoiceItemModel = (sequelize) => {
           key: "id",
         },
       },
+      product_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "products",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
+      },
       name: {
         type: DataTypes.STRING(255),
         allowNull: true,

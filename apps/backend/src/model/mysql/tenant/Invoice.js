@@ -66,6 +66,16 @@ export const createInvoiceModel = (sequelize) => {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
+      buyer_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: "buyers",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
+      },
       invoiceRefNo: {
         type: DataTypes.STRING(100),
         allowNull: true,

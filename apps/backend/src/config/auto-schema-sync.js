@@ -448,6 +448,20 @@ class AutoSchemaSync {
         allowNull: true,
         isUpdate: true,
       },
+      
+      // Foreign key relationships
+      {
+        table: "invoices",
+        column: "buyer_id",
+        type: "INT",
+        allowNull: true,
+      },
+      {
+        table: "invoice_items",
+        column: "product_id",
+        type: "INT",
+        allowNull: true,
+      },
     ];
 
     for (const {

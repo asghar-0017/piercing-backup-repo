@@ -153,6 +153,14 @@ class TenantDatabaseService {
       Invoice.hasMany(InvoiceItem, { foreignKey: "invoice_id" });
       InvoiceItem.belongsTo(Invoice, { foreignKey: "invoice_id" });
       
+      // Buyer-Invoice associations
+      Buyer.hasMany(Invoice, { foreignKey: "buyer_id" });
+      Invoice.belongsTo(Buyer, { foreignKey: "buyer_id" });
+      
+      // Product-InvoiceItem associations
+      Product.hasMany(InvoiceItem, { foreignKey: "product_id" });
+      InvoiceItem.belongsTo(Product, { foreignKey: "product_id" });
+      
       // Backup associations
       Invoice.hasMany(InvoiceBackup, { foreignKey: "original_invoice_id" });
       InvoiceBackup.belongsTo(Invoice, { foreignKey: "original_invoice_id" });
@@ -253,6 +261,14 @@ class TenantDatabaseService {
       // Define associations
       Invoice.hasMany(InvoiceItem, { foreignKey: "invoice_id" });
       InvoiceItem.belongsTo(Invoice, { foreignKey: "invoice_id" });
+      
+      // Buyer-Invoice associations
+      Buyer.hasMany(Invoice, { foreignKey: "buyer_id" });
+      Invoice.belongsTo(Buyer, { foreignKey: "buyer_id" });
+      
+      // Product-InvoiceItem associations
+      Product.hasMany(InvoiceItem, { foreignKey: "product_id" });
+      InvoiceItem.belongsTo(Product, { foreignKey: "product_id" });
       
       // Backup associations
       Invoice.hasMany(InvoiceBackup, { foreignKey: "original_invoice_id" });

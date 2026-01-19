@@ -225,12 +225,14 @@ export const createInvoice = async (req, res) => {
     }
 
     // Auto-create/validate buyer before creating invoice
+    let buyerId = null;
     try {
       if (buyerNTNCNIC && String(buyerNTNCNIC).trim()) {
         const existingBuyer = await Buyer.findOne({
           where: { buyerNTNCNIC: String(buyerNTNCNIC).trim() },
         });
         if (existingBuyer) {
+          buyerId = existingBuyer.id;
           if (
             buyerBusinessName &&
             String(buyerBusinessName).trim() &&
@@ -244,7 +246,7 @@ export const createInvoice = async (req, res) => {
             });
           }
         } else {
-          await Buyer.create({
+          const newBuyer = await Buyer.create({
             buyerNTNCNIC: String(buyerNTNCNIC).trim(),
             buyerBusinessName: buyerBusinessName || null,
             buyerProvince: buyerProvince || "",
@@ -259,6 +261,7 @@ export const createInvoice = async (req, res) => {
                   ? "Admin"
                   : null,
           });
+          buyerId = newBuyer.id;
         }
       }
     } catch (e) {
@@ -366,6 +369,8 @@ export const createInvoice = async (req, res) => {
           buyerAddress,
 
           buyerRegistrationType,
+
+          buyer_id: buyerId, // Set foreign key to buyer
 
           invoiceRefNo,
 

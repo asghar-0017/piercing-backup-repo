@@ -412,7 +412,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
       const response = await fetch(
-        "https://fbrupdatedsandbox.inplsoftwares.com/api/buyer-check",
+        "http://localhost:5150/api/buyer-check",
         {
           method: "POST",
           headers: {

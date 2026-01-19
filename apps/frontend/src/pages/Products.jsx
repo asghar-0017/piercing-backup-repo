@@ -113,7 +113,83 @@ const Products = () => {
           }
         );
 
-        if (response.data.success) {
+        // Check if confirmation is required for posted invoices
+        if (response.data.success && response.data.requiresConfirmation) {
+          const result = await Swal.fire({
+            title: "Update Posted Invoices?",
+            html: `
+              <div style="text-align: center; padding: 10px;">
+                <p style="font-size: 16px; margin-bottom: 15px;">
+                  This product is used in ${response.data.totalInvoiceItemsCount} invoice item(s) across ${response.data.postedInvoicesCount} posted invoice(s) that have been submitted to FBR.
+                </p>
+                <p style="color: #d32f2f; font-size: 14px; font-weight: bold;">
+                  ⚠️ Updating this product will update all related invoice items, including those in posted invoices.
+                </p>
+                <p style="margin-top: 15px; font-size: 14px;">
+                  Do you want to proceed?
+                </p>
+              </div>
+            `,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, update all invoice items",
+            cancelButtonText: "Cancel",
+            reverseButtons: true,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            backdrop: true,
+            didOpen: () => {
+              // Ensure Swal appears on top of all modals
+              const swalContainer = document.querySelector('.swal2-container');
+              if (swalContainer) {
+                swalContainer.style.zIndex = '99999';
+              }
+              const swalBackdrop = document.querySelector('.swal2-backdrop-show');
+              if (swalBackdrop) {
+                swalBackdrop.style.zIndex = '99998';
+              }
+            }
+          });
+
+          if (result.isConfirmed) {
+            // Retry the update with confirmation flag
+            const confirmResponse = await api.put(
+              `/tenant/${selectedTenant.tenant_id}/products/${editingProduct.id}`,
+              {
+                name: productData.name,
+                description: productData.description,
+                hsCode: productData.hsCode,
+                uom: productData.uoM,
+                updatePostedInvoices: true,
+              }
+            );
+            
+            setProducts(
+              products.map((p) =>
+                p.id === editingProduct.id ? confirmResponse.data.data : p
+              )
+            );
+            setEditingProduct(null);
+            setIsProductModalOpen(false);
+
+            toast.success(
+              `Product updated successfully! ${confirmResponse.data.updatedInvoiceItemsCount || 0} invoice item(s) have been updated.`,
+              {
+                autoClose: 2000,
+                hideProgressBar: false,
+                closeOnClick: true,
+                pauseOnHover: true,
+                draggable: true,
+              }
+            );
+          } else {
+            // User cancelled - don't update, keep modal open
+            return;
+          }
+        } else if (response.data.success) {
+          // Normal update without posted invoices
           setProducts(
             products.map((p) =>
               p.id === editingProduct.id ? response.data.data : p
@@ -122,13 +198,19 @@ const Products = () => {
           setEditingProduct(null);
           setIsProductModalOpen(false);
 
-          toast.success("Product has been updated successfully.", {
-            autoClose: 2000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          });
+          toast.success(
+            response.data.message || "Product has been updated successfully.",
+            {
+              autoClose: 2000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            }
+          );
+        } else {
+          // Handle error case
+          throw new Error(response.data.message || "Failed to update product");
         }
       } else {
         // Create new product

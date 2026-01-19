@@ -53,14 +53,82 @@ const Buyers = () => {
           `/tenant/${selectedTenant.tenant_id}/buyers/${selectedBuyer.id}`,
           transformedData
         );
-        setBuyers(
-          buyers.map((b) =>
-            b.id === selectedBuyer.id ? response.data.data : b
-          )
-        );
-        toast.success(
-          "Buyer updated successfully! The changes have been saved."
-        );
+        
+        // Check if confirmation is required for posted invoices
+        if (response.data.success && response.data.requiresConfirmation) {
+          const result = await Swal.fire({
+            title: "Update Posted Invoices?",
+            html: `
+              <div style="text-align: center; padding: 10px;">
+                <p style="font-size: 16px; margin-bottom: 15px;">
+                  This buyer is associated with ${response.data.totalInvoicesCount} invoice(s), including ${response.data.postedInvoicesCount} posted invoice(s) that have been submitted to FBR.
+                </p>
+                <p style="color: #d32f2f; font-size: 14px; font-weight: bold;">
+                  ⚠️ Updating this buyer will update all related invoices, including posted ones.
+                </p>
+                <p style="margin-top: 15px; font-size: 14px;">
+                  Do you want to proceed?
+                </p>
+              </div>
+            `,
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Yes, update all invoices",
+            cancelButtonText: "Cancel",
+            reverseButtons: true,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            backdrop: true,
+            didOpen: () => {
+              // Ensure Swal appears on top of all modals
+              const swalContainer = document.querySelector('.swal2-container');
+              if (swalContainer) {
+                swalContainer.style.zIndex = '99999';
+              }
+              const swalBackdrop = document.querySelector('.swal2-backdrop-show');
+              if (swalBackdrop) {
+                swalBackdrop.style.zIndex = '99998';
+              }
+            }
+          });
+
+          if (result.isConfirmed) {
+            // Retry the update with confirmation flag
+            const confirmResponse = await api.put(
+              `/tenant/${selectedTenant.tenant_id}/buyers/${selectedBuyer.id}`,
+              { ...transformedData, updatePostedInvoices: true }
+            );
+            
+            setBuyers(
+              buyers.map((b) =>
+                b.id === selectedBuyer.id ? confirmResponse.data.data : b
+              )
+            );
+            toast.success(
+              `Buyer updated successfully! ${confirmResponse.data.updatedInvoicesCount || 0} invoice(s) have been updated.`
+            );
+            closeModal();
+          } else {
+            // User cancelled - don't update, keep modal open
+            return;
+          }
+        } else if (response.data.success) {
+          // Normal update without posted invoices
+          setBuyers(
+            buyers.map((b) =>
+              b.id === selectedBuyer.id ? response.data.data : b
+            )
+          );
+          toast.success(
+            response.data.message || "Buyer updated successfully! The changes have been saved."
+          );
+          closeModal();
+        } else {
+          // Handle error case
+          throw new Error(response.data.message || "Failed to update buyer");
+        }
       } else {
         const response = await api.post(
           `/tenant/${selectedTenant.tenant_id}/buyers`,

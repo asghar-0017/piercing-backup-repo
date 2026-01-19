@@ -202,7 +202,64 @@ export const updateProduct = async (req, res) => {
         .json({ success: false, message: "name is required" });
     }
 
-    // Capture old values for audit
+    // Check for related invoice items in posted invoices
+    // Check by both product_id (for new invoice items) and hsCode/name (for existing invoice items)
+    const { InvoiceItem, Invoice } = req.tenantModels;
+    const { Op } = req.tenantDb.Sequelize;
+    
+    const relatedInvoiceItems = await InvoiceItem.findAll({
+      where: {
+        [Op.or]: [
+          { product_id: product.id },
+          { hsCode: product.hsCode },
+          { name: product.name }
+        ],
+      },
+      attributes: ['id', 'invoice_id', 'product_id', 'hsCode', 'name'],
+    });
+
+    console.log(`[Product Update] Found ${relatedInvoiceItems.length} related invoice item(s) for product ID ${product.id}, HS Code: ${product.hsCode}, Name: ${product.name}`);
+
+    // Get unique invoice IDs (filter out null/undefined)
+    const invoiceIds = [...new Set(relatedInvoiceItems.map(item => item.invoice_id).filter(id => id != null))];
+    
+    console.log(`[Product Update] Found ${invoiceIds.length} unique invoice(s) containing this product`);
+    
+    // Find invoices that are posted or have FBR invoice numbers
+    const postedInvoices = invoiceIds.length > 0 ? await Invoice.findAll({
+      where: {
+        id: invoiceIds,
+        [Op.or]: [
+          { status: 'posted' },
+          { fbr_invoice_number: { [Op.ne]: null } }
+        ],
+      },
+      attributes: ['id', 'invoice_number', 'status', 'fbr_invoice_number'],
+    }) : [];
+
+    const postedInvoicesCount = postedInvoices.length;
+    console.log(`[Product Update] Found ${postedInvoicesCount} posted invoice(s) containing product ID ${product.id}`);
+    const updatePostedInvoices = req.body.updatePostedInvoices === true || req.body.updatePostedInvoices === 'true';
+
+    // If there are posted invoices and user hasn't confirmed, return confirmation request
+    if (postedInvoicesCount > 0 && !updatePostedInvoices) {
+      return res.status(200).json({
+        success: true,
+        requiresConfirmation: true,
+        message: `This product is used in ${postedInvoicesCount} posted invoice(s) that have been submitted to FBR. Updating this product will update all related invoice items.`,
+        postedInvoicesCount: postedInvoicesCount,
+        totalInvoiceItemsCount: relatedInvoiceItems.length,
+        postedInvoices: postedInvoices.map(inv => ({
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          fbr_invoice_number: inv.fbr_invoice_number,
+        })),
+        prompt: "Do you want to update all invoice items including those in posted invoices?",
+        data: product, // Return current product data so modal doesn't break
+      });
+    }
+
+    // Capture old values BEFORE update (for audit and hook reference)
     const oldValues = {
       id: product.id,
       name: product.name,
@@ -210,13 +267,168 @@ export const updateProduct = async (req, res) => {
       hsCode: product.hsCode,
       uom: product.uom,
     };
+    
+    // Store old values on the instance so hook can access them
+    product._oldValuesForHook = oldValues;
+    
+    console.log(`[Product Controller] About to update product ID ${product.id}`);
+    console.log(`[Product Controller] Old values:`, oldValues);
+    console.log(`[Product Controller] New values:`, { name, description, hsCode, uom });
 
-    await product.update({
-      name,
-      description,
-      hsCode,
-      uom,
+    // Update product - this will trigger the afterUpdate hook
+    // Note: individualHooks must be true for afterUpdate to fire
+    console.log(`[Product Controller] Updating product ID ${product.id} with individualHooks: true`);
+    console.log(`[Product Controller] Old values stored:`, oldValues);
+    
+    // Update product and invoice items in a transaction
+    await req.tenantDb.transaction(async (transaction) => {
+      // Update the product
+      await product.update({
+        name,
+        description,
+        hsCode,
+        uom,
+      }, {
+        returning: true,
+        individualHooks: true,
+        transaction: transaction,
+      });
+      
+      console.log(`[Product Controller] Product updated, now updating invoice items...`);
+      
+      // Manually update invoice items (hook might not fire reliably)
+      const { InvoiceItem } = req.tenantModels;
+      const { Op } = req.tenantDb.Sequelize;
+      
+      // Build where conditions to find invoice items
+      const whereConditions = [];
+      
+      // Always include product_id
+      if (product.id) {
+        whereConditions.push({ product_id: product.id });
+      }
+      
+      // Add name conditions (both old and new)
+      if (oldValues.name && String(oldValues.name).trim()) {
+        whereConditions.push({ name: String(oldValues.name).trim() });
+      }
+      if (name && String(name).trim()) {
+        whereConditions.push({ name: String(name).trim() });
+      }
+      
+      // Add hsCode conditions (both old and new)
+      if (oldValues.hsCode && String(oldValues.hsCode).trim()) {
+        whereConditions.push({ hsCode: String(oldValues.hsCode).trim() });
+      }
+      if (hsCode && String(hsCode).trim()) {
+        whereConditions.push({ hsCode: String(hsCode).trim() });
+      }
+      
+      console.log(`[Product Controller] Where conditions array:`, whereConditions);
+      console.log(`[Product Controller] Where conditions count:`, whereConditions.length);
+      
+      // Ensure we have at least one condition
+      if (whereConditions.length === 0) {
+        console.error(`[Product Controller] ⚠️ ERROR: No where conditions! Cannot update all invoice items.`);
+        throw new Error('No conditions found to update invoice items');
+      }
+      
+      // Build update data
+      const updateData = {
+        name: name,
+      };
+      if (description !== undefined) {
+        updateData.productDescription = description;
+      }
+      if (hsCode !== undefined) {
+        updateData.hsCode = hsCode;
+      }
+      if (uom !== undefined) {
+        updateData.uoM = uom;
+      }
+      
+      // Update invoice items - use Op.or for multiple conditions
+      const updateWhere = {
+        [Op.and]: [
+          { [Op.or]: whereConditions },
+          { isDeleted: false }
+        ],
+      };
+      
+      console.log(`[Product Controller] Updating invoice items...`);
+      console.log(`[Product Controller] WHERE conditions:`, whereConditions.map(c => {
+        const key = Object.keys(c)[0];
+        return `${key}: ${c[key]}`;
+      }).join(', '));
+      console.log(`[Product Controller] Update data:`, updateData);
+      
+      const updateResult = await InvoiceItem.update(updateData, {
+        where: updateWhere,
+        transaction: transaction,
+      });
+      
+      const rowsUpdated = Array.isArray(updateResult) ? updateResult[0] : updateResult;
+      console.log(`[Product Controller] ✅ Updated ${rowsUpdated} invoice item(s)`);
+      
+      // Verify the update by querying a few sample items
+      if (rowsUpdated > 0) {
+        const sampleItems = await InvoiceItem.findAll({
+          where: {
+            [Op.and]: [
+              { [Op.or]: whereConditions },
+              { isDeleted: false }
+            ],
+          },
+          limit: 3,
+          transaction: transaction,
+        });
+        console.log(`[Product Controller] Verification - Sample updated items:`, sampleItems.map(item => ({
+          id: item.id,
+          invoice_id: item.invoice_id,
+          name: item.name,
+          hsCode: item.hsCode,
+          productDescription: item.productDescription,
+          product_id: item.product_id
+        })));
+      }
+      
+      // Also update product_id for invoice items that don't have it set yet
+      const productIdUpdateConditions = [];
+      if (oldValues.hsCode && String(oldValues.hsCode).trim()) {
+        productIdUpdateConditions.push({ hsCode: String(oldValues.hsCode).trim(), product_id: null });
+      }
+      if (hsCode && String(hsCode).trim()) {
+        productIdUpdateConditions.push({ hsCode: String(hsCode).trim(), product_id: null });
+      }
+      if (oldValues.name && String(oldValues.name).trim()) {
+        productIdUpdateConditions.push({ name: String(oldValues.name).trim(), product_id: null });
+      }
+      if (name && String(name).trim()) {
+        productIdUpdateConditions.push({ name: String(name).trim(), product_id: null });
+      }
+      
+      if (productIdUpdateConditions.length > 0) {
+        const productIdUpdateResult = await InvoiceItem.update(
+          { product_id: product.id },
+          {
+            where: {
+              [Op.and]: [
+                { [Op.or]: productIdUpdateConditions },
+                { isDeleted: false }
+              ],
+            },
+            transaction: transaction,
+          }
+        );
+        const productIdRowsUpdated = Array.isArray(productIdUpdateResult) ? productIdUpdateResult[0] : productIdUpdateResult;
+        console.log(`[Product Controller] ✅ Updated product_id for ${productIdRowsUpdated} invoice item(s)`);
+      }
     });
+    
+    console.log(`[Product Controller] Transaction committed, invoice items updated`);
+    
+    // Reload product to get updated values
+    await product.reload();
 
     // Log audit event for product update
     await logAuditEvent(
@@ -237,7 +449,16 @@ export const updateProduct = async (req, res) => {
       }
     );
 
-    res.json({ success: true, data: product });
+    // Reload product to get updated values
+    await product.reload();
+
+    res.json({ 
+      success: true, 
+      message: `Product updated successfully. ${relatedInvoiceItems.length > 0 ? `${relatedInvoiceItems.length} related invoice item(s) ${postedInvoicesCount > 0 ? 'in ' + postedInvoicesCount + ' posted invoice(s)' : ''} will be updated automatically.` : ''}`,
+      data: product,
+      updatedInvoiceItemsCount: relatedInvoiceItems.length,
+      postedInvoicesCount: postedInvoicesCount,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

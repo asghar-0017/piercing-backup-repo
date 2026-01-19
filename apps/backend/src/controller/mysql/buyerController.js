@@ -377,7 +377,47 @@ export const updateBuyer = async (req, res) => {
 
     const normalizedProvince = normalizeProvince(buyerProvince);
 
-    // Capture old values for audit
+    // Check for related invoices, especially posted ones
+    // Check by both buyer_id (for new invoices) and buyerNTNCNIC (for existing invoices)
+    const { Invoice } = req.tenantModels;
+    const { Op } = req.tenantDb.Sequelize;
+    
+    const relatedInvoices = await Invoice.findAll({
+      where: {
+        [Op.or]: [
+          { buyer_id: buyer.id },
+          { buyerNTNCNIC: buyer.buyerNTNCNIC }
+        ],
+      },
+      attributes: ['id', 'invoice_number', 'status', 'fbr_invoice_number', 'buyer_id', 'buyerNTNCNIC'],
+    });
+
+    console.log(`[Buyer Update] Found ${relatedInvoices.length} related invoice(s) for buyer ID ${buyer.id}, NTN/CNIC: ${buyer.buyerNTNCNIC}`);
+
+    const postedInvoices = relatedInvoices.filter(inv => inv.status === 'posted' || inv.fbr_invoice_number);
+    
+    console.log(`[Buyer Update] Found ${postedInvoices.length} posted invoice(s) for buyer ID ${buyer.id}`);
+    const updatePostedInvoices = req.body.updatePostedInvoices === true || req.body.updatePostedInvoices === 'true';
+
+    // If there are posted invoices and user hasn't confirmed, return confirmation request
+    if (postedInvoices.length > 0 && !updatePostedInvoices) {
+      return res.status(200).json({
+        success: true,
+        requiresConfirmation: true,
+        message: `This buyer is associated with ${postedInvoices.length} posted invoice(s) that have been submitted to FBR. Updating this buyer will update all related invoices.`,
+        postedInvoicesCount: postedInvoices.length,
+        totalInvoicesCount: relatedInvoices.length,
+        postedInvoices: postedInvoices.map(inv => ({
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          fbr_invoice_number: inv.fbr_invoice_number,
+        })),
+        prompt: "Do you want to update all invoices including posted ones?",
+        data: buyer, // Return current buyer data so modal doesn't break
+      });
+    }
+
+    // Capture old values BEFORE update (for audit and hook reference)
     const oldValues = {
       id: buyer.id,
       buyerNTNCNIC: buyer.buyerNTNCNIC,
@@ -387,7 +427,11 @@ export const updateBuyer = async (req, res) => {
       buyerRegistrationType: buyer.buyerRegistrationType,
       buyerPhoneNumber: buyer.buyerPhoneNumber,
     };
+    
+    // Store old values on the instance so hook can access them
+    buyer._oldValuesForHook = oldValues;
 
+    // Update buyer - this will trigger the afterUpdate hook
     await buyer.update({
       buyerNTNCNIC,
       buyerBusinessName,
@@ -395,6 +439,9 @@ export const updateBuyer = async (req, res) => {
       buyerAddress,
       buyerRegistrationType,
       buyerPhoneNumber,
+    }, {
+      returning: true, // Ensure we get the updated instance
+      individualHooks: true, // Ensure hooks are triggered
     });
 
     // Log audit event for buyer update
@@ -418,10 +465,15 @@ export const updateBuyer = async (req, res) => {
       }
     );
 
+    // Reload buyer to get updated values
+    await buyer.reload();
+
     res.status(200).json({
       success: true,
-      message: "Buyer updated successfully",
+      message: `Buyer updated successfully. ${relatedInvoices.length > 0 ? `${relatedInvoices.length} related invoice(s) ${postedInvoices.length > 0 ? '(including ' + postedInvoices.length + ' posted)' : ''} will be updated automatically.` : ''}`,
       data: buyer,
+      updatedInvoicesCount: relatedInvoices.length,
+      postedInvoicesCount: postedInvoices.length,
     });
   } catch (error) {
     console.error("Error updating buyer:", error);
