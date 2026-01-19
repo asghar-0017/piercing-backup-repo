@@ -94,7 +94,7 @@ const generateShortInvoiceId = async (Invoice, prefix) => {
     if (lastInvoice && lastInvoice.invoice_number) {
       // Extract the number from the last invoice ID (e.g., "SAVED_000011" -> 11)
       const match = lastInvoice.invoice_number.match(
-        new RegExp(`${prefix}_(\\d+)`)
+        new RegExp(`${prefix}_(\\d+)`),
       );
 
       if (match) {
@@ -287,7 +287,7 @@ export const createInvoice = async (req, res) => {
               token: "89983e4a-c009-3f9b-bcd6-a605c3086709",
               registrationNo: String(buyerNTNCNIC).trim(),
             },
-            { headers: { "Content-Type": "application/json" }, timeout: 10000 }
+            { headers: { "Content-Type": "application/json" }, timeout: 10000 },
           );
           const data = upstream.data;
           let derived = "Unregistered";
@@ -388,7 +388,7 @@ export const createInvoice = async (req, res) => {
                 : null,
         },
 
-        { transaction: t }
+        { transaction: t },
       );
 
       // Create invoice items if provided
@@ -468,17 +468,17 @@ export const createInvoice = async (req, res) => {
             totalValues: cleanNumericValue(item.totalValues),
 
             valueSalesExcludingST: cleanNumericValue(
-              item.valueSalesExcludingST
+              item.valueSalesExcludingST,
             ),
 
             fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-              item.fixedNotifiedValueOrRetailPrice
+              item.fixedNotifiedValueOrRetailPrice,
             ),
 
             salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
 
             salesTaxWithheldAtSource: cleanNumericValue(
-              item.salesTaxWithheldAtSource
+              item.salesTaxWithheldAtSource,
             ),
 
             furtherTax: cleanNumericValue(item.furtherTax),
@@ -515,7 +515,7 @@ export const createInvoice = async (req, res) => {
           console.log(
             "Mapped invoice item:",
 
-            JSON.stringify(mappedItem, null, 2)
+            JSON.stringify(mappedItem, null, 2),
           );
 
           return mappedItem;
@@ -524,7 +524,7 @@ export const createInvoice = async (req, res) => {
         console.log(
           "About to create invoice items:",
 
-          JSON.stringify(invoiceItems, null, 2)
+          JSON.stringify(invoiceItems, null, 2),
         );
 
         // Debug: Check each item before insertion
@@ -542,7 +542,7 @@ export const createInvoice = async (req, res) => {
 
         console.log(
           "🔍 Backend Debug: Items created successfully:",
-          createdItems.length
+          createdItems.length,
         );
 
         // Debug: Check what was actually inserted
@@ -694,7 +694,7 @@ export const createInvoice = async (req, res) => {
         itemsCount: invoiceItemsForAudit ? invoiceItemsForAudit.length : 0,
         fbrInvoiceNumber: result.fbr_invoice_number,
         isFbrSubmission: operation === "SUBMIT_TO_FBR",
-      }
+      },
     );
 
     res.status(200).json({
@@ -856,7 +856,7 @@ export const saveInvoice = async (req, res) => {
             fbr_invoice_number: null,
           },
 
-          { transaction: t }
+          { transaction: t },
         );
 
         // Replace items
@@ -872,7 +872,7 @@ export const saveInvoice = async (req, res) => {
         const tempInvoiceNumber = await generateShortInvoiceId(
           Invoice,
 
-          "DRAFT"
+          "DRAFT",
         );
 
         // Generate system invoice ID
@@ -932,7 +932,7 @@ export const saveInvoice = async (req, res) => {
                   : null,
           },
 
-          { transaction: t }
+          { transaction: t },
         );
       }
 
@@ -1001,17 +1001,17 @@ export const saveInvoice = async (req, res) => {
             totalValues: cleanNumericValue(item.totalValues),
 
             valueSalesExcludingST: cleanNumericValue(
-              item.valueSalesExcludingST
+              item.valueSalesExcludingST,
             ),
 
             fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-              item.fixedNotifiedValueOrRetailPrice
+              item.fixedNotifiedValueOrRetailPrice,
             ),
 
             salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
 
             salesTaxWithheldAtSource: cleanNumericValue(
-              item.salesTaxWithheldAtSource
+              item.salesTaxWithheldAtSource,
             ),
 
             furtherTax: cleanNumericValue(item.furtherTax),
@@ -1145,7 +1145,7 @@ export const saveInvoice = async (req, res) => {
         endpoint: req.originalUrl,
         method: req.method,
         itemsCount: items ? items.length : 0,
-      }
+      },
     );
 
     res.status(201).json({
@@ -1334,7 +1334,7 @@ export const saveAndValidateInvoice = async (req, res) => {
         fbrValidationResult = await validateInvoiceData(
           fbrInvoiceData,
           "sandbox",
-          req.tenant.sandboxProductionToken
+          req.tenant.sandboxProductionToken,
         );
 
         console.log("✅ FBR validation successful");
@@ -1348,7 +1348,7 @@ export const saveAndValidateInvoice = async (req, res) => {
       }
     } else {
       console.log(
-        "⚠️ Skipping FBR validation - no tenant FBR credentials available"
+        "⚠️ Skipping FBR validation - no tenant FBR credentials available",
       );
     }
 
@@ -1441,7 +1441,7 @@ export const saveAndValidateInvoice = async (req, res) => {
                   : null,
           },
 
-          { transaction: t }
+          { transaction: t },
         );
 
         await InvoiceItem.destroy({
@@ -1507,7 +1507,7 @@ export const saveAndValidateInvoice = async (req, res) => {
                   : null,
           },
 
-          { transaction: t }
+          { transaction: t },
         );
       }
 
@@ -1574,17 +1574,17 @@ export const saveAndValidateInvoice = async (req, res) => {
             totalValues: cleanNumericValue(item.totalValues),
 
             valueSalesExcludingST: cleanNumericValue(
-              item.valueSalesExcludingST
+              item.valueSalesExcludingST,
             ),
 
             fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-              item.fixedNotifiedValueOrRetailPrice
+              item.fixedNotifiedValueOrRetailPrice,
             ),
 
             salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
 
             salesTaxWithheldAtSource: cleanNumericValue(
-              item.salesTaxWithheldAtSource
+              item.salesTaxWithheldAtSource,
             ),
 
             furtherTax: cleanNumericValue(item.furtherTax),
@@ -1720,7 +1720,7 @@ export const saveAndValidateInvoice = async (req, res) => {
         method: req.method,
         itemsCount: items ? items.length : 0,
         fbrValidationResult: fbrValidationResult ? "validated" : "skipped",
-      }
+      },
     );
 
     res.status(201).json({
@@ -1798,7 +1798,7 @@ export const getAllInvoices = async (req, res) => {
         "Regular user - creatorId:",
         creatorId,
         "email:",
-        req.user?.email
+        req.user?.email,
       );
       if (creatorId) {
         whereClause.created_by_user_id = creatorId;
@@ -1885,7 +1885,7 @@ export const getAllInvoices = async (req, res) => {
             id: buyer.id,
             buyerBusinessName: buyer.buyerBusinessName,
             buyerNTNCNIC: buyer.buyerNTNCNIC,
-          }))
+          })),
         );
 
         if (buyers.length > 0) {
@@ -1902,7 +1902,7 @@ export const getAllInvoices = async (req, res) => {
             console.log("Filtering invoices by buyerNTNCNICs:", buyerNTNCNICs);
           } else {
             console.log(
-              "No valid NTN/CNIC found for buyers, returning empty results"
+              "No valid NTN/CNIC found for buyers, returning empty results",
             );
             whereClause.id = -1; // This will return no results
           }
@@ -1910,7 +1910,7 @@ export const getAllInvoices = async (req, res) => {
           console.log(
             "No buyers found for IDs:",
             buyerIds,
-            "returning empty results"
+            "returning empty results",
           );
           whereClause.id = -1; // This will return no results
         }
@@ -1943,7 +1943,7 @@ export const getAllInvoices = async (req, res) => {
 
           console.log(
             "🔍 Found products for filter:",
-            products.map((p) => ({ id: p.id, name: p.name, hsCode: p.hsCode }))
+            products.map((p) => ({ id: p.id, name: p.name, hsCode: p.hsCode })),
           );
 
           if (products.length > 0) {
@@ -1984,14 +1984,14 @@ export const getAllInvoices = async (req, res) => {
                                   req.tenantDb.Sequelize.fn(
                                     "STR_TO_DATE",
                                     req.tenantDb.Sequelize.col("invoiceDate"),
-                                    "%d-%m-%Y"
+                                    "%d-%m-%Y",
                                   ),
                                   {
                                     [req.tenantDb.Sequelize.Op.between]: [
                                       start_date,
                                       end_date,
                                     ],
-                                  }
+                                  },
                                 ),
                               ],
                             },
@@ -2019,7 +2019,7 @@ export const getAllInvoices = async (req, res) => {
                     hsCode: item.hsCode,
                     productDescription: item.productDescription,
                     invoice_date: item.Invoice?.invoiceDate,
-                  }))
+                  })),
                 );
 
                 // Now check for specific HS codes
@@ -2046,7 +2046,7 @@ export const getAllInvoices = async (req, res) => {
                     name: item.name,
                     hsCode: item.hsCode,
                     productDescription: item.productDescription,
-                  }))
+                  })),
                 );
               } catch (error) {
                 console.log("🔍 Error checking sample items:", error.message);
@@ -2075,7 +2075,7 @@ export const getAllInvoices = async (req, res) => {
                 });
                 console.log(
                   "Sample invoice item:",
-                  sampleItem ? sampleItem.toJSON() : "No items found"
+                  sampleItem ? sampleItem.toJSON() : "No items found",
                 );
 
                 // Debug: Try to find items with the specific HS code we're looking for
@@ -2096,22 +2096,22 @@ export const getAllInvoices = async (req, res) => {
                         name: item.name,
                         hsCode: item.hsCode,
                         productDescription: item.productDescription,
-                      }))
+                      })),
                     );
                   } catch (error) {
                     console.log(
                       `Error searching for HS code ${testHsCode}:`,
-                      error.message
+                      error.message,
                     );
 
                     // Try with raw SQL to see what columns exist
                     try {
                       const [results] = await req.tenantDb.query(
-                        "DESCRIBE invoice_items"
+                        "DESCRIBE invoice_items",
                       );
                       console.log(
                         "Available columns in invoice_items:",
-                        results.map((col) => col.Field)
+                        results.map((col) => col.Field),
                       );
                     } catch (descError) {
                       console.log("Error describing table:", descError.message);
@@ -2175,15 +2175,15 @@ export const getAllInvoices = async (req, res) => {
                 console.log("🔍 Product Filter Debug Info:");
                 console.log(
                   "🔍 Product names we are searching for:",
-                  productNames
+                  productNames,
                 );
                 console.log(
                   "🔍 HS codes we are searching for:",
-                  productHsCodes
+                  productHsCodes,
                 );
                 console.log(
                   "🔍 Invoice item search conditions:",
-                  JSON.stringify(invoiceItemConditions, null, 2)
+                  JSON.stringify(invoiceItemConditions, null, 2),
                 );
 
                 // Debug: Show what products were selected from the frontend
@@ -2193,7 +2193,7 @@ export const getAllInvoices = async (req, res) => {
                     id: p.id,
                     name: p.name,
                     hsCode: p.hsCode,
-                  }))
+                  })),
                 );
 
                 // Try to find matching items with the conditions
@@ -2221,13 +2221,13 @@ export const getAllInvoices = async (req, res) => {
 
                 console.log(
                   "🔍 Initial matching items found:",
-                  matchingItems.length
+                  matchingItems.length,
                 );
 
                 // If no items found with exact name search, try word boundary matching
                 if (matchingItems.length === 0 && productNames.length > 0) {
                   console.log(
-                    "🔍 No items found with exact name search, trying word boundary matching..."
+                    "🔍 No items found with exact name search, trying word boundary matching...",
                   );
 
                   const nameConditions = [];
@@ -2276,11 +2276,11 @@ export const getAllInvoices = async (req, res) => {
                       console.log(
                         "🔍 Word boundary search found:",
                         matchingItems.length,
-                        "items"
+                        "items",
                       );
                     } catch (error) {
                       console.log(
-                        "🔍 Word boundary search failed, trying partial matching as fallback..."
+                        "🔍 Word boundary search failed, trying partial matching as fallback...",
                       );
                       // Fallback to partial matching if regex fails
                       const partialConditions = [];
@@ -2327,7 +2327,7 @@ export const getAllInvoices = async (req, res) => {
                         console.log(
                           "🔍 Partial name search found:",
                           matchingItems.length,
-                          "items"
+                          "items",
                         );
                       }
                     }
@@ -2341,7 +2341,7 @@ export const getAllInvoices = async (req, res) => {
                   productNames.length === 0
                 ) {
                   console.log(
-                    "🔍 No product names specified, trying HS code only search..."
+                    "🔍 No product names specified, trying HS code only search...",
                   );
 
                   const hsCodeConditions = [];
@@ -2377,14 +2377,14 @@ export const getAllInvoices = async (req, res) => {
                     console.log(
                       "🔍 HS code only search found:",
                       matchingItems.length,
-                      "items"
+                      "items",
                     );
                   }
                 }
 
                 console.log(
                   "🔍 Final matching items found:",
-                  matchingItems.length
+                  matchingItems.length,
                 );
                 console.log(
                   "🔍 Sample matching items:",
@@ -2393,7 +2393,7 @@ export const getAllInvoices = async (req, res) => {
                     name: item.name,
                     hsCode: item.hsCode,
                     productDescription: item.productDescription,
-                  }))
+                  })),
                 );
 
                 // Debug: Show all matching items to understand what's being returned
@@ -2407,15 +2407,15 @@ export const getAllInvoices = async (req, res) => {
                     matches_search:
                       productNames.includes(item.name) ||
                       productNames.includes(item.productDescription),
-                  }))
+                  })),
                 );
 
                 const matchingInvoiceIds = matchingItems.map(
-                  (item) => item.invoice_id
+                  (item) => item.invoice_id,
                 );
                 console.log(
                   "🔍 Found matching invoice IDs:",
-                  matchingInvoiceIds
+                  matchingInvoiceIds,
                 );
 
                 if (matchingInvoiceIds.length > 0) {
@@ -2425,11 +2425,11 @@ export const getAllInvoices = async (req, res) => {
                   console.log(
                     "🔍 Filtering invoices by matching invoice IDs:",
                     matchingInvoiceIds.length,
-                    "invoices"
+                    "invoices",
                   );
                 } else {
                   console.log(
-                    "🔍 No matching invoice items found, returning empty results"
+                    "🔍 No matching invoice items found, returning empty results",
                   );
                   whereClause.id = -1; // This will return no results
                 }
@@ -2439,7 +2439,7 @@ export const getAllInvoices = async (req, res) => {
               }
             } else {
               console.log(
-                "No valid product names or HS codes found, returning empty results"
+                "No valid product names or HS codes found, returning empty results",
               );
               whereClause.id = -1; // This will return no results
             }
@@ -2447,7 +2447,7 @@ export const getAllInvoices = async (req, res) => {
             console.log(
               "No products found for IDs:",
               productIds,
-              "returning empty results"
+              "returning empty results",
             );
             whereClause.id = -1; // This will return no results
           }
@@ -2496,14 +2496,14 @@ export const getAllInvoices = async (req, res) => {
                 req.tenantDb.Sequelize.fn(
                   "STR_TO_DATE",
                   req.tenantDb.Sequelize.col("invoiceDate"),
-                  "%d-%m-%Y"
+                  "%d-%m-%Y",
                 ),
                 {
                   [req.tenantDb.Sequelize.Op.between]: [
                     startDateStr,
                     endDateStr,
                   ],
-                }
+                },
               ),
             ],
           },
@@ -2530,7 +2530,7 @@ export const getAllInvoices = async (req, res) => {
         invoiceDate: inv.invoiceDate,
         buyerBusinessName: inv.buyerBusinessName,
         status: inv.status,
-      }))
+      })),
     );
 
     // Debug: Check invoices without any filters
@@ -2555,7 +2555,7 @@ export const getAllInvoices = async (req, res) => {
         buyerBusinessName: inv.buyerBusinessName,
         created_by_user_id: inv.created_by_user_id,
         created_by_email: inv.created_by_email,
-      }))
+      })),
     );
 
     // Debug: Check invoices in date range without buyer filter
@@ -2580,14 +2580,14 @@ export const getAllInvoices = async (req, res) => {
                     req.tenantDb.Sequelize.fn(
                       "STR_TO_DATE",
                       req.tenantDb.Sequelize.col("invoiceDate"),
-                      "%d-%m-%Y"
+                      "%d-%m-%Y",
                     ),
                     {
                       [req.tenantDb.Sequelize.Op.between]: [
                         startDateStr,
                         endDateStr,
                       ],
-                    }
+                    },
                   ),
                 ],
               },
@@ -2605,7 +2605,7 @@ export const getAllInvoices = async (req, res) => {
           invoiceDate: inv.invoiceDate,
           buyerNTNCNIC: inv.buyerNTNCNIC,
           buyerBusinessName: inv.buyerBusinessName,
-        }))
+        })),
       );
     }
 
@@ -2729,7 +2729,7 @@ export const getAllInvoices = async (req, res) => {
         id: inv.id,
         buyerNTNCNIC: inv.buyerNTNCNIC,
         buyerBusinessName: inv.buyerBusinessName,
-      }))
+      })),
     );
 
     // Debug: Check if there are any invoices with the buyer NTN/CNIC values
@@ -2751,7 +2751,7 @@ export const getAllInvoices = async (req, res) => {
           buyerNTNCNIC: inv.buyerNTNCNIC,
           buyerBusinessName: inv.buyerBusinessName,
           invoiceDate: inv.invoiceDate,
-        }))
+        })),
       );
     }
 
@@ -2999,7 +2999,7 @@ export const printInvoice = async (req, res) => {
     const pakistanGumLogoBase64 = fs
 
       .readFileSync(
-        path.join(process.cwd(), "public", "images", "Pakprogressive.png")
+        path.join(process.cwd(), "public", "images", "Pakprogressive.png"),
       )
 
       .toString("base64");
@@ -3131,7 +3131,7 @@ export const printInvoice = async (req, res) => {
 
           return result;
         },
-      }
+      },
     );
 
     // Generate PDF using Puppeteer
@@ -3356,7 +3356,7 @@ export const updateInvoice = async (req, res) => {
         entityName: invoice.invoice_number || invoice.system_invoice_id,
         endpoint: req.originalUrl,
         method: req.method,
-      }
+      },
     );
 
     res.status(200).json({
@@ -3467,7 +3467,7 @@ export const deleteInvoice = async (req, res) => {
       { isDeleted: true },
       {
         where: { invoice_id: invoice.id },
-      }
+      },
     );
 
     // Soft delete the invoice
@@ -3484,7 +3484,7 @@ export const deleteInvoice = async (req, res) => {
         const userId = req.user?.id || req.user?.userId;
 
         console.log(
-          `🔍 Checking for automatic deletion - Invoice #${invoice.id}, Status: ${invoice.status}, User ID: ${userId}`
+          `🔍 Checking for automatic deletion - Invoice #${invoice.id}, Status: ${invoice.status}, User ID: ${userId}`,
         );
 
         if (userId) {
@@ -3504,21 +3504,21 @@ export const deleteInvoice = async (req, res) => {
           if (recentFbrSubmission) {
             isAutomaticDeletion = true;
             console.log(
-              `✅ Marking invoice #${invoice.id} deletion as automatic - recent FBR submission found (ID: ${recentFbrSubmission.id}, created: ${recentFbrSubmission.created_at})`
+              `✅ Marking invoice #${invoice.id} deletion as automatic - recent FBR submission found (ID: ${recentFbrSubmission.id}, created: ${recentFbrSubmission.created_at})`,
             );
           } else {
             console.log(
-              `❌ Invoice #${invoice.id} deletion is NOT automatic - no recent FBR submission found`
+              `❌ Invoice #${invoice.id} deletion is NOT automatic - no recent FBR submission found`,
             );
           }
         } else {
           console.log(
-            `⚠️ Cannot check for automatic deletion - no user ID available`
+            `⚠️ Cannot check for automatic deletion - no user ID available`,
           );
         }
       } else {
         console.log(
-          `ℹ️ Invoice #${invoice.id} deletion is NOT automatic - status is "${invoice.status}" (not "saved" or "draft")`
+          `ℹ️ Invoice #${invoice.id} deletion is NOT automatic - status is "${invoice.status}" (not "saved" or "draft")`,
         );
       }
     } catch (checkError) {
@@ -3540,7 +3540,7 @@ export const deleteInvoice = async (req, res) => {
         method: req.method,
         isAutomaticDeletion: isAutomaticDeletion,
         deletedInvoiceStatus: invoice.status,
-      }
+      },
     );
 
     res.status(200).json({
@@ -3589,14 +3589,14 @@ export const recoverInvoice = async (req, res) => {
         {
           where: { invoice_id: invoice.id },
           transaction: t,
-        }
+        },
       );
 
       await invoice.update(
         { isDeleted: false },
         {
           transaction: t,
-        }
+        },
       );
     });
 
@@ -3611,7 +3611,7 @@ export const recoverInvoice = async (req, res) => {
     } catch (auditError) {
       console.error(
         "Error deleting DELETE audit logs during invoice recovery:",
-        auditError
+        auditError,
       );
     }
 
@@ -3680,7 +3680,7 @@ export const recoverInvoice = async (req, res) => {
         entityName: invoice.invoice_number || invoice.system_invoice_id,
         endpoint: req.originalUrl,
         method: req.method,
-      }
+      },
     );
 
     res.status(200).json({
@@ -3730,14 +3730,14 @@ export const getInvoiceStats = async (req, res) => {
                 req.tenantDb.Sequelize.fn(
                   "STR_TO_DATE",
                   req.tenantDb.Sequelize.col("invoiceDate"),
-                  "%d-%m-%Y"
+                  "%d-%m-%Y",
                 ),
                 {
                   [req.tenantDb.Sequelize.Op.between]: [
                     startDateStr,
                     endDateStr,
                   ],
-                }
+                },
               ),
             ],
           },
@@ -3769,7 +3769,7 @@ export const getInvoiceStats = async (req, res) => {
 
             req.tenantDb.Sequelize.col("created_at"),
 
-            "%Y-%m"
+            "%Y-%m",
           ),
 
           "month",
@@ -3785,7 +3785,7 @@ export const getInvoiceStats = async (req, res) => {
           req.tenantDb.Sequelize.fn(
             "SUM",
 
-            req.tenantDb.Sequelize.col("totalValues")
+            req.tenantDb.Sequelize.col("totalValues"),
           ),
 
           "total_amount",
@@ -3800,7 +3800,7 @@ export const getInvoiceStats = async (req, res) => {
 
           req.tenantDb.Sequelize.col("created_at"),
 
-          "%Y-%m"
+          "%Y-%m",
         ),
       ],
 
@@ -3811,7 +3811,7 @@ export const getInvoiceStats = async (req, res) => {
 
             Sequelize.col("created_at"),
 
-            "%Y-%m"
+            "%Y-%m",
           ),
 
           "DESC",
@@ -3947,7 +3947,7 @@ export const submitSavedInvoice = async (req, res) => {
         let processedRate = cleanValue(item.rate);
 
         console.log(
-          `Processing rate for item ${item.id}: Original="${item.rate}", Cleaned="${processedRate}"`
+          `Processing rate for item ${item.id}: Original="${item.rate}", Cleaned="${processedRate}"`,
         );
 
         if (
@@ -3979,7 +3979,7 @@ export const submitSavedInvoice = async (req, res) => {
           }
 
           console.log(
-            `RS. rate detected and converted: "${item.rate}" -> "${processedRate}" (using ${saleType} rate for FBR, fixed amount: ${numericValue})`
+            `RS. rate detected and converted: "${item.rate}" -> "${processedRate}" (using ${saleType} rate for FBR, fixed amount: ${numericValue})`,
           );
         }
 
@@ -4003,13 +4003,13 @@ export const submitSavedInvoice = async (req, res) => {
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
 
           fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-            item.fixedNotifiedValueOrRetailPrice
+            item.fixedNotifiedValueOrRetailPrice,
           ),
 
           salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
 
           salesTaxWithheldAtSource: cleanNumericValue(
-            item.salesTaxWithheldAtSource
+            item.salesTaxWithheldAtSource,
           ),
 
           furtherTax: cleanNumericValue(item.furtherTax),
@@ -4055,7 +4055,7 @@ export const submitSavedInvoice = async (req, res) => {
     console.log(
       "Cleaned FBR data being sent:",
 
-      JSON.stringify(fbrData, null, 2)
+      JSON.stringify(fbrData, null, 2),
     );
 
     // Additional debug: Log rate processing summary
@@ -4064,7 +4064,7 @@ export const submitSavedInvoice = async (req, res) => {
 
     fbrData.items.forEach((item, index) => {
       console.log(
-        `  Item ${index + 1}: rate="${item.rate}", salesTaxApplicable="${item.salesTaxApplicable}", saleType="${item.saleType}"`
+        `  Item ${index + 1}: rate="${item.rate}", salesTaxApplicable="${item.salesTaxApplicable}", saleType="${item.saleType}"`,
       );
     });
 
@@ -4111,7 +4111,7 @@ export const submitSavedInvoice = async (req, res) => {
 
       "sandbox",
 
-      req.tenant.sandboxTestToken
+      req.tenant.sandboxTestToken,
     );
 
     console.log("FBR Response:", JSON.stringify(postRes.data, null, 2));
@@ -4209,7 +4209,7 @@ export const submitSavedInvoice = async (req, res) => {
       // Check for empty response - this might be a successful submission
       else if (!postRes.data || postRes.data === "") {
         console.log(
-          "FBR returned empty response with 200 status - treating as successful submission"
+          "FBR returned empty response with 200 status - treating as successful submission",
         );
 
         isSuccess = true;
@@ -4221,7 +4221,7 @@ export const submitSavedInvoice = async (req, res) => {
         console.log(
           "Using original invoice number as FBR invoice number:",
 
-          fbrInvoiceNumber
+          fbrInvoiceNumber,
         );
       }
 
@@ -4230,7 +4230,7 @@ export const submitSavedInvoice = async (req, res) => {
         isSuccess = true;
 
         console.log(
-          "FBR returned 200 status with unexpected response structure, treating as success"
+          "FBR returned 200 status with unexpected response structure, treating as success",
         );
 
         console.log("Unexpected response structure:", postRes.data);
@@ -4520,7 +4520,7 @@ export const submitSavedInvoice = async (req, res) => {
         method: req.method,
         fbrInvoiceNumber: fbrInvoiceNumber,
         fbrValidation: isSuccess ? "success" : "failed",
-      }
+      },
     );
 
     res.status(200).json({
@@ -4566,7 +4566,7 @@ export const bulkCreateInvoices = async (req, res) => {
     }
 
     console.log(
-      `🚀 Starting chunked bulk upload for ${invoices.length} grouped invoices (chunk size: ${chunkSize})...`
+      `🚀 Starting chunked bulk upload for ${invoices.length} grouped invoices (chunk size: ${chunkSize})...`,
     );
 
     // Debug: Log tenant information
@@ -4593,7 +4593,7 @@ export const bulkCreateInvoices = async (req, res) => {
     } catch (optimizationError) {
       console.warn(
         "⚠️ Database optimization failed, continuing without optimization:",
-        optimizationError.message
+        optimizationError.message,
       );
     }
     console.log("🔍 Debug: Backend received:", {
@@ -4621,7 +4621,7 @@ export const bulkCreateInvoices = async (req, res) => {
       ...new Set(
         invoices
           .map((inv) => inv.buyerNTNCNIC)
-          .filter((ntn) => ntn && ntn.trim())
+          .filter((ntn) => ntn && ntn.trim()),
       ),
     ];
 
@@ -4647,15 +4647,15 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // Create lookup maps for O(1) access
     const existingBuyerMap = new Map(
-      existingBuyers.map((buyer) => [buyer.buyerNTNCNIC, buyer])
+      existingBuyers.map((buyer) => [buyer.buyerNTNCNIC, buyer]),
     );
 
     console.log(
-      `🔍 Found ${existingBuyers.length} existing buyers in database`
+      `🔍 Found ${existingBuyers.length} existing buyers in database`,
     );
     console.log(
       `🔍 Buyer NTNs in database:`,
-      existingBuyers.map((b) => b.buyerNTNCNIC)
+      existingBuyers.map((b) => b.buyerNTNCNIC),
     );
     console.log(`🔍 Buyer NTNs from CSV:`, uniqueBuyerNTNs);
     console.log(`🔍 DEBUG: uniqueBuyerNTNs length: ${uniqueBuyerNTNs.length}`);
@@ -4663,7 +4663,7 @@ export const bulkCreateInvoices = async (req, res) => {
     console.log(`🔍 DEBUG: existingBuyerMap size: ${existingBuyerMap.size}`);
     console.log(
       `🔍 DEBUG: existingBuyerMap keys:`,
-      Array.from(existingBuyerMap.keys())
+      Array.from(existingBuyerMap.keys()),
     );
 
     // Extract unique product names for batch validation
@@ -4675,14 +4675,14 @@ export const bulkCreateInvoices = async (req, res) => {
             (item) =>
               item.item_productName?.trim() ||
               item.name?.trim() ||
-              item.productName?.trim()
+              item.productName?.trim(),
           )
-          .filter((name) => name && name.trim())
+          .filter((name) => name && name.trim()),
       ),
     ];
 
     console.log(
-      `🔍 Found ${uniqueProductNames.length} unique product names to validate`
+      `🔍 Found ${uniqueProductNames.length} unique product names to validate`,
     );
 
     // Batch fetch existing products to avoid individual queries
@@ -4708,18 +4708,18 @@ export const bulkCreateInvoices = async (req, res) => {
     });
 
     console.log(
-      `🔍 Found ${existingProducts.length} existing products in database`
+      `🔍 Found ${existingProducts.length} existing products in database`,
     );
     console.log(
       `🔍 Product names in database:`,
-      existingProducts.map((p) => p.name)
+      existingProducts.map((p) => p.name),
     );
     console.log(`🔍 Product names from CSV:`, uniqueProductNames);
 
     // Safety check: Ensure we have products to validate against
     if (uniqueProductNames.length > 0 && existingProducts.length === 0) {
       console.log(
-        `⚠️ WARNING: No products found in database but CSV has product names!`
+        `⚠️ WARNING: No products found in database but CSV has product names!`,
       );
       console.log(`⚠️ This will cause all product validations to fail.`);
     }
@@ -4768,14 +4768,14 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // FIRST PASS: Validate ALL invoices before creating ANY
     console.log(
-      `🔍 FIRST PASS: Validating all ${invoices.length} invoices before processing any`
+      `🔍 FIRST PASS: Validating all ${invoices.length} invoices before processing any`,
     );
     const validationErrors = [];
 
     for (let i = 0; i < invoices.length; i++) {
       const invoiceData = invoices[i];
       console.log(
-        `🔍 DEBUG: Validating invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`
+        `🔍 DEBUG: Validating invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`,
       );
 
       // Progress indicator for large files
@@ -4786,19 +4786,19 @@ export const bulkCreateInvoices = async (req, res) => {
       try {
         // Quick validation for invoice-level data
         if (
-          !invoiceData.invoiceType?.trim() ||
-          !invoiceData.invoiceDate?.trim() ||
-          !invoiceData.buyerNTNCNIC?.trim()
+          !String(invoiceData.invoiceType || "").trim() ||
+          !String(invoiceData.invoiceDate || "").trim() ||
+          !String(invoiceData.buyerNTNCNIC || "").trim()
         ) {
           // Check which specific fields are missing and provide detailed error messages
           const missingFields = [];
-          if (!invoiceData.invoiceType?.trim()) {
+          if (!String(invoiceData.invoiceType || "").trim()) {
             missingFields.push("Invoice Type");
           }
-          if (!invoiceData.invoiceDate?.trim()) {
+          if (!String(invoiceData.invoiceDate || "").trim()) {
             missingFields.push("Invoice Date");
           }
-          if (!invoiceData.buyerNTNCNIC?.trim()) {
+          if (!String(invoiceData.buyerNTNCNIC || "").trim()) {
             missingFields.push("Buyer NTN/CNIC");
           }
 
@@ -4836,7 +4836,7 @@ export const bulkCreateInvoices = async (req, res) => {
                   item.item_unitPrice === 0) &&
                 (!item.item_totalValues ||
                   item.item_totalValues === "0" ||
-                  item.item_totalValues === 0)
+                  item.item_totalValues === 0),
             ));
 
         if (hasEmptyData) {
@@ -4848,7 +4848,7 @@ export const bulkCreateInvoices = async (req, res) => {
               (item) =>
                 item.item_productName?.trim() ||
                 item.name?.trim() ||
-                item.productName?.trim()
+                item.productName?.trim(),
             ),
           });
           continue; // Skip this invoice without adding to errors
@@ -4857,7 +4857,7 @@ export const bulkCreateInvoices = async (req, res) => {
         // Validate invoice type
         if (
           !["Sale Invoice", "Debit Note"].includes(
-            invoiceData.invoiceType.trim()
+            String(invoiceData.invoiceType || "").trim(),
           )
         ) {
           validationErrors.push({
@@ -4869,7 +4869,7 @@ export const bulkCreateInvoices = async (req, res) => {
         }
 
         // Validate date format - handle both Excel serial dates and YYYY-MM-DD format
-        const dateValue = invoiceData.invoiceDate?.trim();
+        const dateValue = String(invoiceData.invoiceDate || "").trim();
         if (!dateValue) {
           validationErrors.push({
             index: i,
@@ -4929,27 +4929,27 @@ export const bulkCreateInvoices = async (req, res) => {
         });
 
         // Handle buyer validation - only check if buyer exists by NTN
-        if (invoiceData.buyerNTNCNIC?.trim()) {
-          const ntnTrimmed = invoiceData.buyerNTNCNIC.trim();
+        if (String(invoiceData.buyerNTNCNIC || "").trim()) {
+          const ntnTrimmed = String(invoiceData.buyerNTNCNIC || "").trim();
 
           console.log(`🔍 Validating buyer NTN: "${ntnTrimmed}"`);
           console.log(
             `🔍 Available buyers in map:`,
-            Array.from(existingBuyerMap.keys())
+            Array.from(existingBuyerMap.keys()),
           );
           console.log(`🔍 DEBUG: Looking for buyer with NTN: "${ntnTrimmed}"`);
           console.log(
-            `🔍 DEBUG: existingBuyerMap.has("${ntnTrimmed}"): ${existingBuyerMap.has(ntnTrimmed)}`
+            `🔍 DEBUG: existingBuyerMap.has("${ntnTrimmed}"): ${existingBuyerMap.has(ntnTrimmed)}`,
           );
 
           const existingBuyer = existingBuyerMap.get(ntnTrimmed);
 
           if (!existingBuyer) {
             console.log(
-              `❌ Buyer with NTN "${ntnTrimmed}" NOT FOUND in system`
+              `❌ Buyer with NTN "${ntnTrimmed}" NOT FOUND in system`,
             );
             console.log(
-              `🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer`
+              `🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer`,
             );
             // Buyer with this NTN doesn't exist in our system
             validationErrors.push({
@@ -4975,7 +4975,7 @@ export const bulkCreateInvoices = async (req, res) => {
         } else {
           // NTN is required for invoice processing
           console.log(
-            `🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer NTN`
+            `🔍 DEBUG: Validation error for invoice ${i + 1} due to missing buyer NTN`,
           );
           validationErrors.push({
             index: i,
@@ -4987,7 +4987,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // Pre-validate all products for this invoice before creating invoice record
         console.log(
-          `🔍 Pre-validating products for invoice ${i + 1} with ${invoiceData.items.length} items`
+          `🔍 Pre-validating products for invoice ${i + 1} with ${invoiceData.items.length} items`,
         );
         let validItemsCount = 0;
         let hasAnyProductName = false;
@@ -5009,7 +5009,7 @@ export const bulkCreateInvoices = async (req, res) => {
           // Only skip if we have absolutely no product information
           if (!productName) {
             console.log(
-              `⚠️ Skipping item ${j + 1} in invoice ${i + 1}: No product name`
+              `⚠️ Skipping item ${j + 1} in invoice ${i + 1}: No product name`,
             );
             continue;
           }
@@ -5017,7 +5017,7 @@ export const bulkCreateInvoices = async (req, res) => {
           // Validate product exists in system
           console.log(`🔍 Validating product: "${productName}"`);
           const existingProduct = existingProductMap.get(
-            productName.toLowerCase().trim()
+            productName.toLowerCase().trim(),
           );
           if (!existingProduct) {
             console.log(`❌ Product "${productName}" NOT FOUND in system`);
@@ -5036,7 +5036,7 @@ export const bulkCreateInvoices = async (req, res) => {
         // Check if any product names are missing
         if (!hasAnyProductName) {
           console.log(
-            `⚠️ Validation error for invoice ${i + 1}: No product names found`
+            `⚠️ Validation error for invoice ${i + 1}: No product names found`,
           );
           validationErrors.push({
             index: i,
@@ -5049,7 +5049,7 @@ export const bulkCreateInvoices = async (req, res) => {
         // If no valid products found, add validation error
         if (validItemsCount === 0) {
           console.log(
-            `⚠️ Validation error for invoice ${i + 1}: No valid products found`
+            `⚠️ Validation error for invoice ${i + 1}: No valid products found`,
           );
           validationErrors.push({
             index: i,
@@ -5061,7 +5061,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // FIRST PASS: Only validate, don't process items or create invoice records
         console.log(
-          `✅ Invoice ${i + 1} validation passed - will be processed in second pass`
+          `✅ Invoice ${i + 1} validation passed - will be processed in second pass`,
         );
       } catch (error) {
         console.error(`Error processing invoice ${i}:`, error);
@@ -5076,7 +5076,7 @@ export const bulkCreateInvoices = async (req, res) => {
     // Check if there are any validation errors - if so, fail completely
     if (validationErrors.length > 0) {
       console.log(
-        `❌ VALIDATION FAILED: Found ${validationErrors.length} validation errors. Rejecting ALL invoices.`
+        `❌ VALIDATION FAILED: Found ${validationErrors.length} validation errors. Rejecting ALL invoices.`,
       );
       console.log(`🔍 Validation errors:`, validationErrors);
 
@@ -5098,17 +5098,17 @@ export const bulkCreateInvoices = async (req, res) => {
     }
 
     console.log(
-      `✅ VALIDATION PASSED: All ${invoices.length} invoices are valid. Proceeding with creation.`
+      `✅ VALIDATION PASSED: All ${invoices.length} invoices are valid. Proceeding with creation.`,
     );
 
     // SECOND PASS: Process valid invoices (only if validation passed)
     console.log(
-      `🔍 SECOND PASS: Processing ${invoices.length} validated invoices`
+      `🔍 SECOND PASS: Processing ${invoices.length} validated invoices`,
     );
     for (let i = 0; i < invoices.length; i++) {
       const invoiceData = invoices[i];
       console.log(
-        `🔍 DEBUG: Processing validated invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`
+        `🔍 DEBUG: Processing validated invoice ${i + 1}/${invoices.length} with buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`,
       );
 
       // Progress indicator for large files
@@ -5119,9 +5119,9 @@ export const bulkCreateInvoices = async (req, res) => {
       try {
         // Quick validation for invoice-level data
         if (
-          !invoiceData.invoiceType?.trim() ||
-          !invoiceData.invoiceDate?.trim() ||
-          !invoiceData.buyerNTNCNIC?.trim()
+          !String(invoiceData.invoiceType || "").trim() ||
+          !String(invoiceData.invoiceDate || "").trim() ||
+          !String(invoiceData.buyerNTNCNIC || "").trim()
         ) {
           console.log(`⚠️ Skipping invoice ${i + 1}: Missing required fields`);
           errors.push({
@@ -5158,7 +5158,7 @@ export const bulkCreateInvoices = async (req, res) => {
         });
 
         // Get buyer data (already validated in first pass)
-        const ntnTrimmed = invoiceData.buyerNTNCNIC.trim();
+        const ntnTrimmed = String(invoiceData.buyerNTNCNIC || "").trim();
         const existingBuyer = existingBuyerMap.get(ntnTrimmed);
 
         console.log(`✅ Processing validated buyer: "${ntnTrimmed}"`);
@@ -5186,29 +5186,32 @@ export const bulkCreateInvoices = async (req, res) => {
             companyInvoiceRefNo: invoiceData.companyInvoiceRefNo,
             hasValue: !!invoiceData.companyInvoiceRefNo,
             trimmedValue: invoiceData.companyInvoiceRefNo?.trim(),
-          }
+          },
         );
 
         // Prepare invoice data for batch insert
         const invoiceRecord = {
           invoice_number: `DRAFT_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 5)}`,
           system_invoice_id: systemInvoiceId,
-          invoiceType: invoiceData.invoiceType.trim(),
-          invoiceDate: invoiceData.invoiceDate.trim(),
-          sellerNTNCNIC: invoiceData.sellerNTNCNIC?.trim() || null,
-          sellerFullNTN: invoiceData.sellerFullNTN?.trim() || null,
+          invoiceType: String(invoiceData.invoiceType || "").trim(),
+          invoiceDate: String(invoiceData.invoiceDate || "").trim(),
+          sellerNTNCNIC: String(invoiceData.sellerNTNCNIC || "").trim() || null,
+          sellerFullNTN: String(invoiceData.sellerFullNTN || "").trim() || null,
           sellerBusinessName: req.tenant?.seller_business_name || "",
           sellerProvince: req.tenant?.seller_province || "",
           sellerAddress: req.tenant?.seller_address || null,
-          buyerNTNCNIC: invoiceData.buyerNTNCNIC?.trim() || null,
-          buyerBusinessName: invoiceData.buyerBusinessName?.trim() || null,
-          buyerProvince: invoiceData.buyerProvince?.trim() || null,
-          buyerAddress: invoiceData.buyerAddress?.trim() || null,
+          buyerNTNCNIC: String(invoiceData.buyerNTNCNIC || "").trim() || null,
+          buyerBusinessName:
+            String(invoiceData.buyerBusinessName || "").trim() || null,
+          buyerProvince: String(invoiceData.buyerProvince || "").trim() || null,
+          buyerAddress: String(invoiceData.buyerAddress || "").trim() || null,
           buyerRegistrationType:
-            invoiceData.buyerRegistrationType?.trim() || null,
-          invoiceRefNo: invoiceData.invoiceRefNo?.trim() || null,
-          companyInvoiceRefNo: invoiceData.companyInvoiceRefNo?.trim() || null,
-          internal_invoice_no: invoiceData.internalInvoiceNo?.trim() || null,
+            String(invoiceData.buyerRegistrationType || "").trim() || null,
+          invoiceRefNo: String(invoiceData.invoiceRefNo || "").trim() || null,
+          companyInvoiceRefNo:
+            String(invoiceData.companyInvoiceRefNo || "").trim() || null,
+          internal_invoice_no:
+            String(invoiceData.internalInvoiceNo || "").trim() || null,
           transctypeId: null, // Will be set from items
           status: "draft",
           fbr_invoice_number: null,
@@ -5240,7 +5243,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // Only add to invoiceBatches AFTER all validations pass
         console.log(
-          `🔍 DEBUG: Adding invoice ${i + 1} to batch - buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`
+          `🔍 DEBUG: Adding invoice ${i + 1} to batch - buyerNTNCNIC: "${invoiceData.buyerNTNCNIC}"`,
         );
         invoiceBatches.push(invoiceRecord);
 
@@ -5256,7 +5259,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // Process items for this invoice (products already validated above)
         console.log(
-          `🔍 Debug: Processing invoice ${i + 1} with ${invoiceData.items.length} items`
+          `🔍 Debug: Processing invoice ${i + 1} with ${invoiceData.items.length} items`,
         );
 
         let itemsProcessed = 0;
@@ -5266,26 +5269,26 @@ export const bulkCreateInvoices = async (req, res) => {
           try {
             // Get product name from various possible fields
             const productName =
-              itemData.item_productName?.trim() ||
-              itemData.name?.trim() ||
-              itemData.productName?.trim();
+              String(itemData.item_productName || "").trim() ||
+              String(itemData.name || "").trim() ||
+              String(itemData.productName || "").trim();
 
             // Only skip if we have absolutely no product information
             if (!productName) {
               console.log(
-                `⚠️ Skipping item ${j + 1} in invoice ${i + 1}: No product name`
+                `⚠️ Skipping item ${j + 1} in invoice ${i + 1}: No product name`,
               );
               continue;
             }
 
             // Get existing product (already validated above)
             const existingProduct = existingProductMap.get(
-              productName.toLowerCase().trim()
+              productName.toLowerCase().trim(),
             );
             if (!existingProduct) {
               // This should not happen since we pre-validated, but just in case
               console.log(
-                `❌ Product "${productName}" NOT FOUND in system (unexpected)`
+                `❌ Product "${productName}" NOT FOUND in system (unexpected)`,
               );
               continue;
             }
@@ -5299,10 +5302,10 @@ export const bulkCreateInvoices = async (req, res) => {
 
             // Validate required item fields - be more lenient and provide defaults
             const hsCode =
-              itemData.item_hsCode?.trim() ||
+              String(itemData.item_hsCode || "").trim() ||
               existingProduct.hsCode ||
               "000000";
-            const rate = itemData.item_rate?.trim() || "17";
+            const rate = String(itemData.item_rate || "").trim() || "17";
 
             // Debug: Log raw item data
             console.log(`🔍 Debug: Raw item ${j + 1} data:`, {
@@ -5313,8 +5316,8 @@ export const bulkCreateInvoices = async (req, res) => {
               productName: itemData.productName,
               hasHsCode: !!itemData.item_hsCode,
               hasRate: !!itemData.item_rate,
-              hsCodeTrimmed: itemData.item_hsCode?.trim(),
-              rateTrimmed: itemData.item_rate?.trim(),
+              hsCodeTrimmed: String(itemData.item_hsCode || "").trim(),
+              rateTrimmed: String(itemData.item_rate || "").trim(),
               finalHsCode: hsCode,
               finalRate: rate,
             });
@@ -5334,11 +5337,14 @@ export const bulkCreateInvoices = async (req, res) => {
               hsCode: hsCode,
               name: existingProduct.name, // Use the exact product name from database
               productDescription:
-                itemData.item_productDescription?.trim() ||
+                String(itemData.item_productDescription || "").trim() ||
                 existingProduct.description ||
                 null,
               rate: rate,
-              uoM: itemData.item_uoM?.trim() || existingProduct.uom || null,
+              uoM:
+                String(itemData.item_uoM || "").trim() ||
+                existingProduct.uom ||
+                null,
               quantity: parseFloat(itemData.item_quantity) || 0,
               unitPrice: parseFloat(itemData.item_unitPrice) || 0,
               totalValues: parseFloat(itemData.item_totalValues) || 0,
@@ -5381,12 +5387,12 @@ export const bulkCreateInvoices = async (req, res) => {
 
             itemsProcessed++;
             console.log(
-              `✅ Successfully processed item ${j + 1} for invoice ${i + 1}`
+              `✅ Successfully processed item ${j + 1} for invoice ${i + 1}`,
             );
           } catch (itemError) {
             console.error(
               `❌ Error processing item ${j + 1} in invoice ${i + 1}:`,
-              itemError
+              itemError,
             );
             console.error(`❌ Item data that failed:`, itemData);
             errors.push({
@@ -5398,12 +5404,12 @@ export const bulkCreateInvoices = async (req, res) => {
         }
 
         console.log(
-          `📊 Invoice ${i + 1}: Processed ${itemsProcessed}/${invoiceData.items.length} items`
+          `📊 Invoice ${i + 1}: Processed ${itemsProcessed}/${invoiceData.items.length} items`,
         );
 
         // Debug: Log the total items processed so far
         console.log(
-          `🔍 Debug: Total invoiceItemBatches after invoice ${i + 1}: ${invoiceItemBatches.length}`
+          `🔍 Debug: Total invoiceItemBatches after invoice ${i + 1}: ${invoiceItemBatches.length}`,
         );
         if (invoiceItemBatches.length > 0) {
           console.log(`🔍 Debug: Sample item:`, {
@@ -5424,23 +5430,23 @@ export const bulkCreateInvoices = async (req, res) => {
     }
 
     console.log(
-      `📈 Processed ${invoices.length}/${invoices.length} grouped invoices...`
+      `📈 Processed ${invoices.length}/${invoices.length} grouped invoices...`,
     );
     const processingTime =
       Number(process.hrtime.bigint() - processingStart) / 1000000;
     console.log(
-      `⚡ Data processing completed in ${processingTime.toFixed(2)}ms`
+      `⚡ Data processing completed in ${processingTime.toFixed(2)}ms`,
     );
 
     // Debug: Log what we have after processing
     console.log(
-      `🔍 Debug: After processing - invoiceBatches: ${invoiceBatches.length}, invoiceItemBatches: ${invoiceItemBatches.length}, errors: ${errors.length}`
+      `🔍 Debug: After processing - invoiceBatches: ${invoiceBatches.length}, invoiceItemBatches: ${invoiceItemBatches.length}, errors: ${errors.length}`,
     );
 
     if (invoiceBatches.length === 0) {
       console.log(
         `⚠️ No invoices to process after validation. Errors:`,
-        errors
+        errors,
       );
       return res.status(400).json({
         success: false,
@@ -5469,7 +5475,7 @@ export const bulkCreateInvoices = async (req, res) => {
     for (let i = 0; i < invoiceBatches.length; i += chunkSize) {
       const chunk = invoiceBatches.slice(i, i + chunkSize);
       console.log(
-        `🔍 Debug: Creating chunk ${invoiceChunks.length + 1} with ${chunk.length} invoices`
+        `🔍 Debug: Creating chunk ${invoiceChunks.length + 1} with ${chunk.length} invoices`,
       );
       console.log(`🔍 Debug: First invoice in chunk:`, {
         hasCreatedAt: !!chunk[0]?.created_at,
@@ -5485,10 +5491,10 @@ export const bulkCreateInvoices = async (req, res) => {
     }
 
     console.log(
-      `📦 Processing ${invoiceChunks.length} chunks of invoices and ${itemChunks.length} chunks of items`
+      `📦 Processing ${invoiceChunks.length} chunks of invoices and ${itemChunks.length} chunks of items`,
     );
     console.log(
-      `🔍 Debug: Total items to process: ${invoiceItemBatches.length}`
+      `🔍 Debug: Total items to process: ${invoiceItemBatches.length}`,
     );
     console.log(`🔍 Debug: Item chunks created: ${itemChunks.length}`);
     if (itemChunks.length > 0) {
@@ -5516,43 +5522,43 @@ export const bulkCreateInvoices = async (req, res) => {
       // Track maximum lengths for debugging
       maxSystemIdLength = Math.max(
         maxSystemIdLength,
-        invoice.system_invoice_id.length
+        invoice.system_invoice_id.length,
       );
       maxInvoiceNumberLength = Math.max(
         maxInvoiceNumberLength,
-        invoice.invoice_number.length
+        invoice.invoice_number.length,
       );
 
       // Check system_invoice_id length (max 20 chars)
       if (invoice.system_invoice_id.length > 20) {
         throw new Error(
-          `system_invoice_id too long at row ${i + 1}: "${invoice.system_invoice_id}" (${invoice.system_invoice_id.length} chars, max 20)`
+          `system_invoice_id too long at row ${i + 1}: "${invoice.system_invoice_id}" (${invoice.system_invoice_id.length} chars, max 20)`,
         );
       }
 
       // Check invoice_number length (max 100 chars)
       if (invoice.invoice_number.length > 100) {
         throw new Error(
-          `invoice_number too long at row ${i + 1}: "${invoice.invoice_number}" (${invoice.invoice_number.length} chars, max 100)`
+          `invoice_number too long at row ${i + 1}: "${invoice.invoice_number}" (${invoice.invoice_number.length} chars, max 100)`,
         );
       }
 
       // Check other string fields
       if (invoice.buyerBusinessName && invoice.buyerBusinessName.length > 255) {
         throw new Error(
-          `buyerBusinessName too long at row ${i + 1}: ${invoice.buyerBusinessName.length} chars, max 255`
+          `buyerBusinessName too long at row ${i + 1}: ${invoice.buyerBusinessName.length} chars, max 255`,
         );
       }
 
       if (invoice.buyerProvince && invoice.buyerProvince.length > 100) {
         throw new Error(
-          `buyerProvince too long at row ${i + 1}: ${invoice.buyerProvince.length} chars, max 100`
+          `buyerProvince too long at row ${i + 1}: ${invoice.buyerProvince.length} chars, max 100`,
         );
       }
     }
 
     console.log(
-      `✅ Validation passed - Max lengths: system_invoice_id=${maxSystemIdLength}, invoice_number=${maxInvoiceNumberLength}`
+      `✅ Validation passed - Max lengths: system_invoice_id=${maxSystemIdLength}, invoice_number=${maxInvoiceNumberLength}`,
     );
 
     // Process chunks with memory management
@@ -5565,14 +5571,14 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // SIMPLIFIED: Process all invoices in a single transaction like regular uploads
     console.log(
-      `🚀 Processing ${invoiceBatches.length} invoices in a single transaction...`
+      `🚀 Processing ${invoiceBatches.length} invoices in a single transaction...`,
     );
 
     const allCreatedInvoices = await sequelize.transaction(async (t) => {
       // No buyer creation - only use existing buyers
       // No product creation - only use existing products
       console.log(
-        `🔒 SAFETY CHECK: No products will be created during this upload process`
+        `🔒 SAFETY CHECK: No products will be created during this upload process`,
       );
       console.log(`🔒 Only existing products from database will be used`);
 
@@ -5605,7 +5611,7 @@ export const bulkCreateInvoices = async (req, res) => {
       // OPTIMIZED: Bulk create all invoice items at once
       if (invoiceItemBatches.length > 0) {
         console.log(
-          `🔄 Bulk creating ${invoiceItemBatches.length} invoice items...`
+          `🔄 Bulk creating ${invoiceItemBatches.length} invoice items...`,
         );
 
         // Map items to their corresponding invoice IDs
@@ -5616,7 +5622,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
             if (!correspondingInvoice) {
               console.warn(
-                `⚠️ No corresponding invoice found for item at index ${item._invoiceIndex}`
+                `⚠️ No corresponding invoice found for item at index ${item._invoiceIndex}`,
               );
               return null;
             }
@@ -5632,7 +5638,7 @@ export const bulkCreateInvoices = async (req, res) => {
           .filter((item) => item !== null);
 
         console.log(
-          `🔍 Prepared ${itemsWithInvoiceIds.length} items for bulk insertion`
+          `🔍 Prepared ${itemsWithInvoiceIds.length} items for bulk insertion`,
         );
 
         if (itemsWithInvoiceIds.length > 0) {
@@ -5643,12 +5649,12 @@ export const bulkCreateInvoices = async (req, res) => {
               ignoreDuplicates: true,
             });
             console.log(
-              `✅ Successfully created ${itemsWithInvoiceIds.length} items`
+              `✅ Successfully created ${itemsWithInvoiceIds.length} items`,
             );
           } catch (itemError) {
             console.error("❌ Invoice items bulk create failed:", itemError);
             throw new Error(
-              `Failed to create invoice items: ${itemError.message}`
+              `Failed to create invoice items: ${itemError.message}`,
             );
           }
         }
@@ -5685,12 +5691,12 @@ export const bulkCreateInvoices = async (req, res) => {
         chunkSize: chunkSize,
         errorCount: errors.length,
         warningCount: warnings.length,
-      }
+      },
     );
 
     console.log(`🎉 Bulk upload completed in ${totalTime.toFixed(2)}ms!`);
     console.log(
-      `📊 Summary: ${totalInvoicesCreated} invoices created, ${errors.length} errors, ${warnings.length} warnings`
+      `📊 Summary: ${totalInvoicesCreated} invoices created, ${errors.length} errors, ${warnings.length} warnings`,
     );
 
     // Log detailed error information
@@ -5704,7 +5710,7 @@ export const bulkCreateInvoices = async (req, res) => {
     // Get memory usage statistics
     const memoryUsage = MemoryManagementService.getMemoryUsage();
     console.log(
-      `💾 Memory usage: ${memoryUsage.heapUsed}MB heap, ${memoryUsage.activeProcesses} active processes`
+      `💾 Memory usage: ${memoryUsage.heapUsed}MB heap, ${memoryUsage.activeProcesses} active processes`,
     );
 
     // Log audit event for bulk invoice creation
@@ -5732,15 +5738,15 @@ export const bulkCreateInvoices = async (req, res) => {
             invoiceIds: allCreatedInvoices.map((inv) => inv.id),
             errorCount: errors.length,
             warningCount: warnings.length,
-          }
+          },
         );
         console.log(
-          `✅ Audit logged for bulk creation of ${allCreatedInvoices.length} invoices`
+          `✅ Audit logged for bulk creation of ${allCreatedInvoices.length} invoices`,
         );
       } catch (auditError) {
         console.error(
           "⚠️ Failed to log audit event for bulk creation:",
-          auditError
+          auditError,
         );
         // Don't fail the operation if audit logging fails
       }
@@ -5780,7 +5786,7 @@ export const bulkCreateInvoices = async (req, res) => {
     const totalTime = Number(process.hrtime.bigint() - startTime) / 1000000;
     console.error(
       `❌ Bulk upload failed after ${totalTime.toFixed(2)}ms:`,
-      error
+      error,
     );
 
     res.status(500).json({
@@ -5883,11 +5889,11 @@ export const getDashboardSummary = async (req, res) => {
                   sequelize.fn(
                     "STR_TO_DATE",
                     sequelize.col("invoiceDate"),
-                    "%d-%m-%Y"
+                    "%d-%m-%Y",
                   ),
                   {
                     [Op.between]: [startDateStr, endDateStr],
-                  }
+                  },
                 ),
               ],
             },
@@ -5898,7 +5904,7 @@ export const getDashboardSummary = async (req, res) => {
       // Default to last 12 months if no date range specified
       const endDate = new Date();
       const startDate = new Date(
-        new Date(endDate).setMonth(endDate.getMonth() - 11, 1)
+        new Date(endDate).setMonth(endDate.getMonth() - 11, 1),
       );
 
       whereDateRange = {
@@ -5948,7 +5954,7 @@ export const getDashboardSummary = async (req, res) => {
 
         [
           Sequelize.literal(
-            "SUM(CASE WHEN status IN ('posted', 'submitted') THEN 1 ELSE 0 END)"
+            "SUM(CASE WHEN status IN ('posted', 'submitted') THEN 1 ELSE 0 END)",
           ),
 
           "posted",
@@ -5956,7 +5962,7 @@ export const getDashboardSummary = async (req, res) => {
 
         [
           Sequelize.literal(
-            "SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END)"
+            "SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END)",
           ),
 
           "draft",
@@ -6097,7 +6103,7 @@ export const getDocumentTypesController = async (req, res) => {
     }
 
     console.log(
-      `Fetching document types for tenant: ${tenantId}, environment: ${environment}`
+      `Fetching document types for tenant: ${tenantId}, environment: ${environment}`,
     );
 
     // Get tenant data to check FBR credentials
@@ -6205,7 +6211,7 @@ export const getProvincesController = async (req, res) => {
     }
 
     console.log(
-      `Fetching provinces for tenant: ${tenantId}, environment: ${environment}`
+      `Fetching provinces for tenant: ${tenantId}, environment: ${environment}`,
     );
 
     // Get tenant data to check FBR credentials
@@ -6311,7 +6317,7 @@ export const validateInvoiceDataController = async (req, res) => {
     }
 
     console.log(
-      `Validating invoice data for tenant: ${tenant.tenant_id}, environment: ${environment}`
+      `Validating invoice data for tenant: ${tenant.tenant_id}, environment: ${environment}`,
     );
 
     // Check if tenant has FBR credentials
@@ -6335,7 +6341,7 @@ export const validateInvoiceDataController = async (req, res) => {
 
       environment,
 
-      fbrToken
+      fbrToken,
     );
 
     res.json({
@@ -6418,7 +6424,7 @@ export const submitInvoiceDataController = async (req, res) => {
     }
 
     console.log(
-      `Submitting invoice data for tenant: ${tenant.tenant_id}, environment: ${environment}`
+      `Submitting invoice data for tenant: ${tenant.tenant_id}, environment: ${environment}`,
     );
 
     // Check if tenant has FBR credentials
@@ -6442,7 +6448,7 @@ export const submitInvoiceDataController = async (req, res) => {
 
       environment,
 
-      fbrToken
+      fbrToken,
     );
 
     res.json({
@@ -6530,14 +6536,14 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     // Check initial memory usage
     const initialMemory = MemoryManagementService.getMemoryUsage();
     console.log(
-      `🚀 Starting Excel template generation - Initial memory: ${initialMemory.heapUsed}MB`
+      `🚀 Starting Excel template generation - Initial memory: ${initialMemory.heapUsed}MB`,
     );
 
     // Set memory limit warning threshold (1GB)
     const MEMORY_LIMIT_MB = 1024;
     if (initialMemory.heapUsed > MEMORY_LIMIT_MB) {
       console.warn(
-        `⚠️ High initial memory usage detected: ${initialMemory.heapUsed}MB. Forcing cleanup...`
+        `⚠️ High initial memory usage detected: ${initialMemory.heapUsed}MB. Forcing cleanup...`,
       );
       MemoryManagementService.forceCleanup();
       if (global.gc) {
@@ -6629,7 +6635,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
           "sandbox",
 
-          token
+          token,
         );
 
         const mappedTypes = (Array.isArray(transTypesRaw) ? transTypesRaw : [])
@@ -6701,12 +6707,12 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       });
 
       console.log(
-        `Added ${hardcodedTransactionTypeIds.length} hardcoded transaction types to ensure comprehensive rate coverage`
+        `Added ${hardcodedTransactionTypeIds.length} hardcoded transaction types to ensure comprehensive rate coverage`,
       );
     } catch (fallbackError) {
       console.warn(
         "Could not load hardcoded transaction types:",
-        fallbackError
+        fallbackError,
       );
     }
 
@@ -6729,7 +6735,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
             .map((v) => (v == null ? null : String(v)))
 
-            .filter((v) => v && v.length > 0)
+            .filter((v) => v && v.length > 0),
         );
 
         candidateProvinceCodes.push(...uniqueCodes);
@@ -6746,12 +6752,12 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           try {
             const ratesRaw = await fetchData(
               `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${encodeURIComponent(
-                tt.id
+                tt.id,
               )}&originationSupplier=${encodeURIComponent(code)}`,
 
               "sandbox",
 
-              token
+              token,
             );
 
             const parsedRates = (Array.isArray(ratesRaw) ? ratesRaw : [])
@@ -6813,12 +6819,12 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           try {
             const ratesRawNoProv = await fetchData(
               `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${encodeURIComponent(
-                tt.id
+                tt.id,
               )}`,
 
               "sandbox",
 
-              token
+              token,
             );
 
             const parsedRatesNoProv = (
@@ -6898,7 +6904,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
                 if (rate.ratE_DESC && rate.ratE_ID) {
                   rateIdDescPairsByType[tt.id].set(
                     rate.ratE_DESC,
-                    String(rate.ratE_ID)
+                    String(rate.ratE_ID),
                   );
                 }
               });
@@ -6906,7 +6912,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           } catch (fallbackError) {
             console.warn(
               `Could not load hardcoded rates for transaction type ${tt.id}:`,
-              fallbackError
+              fallbackError,
             );
           }
         }
@@ -6933,7 +6939,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
               if (rate.ratE_DESC && rate.ratE_ID) {
                 rateIdDescPairsByType[tt.id].set(
                   rate.ratE_DESC,
-                  String(rate.ratE_ID)
+                  String(rate.ratE_ID),
                 );
               }
             });
@@ -6945,7 +6951,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       } catch (fallbackError) {
         console.warn(
           "Could not load hardcoded rates as fallback:",
-          fallbackError
+          fallbackError,
         );
 
         // Final fallback: empty rates
@@ -6994,7 +7000,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         const otherRateIds = Array.from(rateDescToId.values());
         otherRateIds.forEach((id) => uniqueRateIds.add(String(id)));
         console.log(
-          `Added ${otherRateIds.length} additional rate IDs from rateDescToId`
+          `Added ${otherRateIds.length} additional rate IDs from rateDescToId`,
         );
       }
 
@@ -7004,11 +7010,11 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       console.log("Added common rate IDs as fallback");
 
       console.log(
-        `Fetching SRO Schedule data for ${uniqueRateIds.size} rate IDs...`
+        `Fetching SRO Schedule data for ${uniqueRateIds.size} rate IDs...`,
       );
       console.log(
         "All Rate IDs to fetch:",
-        Array.from(uniqueRateIds).slice(0, 15)
+        Array.from(uniqueRateIds).slice(0, 15),
       );
 
       let successfulFetches = 0;
@@ -7022,7 +7028,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           const sroRaw = await fetchData(
             `pdi/v1/SroSchedule?rate_id=${rateId}&date=04-Feb-2024&origination_supplier_csv=1`,
             "sandbox",
-            token
+            token,
           );
 
           console.log(`SRO Schedule API response for rate_id=${rateId}:`, {
@@ -7047,7 +7053,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
             .filter(Boolean);
 
           console.log(
-            `Found ${items.length} SRO Schedule items for rate_id=${rateId}`
+            `Found ${items.length} SRO Schedule items for rate_id=${rateId}`,
           );
 
           // Create a map for this rate ID
@@ -7070,17 +7076,17 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           // Special logging for rate_id=133
           if (rateId === "133") {
             console.log(
-              `✅ SUCCESS: Rate ID 133 fetched ${items.length} SRO Schedule items`
+              `✅ SUCCESS: Rate ID 133 fetched ${items.length} SRO Schedule items`,
             );
             console.log(
               "Rate ID 133 SRO Descriptions:",
-              Array.from(aggregated.keys()).slice(0, 5)
+              Array.from(aggregated.keys()).slice(0, 5),
             );
           }
         } catch (e) {
           console.error(
             `Failed to fetch SRO Schedule data for rate_id=${rateId}:`,
-            e.message
+            e.message,
           );
           sroByRateId[rateId] = new Map(); // Empty map for failed fetches
           failedFetches++;
@@ -7088,23 +7094,23 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           // Special error logging for rate_id=133
           if (rateId === "133") {
             console.error(
-              "❌ CRITICAL: Failed to fetch rate_id=133 SRO Schedule data!"
+              "❌ CRITICAL: Failed to fetch rate_id=133 SRO Schedule data!",
             );
           }
         }
       }
 
       console.log(
-        `SRO Schedule Fetch Summary: ${successfulFetches} successful, ${failedFetches} failed`
+        `SRO Schedule Fetch Summary: ${successfulFetches} successful, ${failedFetches} failed`,
       );
       console.log(
-        `Collected ${allUniqueSROs.size} unique SRO Schedule Numbers from API across all rate IDs`
+        `Collected ${allUniqueSROs.size} unique SRO Schedule Numbers from API across all rate IDs`,
       );
 
       // Verify rate_id=133 was successfully fetched
       if (sroByRateId["133"] && sroByRateId["133"].size > 0) {
         console.log(
-          `✅ CONFIRMED: Rate ID 133 has ${sroByRateId["133"].size} SRO Schedule items`
+          `✅ CONFIRMED: Rate ID 133 has ${sroByRateId["133"].size} SRO Schedule items`,
         );
       } else {
         console.warn("⚠️ WARNING: Rate ID 133 has no SRO Schedule items!");
@@ -7113,7 +7119,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       // Log sample SRO descriptions
       console.log(
         "Sample SRO Descriptions from all rate IDs:",
-        Array.from(allUniqueSROs).slice(0, 10)
+        Array.from(allUniqueSROs).slice(0, 10),
       );
     } else {
       console.log("No token available for SRO Schedule fetching");
@@ -7161,10 +7167,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     }
 
     console.log(
-      `Total unique SRO Schedule Numbers available: ${comprehensiveSROList.length}`
+      `Total unique SRO Schedule Numbers available: ${comprehensiveSROList.length}`,
     );
     console.log(
-      `SRO Schedule Numbers: ${comprehensiveSROList.slice(0, 10).join(", ")}${comprehensiveSROList.length > 10 ? "..." : ""}`
+      `SRO Schedule Numbers: ${comprehensiveSROList.slice(0, 10).join(", ")}${comprehensiveSROList.length > 10 ? "..." : ""}`,
     );
 
     // Build comprehensive SRO Item list from the main SRO Item API
@@ -7178,7 +7184,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         const sroItemsRaw = await fetchData(
           "pdi/v1/sroitemcode",
           "sandbox",
-          token
+          token,
         );
 
         console.log(`SRO Item API response:`, {
@@ -7220,20 +7226,20 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           });
 
           console.log(
-            `✅ SUCCESS: Fetched ${allUniqueSROItems.size} unique SRO Item descriptions from API`
+            `✅ SUCCESS: Fetched ${allUniqueSROItems.size} unique SRO Item descriptions from API`,
           );
           console.log(
             "Sample SRO Item Descriptions:",
-            Array.from(allUniqueSROItems).slice(0, 15)
+            Array.from(allUniqueSROItems).slice(0, 15),
           );
           console.log(
             "All SRO Item Descriptions count:",
-            allUniqueSROItems.size
+            allUniqueSROItems.size,
           );
         } else {
           console.warn(
             "SRO Item API returned non-array response:",
-            sroItemsRaw
+            sroItemsRaw,
           );
         }
 
@@ -7244,7 +7250,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       } catch (e) {
         console.error(
           `Failed to fetch SRO Item data from /pdi/v1/sroitemcode:`,
-          e.message
+          e.message,
         );
       }
     } else {
@@ -7260,21 +7266,21 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     }
 
     console.log(
-      `Total unique SRO Item Numbers available: ${comprehensiveSROItemList.length}`
+      `Total unique SRO Item Numbers available: ${comprehensiveSROItemList.length}`,
     );
     console.log(
-      `SRO Item Numbers: ${comprehensiveSROItemList.slice(0, 15).join(", ")}${comprehensiveSROItemList.length > 15 ? "..." : ""}`
+      `SRO Item Numbers: ${comprehensiveSROItemList.slice(0, 15).join(", ")}${comprehensiveSROItemList.length > 15 ? "..." : ""}`,
     );
 
     // Log if we have SRO Items from API or if the list is empty
     if (comprehensiveSROItemList.length <= 1) {
       // Only "N/A"
       console.warn(
-        '⚠️ WARNING: No SRO Items found from API. Only "N/A" option available.'
+        '⚠️ WARNING: No SRO Items found from API. Only "N/A" option available.',
       );
     } else {
       console.log(
-        `✅ SUCCESS: ${comprehensiveSROItemList.length - 1} SRO Items will be available in Excel dropdown (excluding "N/A")`
+        `✅ SUCCESS: ${comprehensiveSROItemList.length - 1} SRO Items will be available in Excel dropdown (excluding "N/A")`,
       );
     }
 
@@ -7286,12 +7292,12 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     // Check memory usage after SRO Items processing
     const memoryAfterSRO = MemoryManagementService.getMemoryUsage();
     console.log(
-      `📊 Memory after SRO Items processing: ${memoryAfterSRO.heapUsed}MB`
+      `📊 Memory after SRO Items processing: ${memoryAfterSRO.heapUsed}MB`,
     );
 
     if (memoryAfterSRO.heapUsed > MEMORY_LIMIT_MB) {
       console.warn(
-        `⚠️ Memory usage high after SRO Items: ${memoryAfterSRO.heapUsed}MB. Forcing cleanup...`
+        `⚠️ Memory usage high after SRO Items: ${memoryAfterSRO.heapUsed}MB. Forcing cleanup...`,
       );
       MemoryManagementService.forceCleanup();
       if (global.gc) {
@@ -7313,7 +7319,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
           token,
 
-          false
+          false,
         );
 
         if (hsCodes && Array.isArray(hsCodes) && hsCodes.length > 0) {
@@ -7321,7 +7327,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
           const limitedHsCodes = hsCodes.slice(0, 500); // Increased from 100 to 500
 
           console.log(
-            `Fetching UoM data for ${limitedHsCodes.length} HS Codes...`
+            `Fetching UoM data for ${limitedHsCodes.length} HS Codes...`,
           );
 
           // Fetch UoM for each HS Code
@@ -7337,7 +7343,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                   "sandbox",
 
-                  token
+                  token,
                 );
 
                 if (uomResponse && Array.isArray(uomResponse)) {
@@ -7350,7 +7356,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
                     }))
 
                     .filter(
-                      (uom) => uom.description && uom.description.trim() !== ""
+                      (uom) => uom.description && uom.description.trim() !== "",
                     );
 
                   uomByHsCode[hsCodeValue] = processedUoMs;
@@ -7368,14 +7374,14 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
                 console.log(
                   `Failed to fetch UoM for HS Code ${hsCodeValue}:`,
 
-                  uomError.message
+                  uomError.message,
                 );
               }
             }
           }
 
           console.log(
-            `Collected ${allUniqueUoMs.size} unique UoM values from API`
+            `Collected ${allUniqueUoMs.size} unique UoM values from API`,
           );
         }
       } catch (error) {
@@ -7468,7 +7474,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     const comprehensiveUoMList = Array.from(allUniqueUoMs).sort();
 
     console.log(
-      `Total unique UoM values available: ${comprehensiveUoMList.length}`
+      `Total unique UoM values available: ${comprehensiveUoMList.length}`,
     );
     console.log(`UoM values: ${comprehensiveUoMList.join(", ")}`);
 
@@ -7670,7 +7676,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     const provincesValues = Object.keys(provinceMap);
 
     const transTypeCombinedValues = transactionTypes.map(
-      (tt) => `${tt.id} - ${tt.desc}`
+      (tt) => `${tt.id} - ${tt.desc}`,
     );
 
     const typeListRange = writeHiddenList(typeListCol, invoiceTypeValues);
@@ -7680,7 +7686,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     const ttCombinedRange = writeHiddenList(
       ttCombinedCol,
 
-      transTypeCombinedValues
+      transTypeCombinedValues,
     );
 
     // Simplified HS Code handling - no hidden list needed
@@ -7714,7 +7720,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     for (const tt of transactionTypes) {
       const rates = ratesByType[tt.id] || [];
       console.log(
-        `  Transaction Type ${tt.id} (${tt.desc}): ${rates.length} rates`
+        `  Transaction Type ${tt.id} (${tt.desc}): ${rates.length} rates`,
       );
       if (rates.length > 0) {
         console.log(`    Rates: ${rates.join(", ")}`);
@@ -7730,7 +7736,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     const allSROItemRange = writeHiddenList(
       allSROItemCol,
       comprehensiveSROItemList,
-      true // isSROItems = true to get all items
+      true, // isSROItems = true to get all items
     );
 
     // Simplified rate mapping - no complex mapping needed
@@ -7851,7 +7857,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
       template.getCell(
         r,
-        headerIndex("item_valueSalesExcludingST")
+        headerIndex("item_valueSalesExcludingST"),
       ).dataValidation = {
         type: "decimal",
         operator: "greaterThan",
@@ -7895,16 +7901,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       // Add automatic calculations
       const qtyColLetter = getColLetter(headerIndex("item_quantity"));
       const retailColLetter = getColLetter(
-        headerIndex("item_valueSalesExcludingST")
+        headerIndex("item_valueSalesExcludingST"),
       );
       const rateColLetter = getColLetter(headerIndex("item_rate"));
       const vsColLetter = getColLetter(
-        headerIndex("item_valueSalesExcludingST")
+        headerIndex("item_valueSalesExcludingST"),
       );
       const staColLetter = getColLetter(headerIndex("item_salesTaxApplicable"));
       const fedColLetter = getColLetter(headerIndex("item_fedPayable"));
       const stwColLetter = getColLetter(
-        headerIndex("item_salesTaxWithheldAtSource")
+        headerIndex("item_salesTaxWithheldAtSource"),
       );
       const ftrColLetter = getColLetter(headerIndex("item_furtherTax"));
       const extColLetter = getColLetter(headerIndex("item_extraTax"));
@@ -7987,13 +7993,13 @@ IF($${dscColLetter}${r}="",0,VALUE($${dscColLetter}${r})))`,
     res.setHeader(
       "Content-Type",
 
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
 
     res.setHeader(
       "Content-Disposition",
 
-      'attachment; filename="invoice_template.xlsx"'
+      'attachment; filename="invoice_template.xlsx"',
     );
 
     const arrayBuffer = await wb.xlsx.writeBuffer();
@@ -8011,10 +8017,10 @@ IF($${dscColLetter}${r}="",0,VALUE($${dscColLetter}${r})))`,
 
     const memoryUsage = MemoryManagementService.getMemoryUsage();
     console.log(
-      `✅ Excel template generated successfully in ${totalTime.toFixed(2)}ms`
+      `✅ Excel template generated successfully in ${totalTime.toFixed(2)}ms`,
     );
     console.log(
-      `💾 Memory usage: ${memoryUsage.heapUsed}MB heap, ${memoryUsage.activeProcesses} active processes`
+      `💾 Memory usage: ${memoryUsage.heapUsed}MB heap, ${memoryUsage.activeProcesses} active processes`,
     );
 
     res.status(200).send(nodeBuffer);
@@ -8022,7 +8028,7 @@ IF($${dscColLetter}${r}="",0,VALUE($${dscColLetter}${r})))`,
     const totalTime = Number(process.hrtime.bigint() - startTime) / 1000000;
     console.error(
       `❌ Excel template generation failed after ${totalTime.toFixed(2)}ms:`,
-      error
+      error,
     );
 
     // Complete the process even on error
@@ -8114,7 +8120,7 @@ export const bulkPrintInvoices = async (req, res) => {
 
     const pakistanGumLogoBase64 = fs
       .readFileSync(
-        path.join(process.cwd(), "public", "images", "Pakprogressive.png")
+        path.join(process.cwd(), "public", "images", "Pakprogressive.png"),
       )
       .toString("base64");
 
@@ -8194,7 +8200,7 @@ export const bulkPrintInvoices = async (req, res) => {
           ...plainInvoice,
           qrData,
         };
-      })
+      }),
     );
 
     // Render EJS HTML for bulk invoices
@@ -8235,7 +8241,7 @@ export const bulkPrintInvoices = async (req, res) => {
 
           return result;
         },
-      }
+      },
     );
 
     // Generate PDF using Puppeteer

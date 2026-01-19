@@ -46,51 +46,91 @@ const FUTURE_DATE_ERROR_MESSAGE =
 const convertExcelDateToYYYYMMDD = (excelDate) => {
   if (!excelDate || excelDate === "") return "";
 
-  // If it's already a string that looks like a date, try to parse it
+  // Helper to format Date object to YYYY-MM-DD string
+  const toLocalYYYYMMDD = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper to process Excel Serial Date (Number)
+  const processExcelSerial = (serial) => {
+    if (serial < 1000) return ""; // Ignore small numbers that are likely not dates
+    // Set time to NOON (12:00) to avoid DST/Timezone shifts
+    const excelEpoch = new Date(1900, 0, 1, 12, 0, 0);
+    let daysToAdd = serial - 1;
+    // Adjust for Excel's leap year bug (1900 is not a leap year)
+    if (serial > 59) {
+      daysToAdd = daysToAdd - 1;
+    }
+    const date = new Date(
+      excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000,
+    );
+    return toLocalYYYYMMDD(date);
+  };
+
+  // 1. Handle actual Number type
+  if (typeof excelDate === "number") {
+    return processExcelSerial(excelDate);
+  }
+
+  // 2. Handle String type
   if (typeof excelDate === "string") {
-    // Check if it's already in YYYY-MM-DD format
-    if (/^\d{4}-\d{2}-\d{2}$/.test(excelDate)) {
-      return excelDate;
+    // Trim whitespace and remove invisible characters
+    const cleanedDate = excelDate.trim();
+
+    // 2a. Check if it's already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanedDate)) {
+      return cleanedDate;
     }
 
-    // Check if it's a numeric string that might be an Excel serial date
-    if (/^\d+$/.test(excelDate)) {
-      const numericValue = parseFloat(excelDate);
-      // If it's a large number, treat it as Excel serial date
-      if (numericValue > 1000) {
-        // Excel dates are number of days since 1900-01-01
-        // Excel incorrectly treats 1900 as a leap year, so we need to adjust
-        const excelEpoch = new Date(1900, 0, 1);
-        let daysToAdd = numericValue - 1;
-
-        // Adjust for Excel's leap year bug (1900 is not a leap year but Excel treats it as one)
-        if (numericValue > 59) {
-          daysToAdd = daysToAdd - 1;
-        }
-
-        const date = new Date(
-          excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000
-        );
-        return date.toISOString().split("T")[0];
+    // 2b. Check if it looks like a number (integer or float)
+    // Matches: "45658", "45658.0", "45658.123"
+    if (/^-?\d+(\.\d+)?$/.test(cleanedDate)) {
+      const numericValue = parseFloat(cleanedDate);
+      if (!isNaN(numericValue)) {
+        return processExcelSerial(numericValue);
       }
     }
 
-    // Handle date strings with slashes (MM/DD/YYYY or DD/MM/YYYY)
-    if (excelDate.includes("/")) {
-      const parts = excelDate.split("/");
+    // 2c. Handle standard date separators (slash/dash)
+    if (cleanedDate.includes("/") || cleanedDate.includes("-")) {
+      const parts = cleanedDate.split(/[\/\-]/);
       if (parts.length === 3) {
         // Try MM/DD/YYYY format first (US format)
         let month = parseInt(parts[0], 10);
         let day = parseInt(parts[1], 10);
         let year = parseInt(parts[2], 10);
 
-        // If month > 12, it might be DD/MM/YYYY format
-        if (month > 12 && day <= 12) {
-          // Swap month and day
+        // Check if it is YYYY/MM/DD or YYYY-MM-DD
+        if (parts[0].length === 4) {
+          year = parseInt(parts[0], 10);
+          month = parseInt(parts[1], 10);
+          day = parseInt(parts[2], 10);
+        }
+        // Logic to disambiguate DD/MM/YYYY vs MM/DD/YYYY
+        else if (month <= 12 && day <= 12) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+
+          const dateMMDD = new Date(year, month - 1, day);
+          const dateDDMM = new Date(year, day - 1, month);
+
+          const isFutureMMDD = dateMMDD.getTime() > today.getTime();
+          const isFutureDDMM = dateDDMM.getTime() > today.getTime();
+
+          // If MM/DD is Future but DD/MM is Not Future, assume DD/MM
+          if (isFutureMMDD && !isFutureDDMM) {
+            [month, day] = [day, month];
+          }
+        }
+        // If month > 12, it must be DD/MM/YYYY format
+        else if (month > 12 && day <= 12) {
           [month, day] = [day, month];
         }
 
-        // Validate the date
+        // Validate range
         if (
           month >= 1 &&
           month <= 12 &&
@@ -99,35 +139,25 @@ const convertExcelDateToYYYYMMDD = (excelDate) => {
           year >= 1900 &&
           year <= 2100
         ) {
-          // Format as YYYY-MM-DD
           return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
         }
       }
     }
 
-    // Try to parse various date formats using JavaScript Date
-    const date = new Date(excelDate);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split("T")[0];
+    // 2d. Fallback for text formats (e.g. "Jan 1, 2025")
+    // STRICTLY BLOCK plain numbers from reaching this to avoid Year 45658 issue
+    // Only proceed if it contains letters or separators
+    if (
+      /[a-zA-Z]/.test(cleanedDate) ||
+      cleanedDate.includes("/") ||
+      cleanedDate.includes("-") ||
+      cleanedDate.includes(",")
+    ) {
+      const date = new Date(cleanedDate);
+      if (!isNaN(date.getTime())) {
+        return toLocalYYYYMMDD(date);
+      }
     }
-  }
-
-  // If it's a number (Excel serial date), convert it
-  if (typeof excelDate === "number") {
-    // Excel dates are number of days since 1900-01-01
-    // Excel incorrectly treats 1900 as a leap year, so we need to adjust
-    const excelEpoch = new Date(1900, 0, 1);
-    let daysToAdd = excelDate - 1;
-
-    // Adjust for Excel's leap year bug (1900 is not a leap year but Excel treats it as one)
-    if (excelDate > 59) {
-      daysToAdd = daysToAdd - 1;
-    }
-
-    const date = new Date(
-      excelEpoch.getTime() + daysToAdd * 24 * 60 * 60 * 1000
-    );
-    return date.toISOString().split("T")[0];
   }
 
   return "";
@@ -135,12 +165,32 @@ const convertExcelDateToYYYYMMDD = (excelDate) => {
 
 const isFutureDate = (value) => {
   if (!value) return false;
-  const date = new Date(value);
+
+  let date;
+  // Handle YYYY-MM-DD explicitly to avoid timezone issues with new Date(string)
+  // new Date("YYYY-MM-DD") parses as UTC, which can shift the date when converted to local time
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number);
+    // Create date in local time (months are 0-indexed)
+    date = new Date(year, month - 1, day);
+  } else {
+    date = new Date(value);
+  }
+
   if (isNaN(date.getTime())) return false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   date.setHours(0, 0, 0, 0);
-  return date.getTime() > today.getTime();
+
+  const isFuture = date.getTime() > today.getTime();
+
+  if (isFuture) {
+    console.warn(
+      `[Future Date Validation Failed] Input: "${value}" -> Parsed: ${date.toLocaleDateString()} (Timestamp: ${date.getTime()}) vs Today: ${today.toLocaleDateString()} (Timestamp: ${today.getTime()})`,
+    );
+  }
+
+  return isFuture;
 };
 
 const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
@@ -163,11 +213,13 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   }, [uploadResults, showResults]);
 
   useEffect(() => {
-    const hasFutureDateError = previewData.some(
-      (invoice) => invoice && isFutureDate(invoice.invoiceDate)
+    const invalidInvoice = previewData.find(
+      (invoice) => invoice && isFutureDate(invoice.invoiceDate),
     );
-    if (hasFutureDateError) {
-      toast.error(FUTURE_DATE_ERROR_MESSAGE);
+    if (invalidInvoice) {
+      toast.error(
+        `Invoice date ${invalidInvoice.invoiceDate} exceeds the current date. Please select today or a past date.`,
+      );
     }
   }, [previewData]);
 
@@ -237,7 +289,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
   // Required columns (invoiceRefNo is optional)
   const requiredColumns = expectedColumns.filter(
-    (col) => col !== "invoiceRefNo"
+    (col) => col !== "invoiceRefNo",
   );
 
   // Mandatory fields for validation (as per user request)
@@ -550,7 +602,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
     console.log(
       "🔍 cleanHsCode input:",
-      stringValue.substring(0, 100) + (stringValue.length > 100 ? "..." : "")
+      stringValue.substring(0, 100) + (stringValue.length > 100 ? "..." : ""),
     );
 
     // If it contains " - ", extract the part before the first " - "
@@ -598,11 +650,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
         if (processingErrors.length > 0) {
           toast.warning(
-            `File processed with ${processingErrors.length} errors`
+            `File processed with ${processingErrors.length} errors`,
           );
         } else {
           toast.success(
-            `File processed successfully: ${invoices.length} invoices found`
+            `File processed successfully: ${invoices.length} invoices found`,
           );
         }
 
@@ -613,7 +665,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           // Fallback: estimate from invoices/items
           const estRows = invoices.reduce(
             (acc, inv) => acc + (inv.items?.length || 1),
-            0
+            0,
           );
           setTotalRowsInFile(estRows);
         }
@@ -638,7 +690,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       if (lines.length < 2) {
         throw new Error(
-          "CSV file must have at least a header row and one data row"
+          "CSV file must have at least a header row and one data row",
         );
       }
 
@@ -647,11 +699,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       // Log missing headers but don't throw error - process whatever columns are available
       const missingHeaders = expectedColumns.filter(
-        (col) => !headers.includes(col)
+        (col) => !headers.includes(col),
       );
       if (missingHeaders.length > 0) {
         console.warn(
-          `Missing expected columns: ${missingHeaders.join(", ")}. Processing with available columns.`
+          `Missing expected columns: ${missingHeaders.join(", ")}. Processing with available columns.`,
         );
       }
 
@@ -727,7 +779,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
         if (jsonData.length < 2) {
           throw new Error(
-            "Excel file must have at least a header row and one data row"
+            "Excel file must have at least a header row and one data row",
           );
         }
 
@@ -740,11 +792,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
         // Log missing headers but don't throw error - process whatever columns are available
         const missingHeaders = expectedColumns.filter(
-          (col) => !headers.includes(col)
+          (col) => !headers.includes(col),
         );
         if (missingHeaders.length > 0) {
           console.warn(
-            `Missing expected columns: ${missingHeaders.join(", ")}. Processing with available columns.`
+            `Missing expected columns: ${missingHeaders.join(", ")}. Processing with available columns.`,
           );
         }
 
@@ -763,7 +815,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 (cell) =>
                   cell !== null &&
                   cell !== undefined &&
-                  String(cell).trim() !== ""
+                  String(cell).trim() !== "",
               );
 
             if (hasData) {
@@ -858,7 +910,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       } catch (error) {
         console.error("Error parsing Excel file:", error);
         throw new Error(
-          "Error parsing Excel file. Please check the file format."
+          "Error parsing Excel file. Please check the file format.",
         );
       }
     }
@@ -960,7 +1012,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       // Validate that tenant has required seller information
       if (!selectedTenant.sellerNTNCNIC || !selectedTenant.sellerBusinessName) {
         toast.error(
-          "Selected company is missing required seller information (NTN/CNIC or Business Name)"
+          "Selected company is missing required seller information (NTN/CNIC or Business Name)",
         );
         setPreviewData([]);
         return;
@@ -999,8 +1051,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       existingInvoicesFromDb.map((ex) =>
         String(ex.invoiceData.companyInvoiceRefNo || "")
           .trim()
-          .toLowerCase()
-      )
+          .toLowerCase(),
+      ),
     );
 
     const invoiceMandatory = [
@@ -1093,7 +1145,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         // Clean transctypeId - extract only the ID part
         if (cleanedInvoice.transctypeId) {
           cleanedInvoice.transctypeId = cleanTransctypeId(
-            cleanedInvoice.transctypeId
+            cleanedInvoice.transctypeId,
           );
         }
 
@@ -1111,7 +1163,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       // Skip API call if no data to check
       if (!limitedData || limitedData.length === 0) {
         console.log(
-          "No data to check for existing invoices, skipping API call"
+          "No data to check for existing invoices, skipping API call",
         );
         setExistingInvoices([]);
         setNewInvoices([]);
@@ -1120,7 +1172,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       const response = await api.post(
         `/tenant/${selectedTenant.tenant_id}/invoices/check-existing`,
-        { invoices: limitedData }
+        { invoices: limitedData },
       );
 
       const { existing, new: newInvoicesData } = response.data.data;
@@ -1133,7 +1185,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       if (existing.length > 0) {
         toast.info(
-          `${existing.length} invoices already exist and will be skipped during upload`
+          `${existing.length} invoices already exist and will be skipped during upload`,
         );
       }
     } catch (error) {
@@ -1191,7 +1243,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           // Clean transctypeId - extract only the ID part
           if (cleanedItem.transctypeId) {
             cleanedItem.transctypeId = cleanTransctypeId(
-              cleanedItem.transctypeId
+              cleanedItem.transctypeId,
             );
           }
 
@@ -1216,7 +1268,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             cleanedItem.name = cleanedItem.item_productName;
             console.log(
               "✅ Frontend: Mapped product name:",
-              cleanedItem.item_productName
+              cleanedItem.item_productName,
             );
           } else {
             console.log("❌ Frontend: No valid item_productName found");
@@ -1296,17 +1348,17 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
             if (existingInvoice.invoiceType !== cleanedItem.invoiceType) {
               consistencyErrors.push(
-                `Invoice Type mismatch: ${existingInvoice.invoiceType} vs ${cleanedItem.invoiceType}`
+                `Invoice Type mismatch: ${existingInvoice.invoiceType} vs ${cleanedItem.invoiceType}`,
               );
             }
             if (existingInvoice.invoiceDate !== cleanedItem.invoiceDate) {
               consistencyErrors.push(
-                `Invoice Date mismatch: ${existingInvoice.invoiceDate} vs ${cleanedItem.invoiceDate}`
+                `Invoice Date mismatch: ${existingInvoice.invoiceDate} vs ${cleanedItem.invoiceDate}`,
               );
             }
             if (existingInvoice.buyerNTNCNIC !== cleanedItem.buyerNTNCNIC) {
               consistencyErrors.push(
-                `Buyer NTN/CNIC mismatch: ${existingInvoice.buyerNTNCNIC} vs ${cleanedItem.buyerNTNCNIC}`
+                `Buyer NTN/CNIC mismatch: ${existingInvoice.buyerNTNCNIC} vs ${cleanedItem.buyerNTNCNIC}`,
               );
             }
 
@@ -1347,7 +1399,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         if (groupingErrors.length > 0) {
           console.error("Grouping validation errors:", groupingErrors);
           toast.error(
-            `Found ${groupingErrors.length} grouping validation errors. Rows with the same Company Invoice Ref No must have consistent invoice-level data. Check console for details.`
+            `Found ${groupingErrors.length} grouping validation errors. Rows with the same Company Invoice Ref No must have consistent invoice-level data. Check console for details.`,
           );
           setUploading(false);
           return;
@@ -1362,7 +1414,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             sellerBusinessName: selectedTenant?.sellerBusinessName || "",
             sellerProvince: selectedTenant?.sellerProvince || "",
             sellerAddress: selectedTenant?.sellerAddress || "",
-          })
+          }),
         );
       }
 
@@ -1421,7 +1473,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         if (validationErrors.length > 0) {
           setErrors(validationErrors);
           toast.error(
-            "No valid invoices to upload. Please fix the errors in the CSV."
+            "No valid invoices to upload. Please fix the errors in the CSV.",
           );
         } else {
           toast.error("No valid invoices to upload.");
@@ -1434,7 +1486,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       if (validationErrors.length > 0) {
         setErrors(validationErrors);
         toast.warning(
-          `${validationErrors.length} invoices have errors and will be skipped. Proceeding with ${invoicesToUpload.length} valid invoices.`
+          `${validationErrors.length} invoices have errors and will be skipped. Proceeding with ${invoicesToUpload.length} valid invoices.`,
         );
       }
 
@@ -1445,7 +1497,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         // Estimate upload time
         const estimate = estimateUploadTime(invoicesToUpload.length);
         toast.info(
-          `Starting upload of ${invoicesToUpload.length} invoices. Estimated time: ${estimate.estimatedTimeMinutes} minutes`
+          `Starting upload of ${invoicesToUpload.length} invoices. Estimated time: ${estimate.estimatedTimeMinutes} minutes`,
         );
 
         // Use streaming upload
@@ -1487,7 +1539,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             });
 
             detailedResults.successfulInvoices = Array.from(
-              successfulIndices
+              successfulIndices,
             ).map((index) => {
               const invoice = invoicesToUpload[index];
               return {
@@ -1526,7 +1578,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             });
             console.log(
               "🔍 Final failedInvoices array:",
-              detailedResults.failedInvoices
+              detailedResults.failedInvoices,
             );
           }
 
@@ -1566,12 +1618,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 autoClose: 8000,
                 closeOnClick: false,
                 pauseOnHover: true,
-              }
+              },
             );
             console.error("Upload errors:", errors);
           } else {
             toast.success(
-              `Successfully uploaded ${actualSuccessfulCount} invoices as drafts!`
+              `Successfully uploaded ${actualSuccessfulCount} invoices as drafts!`,
             );
           }
         } else {
@@ -1585,7 +1637,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             const errorData = result.error.response.data;
             console.log(
               "Streaming upload failed with validation errors:",
-              errorData
+              errorData,
             );
 
             // Process errors from the new fail-all validation structure
@@ -1622,7 +1674,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                   error: invoiceErrors.map((e) => e.error).join("; "), // Combine multiple errors for same invoice
                   status: "failed",
                   allErrors: invoiceErrors, // Store all errors for detailed display
-                })
+                }),
               ),
             };
 
@@ -1632,10 +1684,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             // Show detailed error message with specific error types
             if (errors.length > 0) {
               const buyerErrors = errors.filter((e) =>
-                e.error.includes("Buyer with NTN")
+                e.error.includes("Buyer with NTN"),
               ).length;
               const productErrors = errors.filter((e) =>
-                e.error.includes("Product")
+                e.error.includes("Product"),
               ).length;
               const otherErrors = errors.length - buyerErrors - productErrors;
 
@@ -1650,7 +1702,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               toast.error(errorMessage, { autoClose: 10000 });
             } else {
               toast.error(
-                `Upload failed: ${errorData.message || "Unknown error"}`
+                `Upload failed: ${errorData.message || "Unknown error"}`,
               );
             }
           } else {
@@ -1697,7 +1749,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               });
 
               detailedResults.successfulInvoices = Array.from(
-                successfulIndices
+                successfulIndices,
               ).map((index) => {
                 const invoice = invoicesToUpload[index];
                 return {
@@ -1738,13 +1790,13 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
                 console.log(
                   "🔍 Regular upload - Created failed invoice:",
-                  failedInvoice
+                  failedInvoice,
                 );
                 return failedInvoice;
               });
               console.log(
                 "🔍 Regular upload - Final failedInvoices array:",
-                detailedResults.failedInvoices
+                detailedResults.failedInvoices,
               );
             }
 
@@ -1765,12 +1817,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                   autoClose: 8000,
                   closeOnClick: false,
                   pauseOnHover: true,
-                }
+                },
               );
               console.error("Upload errors:", errors);
             } else {
               toast.success(
-                `Successfully uploaded ${actualSuccessfulCount} invoices as drafts!`
+                `Successfully uploaded ${actualSuccessfulCount} invoices as drafts!`,
               );
             }
           } else {
@@ -1797,7 +1849,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             setShowResults(true);
             console.log("Fallback upload results set:", fallbackResults);
             toast.success(
-              `Successfully uploaded ${invoicesToUpload.length} invoices as drafts`
+              `Successfully uploaded ${invoicesToUpload.length} invoices as drafts`,
             );
           }
         } catch (uploadError) {
@@ -1840,7 +1892,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                   error: invoiceErrors.map((e) => e.error).join("; "), // Combine multiple errors for same invoice
                   status: "failed",
                   allErrors: invoiceErrors, // Store all errors for detailed display
-                })
+                }),
               ),
             };
 
@@ -1850,10 +1902,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             // Show detailed error message with specific error types
             if (errors.length > 0) {
               const buyerErrors = errors.filter((e) =>
-                e.error.includes("Buyer with NTN")
+                e.error.includes("Buyer with NTN"),
               ).length;
               const productErrors = errors.filter((e) =>
-                e.error.includes("Product")
+                e.error.includes("Product"),
               ).length;
               const otherErrors = errors.length - buyerErrors - productErrors;
 
@@ -1868,7 +1920,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               toast.error(errorMessage, { autoClose: 10000 });
             } else {
               toast.error(
-                `Upload failed: ${errorData.message || "Unknown error"}`
+                `Upload failed: ${errorData.message || "Unknown error"}`,
               );
             }
           } else {
@@ -1885,7 +1937,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       console.log("uploadResults.summary:", uploadResults?.summary);
       console.log(
         "uploadResults.summary.failed:",
-        uploadResults?.summary?.failed
+        uploadResults?.summary?.failed,
       );
 
       // Don't close the modal automatically - let the user decide when to close
@@ -1969,7 +2021,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           // Don't close if there are results to show
           if (uploadResults && showResults) {
             console.log(
-              "Preventing dialog close - results are being displayed"
+              "Preventing dialog close - results are being displayed",
             );
             return;
           }
@@ -2016,8 +2068,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             <br />
             <br />
             <strong>New Feature:</strong> Rows with the same{" "}
-            <code>internalInvoiceNo</code> will be automatically combined into
-            single invoices with multiple line items.
+            <code>Company Invoice Ref No</code> will be automatically combined
+            into single invoices with multiple line items.
           </Typography>
 
           {/* Tenant Selection Warning */}
@@ -2044,7 +2096,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
                   if (!response.ok) {
                     throw new Error(
-                      `Failed to fetch template: ${response.statusText}`
+                      `Failed to fetch template: ${response.statusText}`,
                     );
                   }
 
@@ -2063,7 +2115,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 } catch (error) {
                   console.error("Error downloading template:", error);
                   toast.error(
-                    "Could not download Excel template. Please try again."
+                    "Could not download Excel template. Please try again.",
                   );
                 } finally {
                   setDownloadingTemplate(false);
@@ -2670,7 +2722,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             uploading ||
             checkingExisting ||
             previewData.some(
-              (invoice) => invoice && isFutureDate(invoice.invoiceDate)
+              (invoice) => invoice && isFutureDate(invoice.invoiceDate),
             )
           }
           startIcon={
