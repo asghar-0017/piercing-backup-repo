@@ -347,7 +347,15 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       setProcessingProgress(100);
 
       if (validationResult.validData.length > 0) {
-        checkExistingProducts(validationResult.validData);
+        // Skip existing check - treat all as new as per user request to "upload all"
+        // Wrap data to match expected structure { productData: ... } for handleUpload
+        const formattedNewProducts = validationResult.validData.map(item => ({
+          productData: item,
+          row: item._row
+        }));
+        setNewProducts(formattedNewProducts);
+        setExistingProducts([]);
+        // checkExistingProducts(validationResult.validData);
       }
 
       // Show performance metrics
@@ -649,7 +657,15 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     setErrors(validationErrors);
 
     if (validData.length > 0) {
-      checkExistingProducts(validData);
+      // Skip existing check - treat all as new
+      // Wrap data to match expected structure { productData: ... } for handleUpload
+      const formattedNewProducts = validData.map(item => ({
+        productData: item,
+        row: item._row
+      }));
+      setNewProducts(formattedNewProducts);
+      setExistingProducts([]);
+      // checkExistingProducts(validData);
     }
   };
 
@@ -805,10 +821,10 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         if (summary.failed > 0 && errors) {
           detailedResults.failedProducts = errors.map((error, index) => {
             // Find the actual product data from the original upload
-            const originalProduct = productsToUpload.find((p, idx) => idx + 1 === error.row) || 
-                                   productsToUpload[error.row - 1] || 
-                                   productsToUpload[index];
-            
+            const originalProduct = productsToUpload.find((p, idx) => idx + 1 === error.row) ||
+              productsToUpload[error.row - 1] ||
+              productsToUpload[index];
+
             return {
               row: error.row || index + 1,
               productName: originalProduct?.productName || originalProduct?.name || error.product || `Product ${error.row || index + 1}`,
@@ -929,18 +945,19 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     };
 
     // Add existing products with status
-    existingProducts.forEach((item, index) => {
-      // Handle different data structures from API
-      const productData = item.productData || item;
-      const rowNumber = item?.row ?? item?.productData?._row ?? index + 1;
+    // Add existing products with status - DISABLED as per user request to hide existing products from list
+    // existingProducts.forEach((item, index) => {
+    //   // Handle different data structures from API
+    //   const productData = item.productData || item;
+    //   const rowNumber = item?.row ?? item?.productData?._row ?? index + 1;
 
-      combined.push({
-        ...normalize(productData),
-        _status: "existing",
-        _existingProduct: item.existingProduct,
-        _row: rowNumber,
-      });
-    });
+    //   combined.push({
+    //     ...normalize(productData),
+    //     _status: "existing",
+    //     _existingProduct: item.existingProduct,
+    //     _row: rowNumber,
+    //   });
+    // });
 
     // Add new products with status
     newProducts.forEach((item, index) => {
@@ -1242,11 +1259,11 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               <Box>
                 {/* Summary Cards */}
                 <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-                  <Paper sx={{ 
-                    p: 3, 
-                    minWidth: 150, 
-                    textAlign: 'center', 
-                    bgcolor: 'success.main', 
+                  <Paper sx={{
+                    p: 3,
+                    minWidth: 150,
+                    textAlign: 'center',
+                    bgcolor: 'success.main',
                     color: 'white',
                     borderRadius: 2,
                     boxShadow: 2
@@ -1259,11 +1276,11 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                     </Typography>
                   </Paper>
                   {uploadResults.summary.failed > 0 && (
-                    <Paper sx={{ 
-                      p: 3, 
-                      minWidth: 150, 
-                      textAlign: 'center', 
-                      bgcolor: 'error.main', 
+                    <Paper sx={{
+                      p: 3,
+                      minWidth: 150,
+                      textAlign: 'center',
+                      bgcolor: 'error.main',
                       color: 'white',
                       borderRadius: 2,
                       boxShadow: 2
@@ -1294,9 +1311,9 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                     <TableBody>
                       {/* Successful Products */}
                       {uploadResults.successfulProducts.map((product, index) => (
-                        <TableRow 
-                          key={`success-${index}`} 
-                          sx={{ 
+                        <TableRow
+                          key={`success-${index}`}
+                          sx={{
                             bgcolor: 'success.light',
                             '&:hover': { bgcolor: 'success.main', color: 'white' },
                             borderLeft: '4px solid #4caf50'
@@ -1324,12 +1341,12 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                           </TableCell>
                         </TableRow>
                       ))}
-                      
+
                       {/* Failed Products */}
                       {uploadResults.failedProducts.map((product, index) => (
-                        <TableRow 
-                          key={`failed-${index}`} 
-                          sx={{ 
+                        <TableRow
+                          key={`failed-${index}`}
+                          sx={{
                             bgcolor: 'error.light',
                             '&:hover': { bgcolor: 'error.main', color: 'white' },
                             borderLeft: '4px solid #f44336'

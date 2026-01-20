@@ -1,6 +1,8 @@
 // Buyer controller for multi-tenant MySQL system
 // This controller uses req.tenantModels.Buyer from tenant middleware
 
+import AuditLog from "../../model/mysql/AuditLog.js";
+
 import { logAuditEvent } from "../../middleWare/auditMiddleware.js";
 
 // Create new buyer
@@ -381,7 +383,7 @@ export const updateBuyer = async (req, res) => {
     // Check by both buyer_id (for new invoices) and buyerNTNCNIC (for existing invoices)
     const { Invoice } = req.tenantModels;
     const { Op } = req.tenantDb.Sequelize;
-    
+
     const relatedInvoices = await Invoice.findAll({
       where: {
         [Op.or]: [
@@ -395,7 +397,7 @@ export const updateBuyer = async (req, res) => {
     console.log(`[Buyer Update] Found ${relatedInvoices.length} related invoice(s) for buyer ID ${buyer.id}, NTN/CNIC: ${buyer.buyerNTNCNIC}`);
 
     const postedInvoices = relatedInvoices.filter(inv => inv.status === 'posted' || inv.fbr_invoice_number);
-    
+
     console.log(`[Buyer Update] Found ${postedInvoices.length} posted invoice(s) for buyer ID ${buyer.id}`);
     const updatePostedInvoices = req.body.updatePostedInvoices === true || req.body.updatePostedInvoices === 'true';
 
@@ -427,7 +429,7 @@ export const updateBuyer = async (req, res) => {
       buyerRegistrationType: buyer.buyerRegistrationType,
       buyerPhoneNumber: buyer.buyerPhoneNumber,
     };
-    
+
     // Store old values on the instance so hook can access them
     buyer._oldValuesForHook = oldValues;
 
@@ -599,10 +601,6 @@ export const bulkCreateBuyers = async (req, res) => {
       });
     }
 
-    console.log(
-      `🚀 Starting ULTRA-OPTIMIZED bulk upload for ${buyers.length} buyers...`
-    );
-
     const results = {
       created: [],
       errors: [],
@@ -610,7 +608,6 @@ export const bulkCreateBuyers = async (req, res) => {
     };
 
     // PHASE 1: Pre-validation (in memory - fastest)
-    console.log("🔍 Phase 1: Pre-validating all buyers...");
     const validBuyers = [];
     const validationErrors = [];
 
@@ -697,7 +694,6 @@ export const bulkCreateBuyers = async (req, res) => {
     });
 
     // PHASE 2: Batch duplicate checking (single database query)
-    console.log("🔍 Phase 2: Checking for existing buyers (batch query)...");
     const ntnCnicValues = validBuyers
       .filter((buyer) => buyer.buyerNTNCNIC && buyer.buyerNTNCNIC.trim())
       .map((buyer) => buyer.buyerNTNCNIC.trim());
@@ -752,25 +748,86 @@ export const bulkCreateBuyers = async (req, res) => {
         buyerAddress: buyer.buyerAddress?.trim() || null,
         buyerRegistrationType: buyer.buyerRegistrationType.trim(),
         buyerPhoneNumber: buyer.buyerPhoneNumber?.trim() || null,
+        created_by_user_id: req.user?.userId || req.user?.id || null,
+        created_by_email: req.user?.email || null,
+        created_by_name:
+          (req.user?.firstName || req.user?.lastName)
+            ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+            : (req.user?.role === "admin" ? `Admin (${req.user?.id || req.user?.userId})` : null),
       });
     });
 
     // PHASE 3: Ultra-fast bulk insert with chunking
-    console.log(`🚀 Phase 3: Bulk inserting ${finalBuyers.length} buyers...`);
-
     if (finalBuyers.length > 0) {
-      // Use bulkCreate with optimized settings
-      const createdBuyers = await Buyer.bulkCreate(finalBuyers, {
-        validate: false, // Skip validation since we already did it
-        ignoreDuplicates: true,
-        benchmark: false,
-        logging: false,
-        returning: true,
-        // Process in chunks for optimal performance
-        chunkSize: 1000, // Larger chunks for better performance
-      });
+      const chunkSize = 2000;
+      const chunks = Math.ceil(finalBuyers.length / chunkSize);
 
-      results.created = createdBuyers;
+      console.log(`Processing ${finalBuyers.length} buyers in ${chunks} chunks...`);
+
+      // Reuse user validation for all chunks
+      const userId = req.user?.userId || req.user?.id || null;
+      let validatedUserId = null;
+
+      if (userId) {
+        try {
+          const { default: User } = await import("../../model/mysql/User.js");
+          const userExists = await User.findByPk(userId, {
+            attributes: ['id'],
+            raw: true,
+          });
+          if (userExists) validatedUserId = userId;
+        } catch (e) { console.warn("User validation failed", e); }
+      }
+
+      for (let i = 0; i < chunks; i++) {
+        const chunkData = finalBuyers.slice(i * chunkSize, (i + 1) * chunkSize);
+
+        // Use bulkCreate with optimized settings
+        const createdChunk = await Buyer.bulkCreate(chunkData, {
+          validate: false,
+          ignoreDuplicates: true,
+          benchmark: false,
+          logging: false,
+          returning: true,
+        });
+
+        results.created.push(...createdChunk);
+
+        // Log individual audit events for this chunk
+        if (createdChunk.length > 0) {
+          try {
+            const auditEntries = createdChunk.map((buyer) => ({
+              entityType: "buyer",
+              entityId: buyer.id,
+              operation: "CREATE",
+              userId: validatedUserId,
+              userEmail: req.user?.email || null,
+              userName:
+                req.user?.firstName || req.user?.lastName
+                  ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+                  : req.user?.userName || req.user?.email || "Unknown",
+              userRole: req.user?.role || null,
+              tenantId: req.tenant?.id || req.tenant?.tenantId || null,
+              tenantName:
+                req.tenant?.seller_business_name || req.tenant?.name || null,
+              oldValues: null,
+              newValues: JSON.stringify(buyer),
+              ipAddress: req.ip || req.connection?.remoteAddress,
+              userAgent: req.get ? req.get("User-Agent") : null,
+              requestId: req.headers?.["x-request-id"] || `bulk_buyer_${Date.now()}_${i}`,
+              created_at: new Date(),
+              additionalInfo: JSON.stringify({
+                source: "bulk_upload",
+                chunk: i + 1
+              }),
+            }));
+
+            await AuditLog.bulkCreate(auditEntries);
+          } catch (auditError) {
+            console.error(`⚠️ Failed to log audits for buyer chunk ${i + 1}:`, auditError);
+          }
+        }
+      }
     }
 
     // Add validation errors

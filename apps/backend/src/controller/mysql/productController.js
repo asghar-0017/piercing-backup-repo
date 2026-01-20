@@ -1,4 +1,5 @@
 import { Op } from "sequelize";
+import AuditLog from "../../model/mysql/AuditLog.js";
 import { logAuditEvent } from "../../middleWare/auditMiddleware.js";
 
 export const listProducts = async (req, res) => {
@@ -61,7 +62,7 @@ export const getAllProductsWithoutPagination = async (req, res) => {
   try {
     console.log('🔍 Products API called with search:', req.query.search);
     console.log('🔍 Tenant models available:', Object.keys(req.tenantModels));
-    
+
     const { Product } = req.tenantModels;
     const { search } = req.query;
 
@@ -105,13 +106,13 @@ export const createProduct = async (req, res) => {
   try {
     const { Product } = req.tenantModels;
     const { name, description, hsCode, uom } = req.body;
-    
+
     // Validate required fields
     if (!name)
       return res
         .status(400)
         .json({ success: false, message: "name is required" });
-    
+
     if (!hsCode)
       return res
         .status(400)
@@ -162,7 +163,7 @@ export const createProduct = async (req, res) => {
         message: "Database constraint error occurred",
       });
     }
-    
+
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -206,13 +207,17 @@ export const updateProduct = async (req, res) => {
     // Check by both product_id (for new invoice items) and hsCode/name (for existing invoice items)
     const { InvoiceItem, Invoice } = req.tenantModels;
     const { Op } = req.tenantDb.Sequelize;
-    
+
     const relatedInvoiceItems = await InvoiceItem.findAll({
       where: {
         [Op.or]: [
           { product_id: product.id },
-          { hsCode: product.hsCode },
-          { name: product.name }
+          {
+            [Op.and]: [
+              { name: product.name },
+              { product_id: null }
+            ]
+          }
         ],
       },
       attributes: ['id', 'invoice_id', 'product_id', 'hsCode', 'name'],
@@ -222,9 +227,9 @@ export const updateProduct = async (req, res) => {
 
     // Get unique invoice IDs (filter out null/undefined)
     const invoiceIds = [...new Set(relatedInvoiceItems.map(item => item.invoice_id).filter(id => id != null))];
-    
+
     console.log(`[Product Update] Found ${invoiceIds.length} unique invoice(s) containing this product`);
-    
+
     // Find invoices that are posted or have FBR invoice numbers
     const postedInvoices = invoiceIds.length > 0 ? await Invoice.findAll({
       where: {
@@ -267,10 +272,10 @@ export const updateProduct = async (req, res) => {
       hsCode: product.hsCode,
       uom: product.uom,
     };
-    
+
     // Store old values on the instance so hook can access them
     product._oldValuesForHook = oldValues;
-    
+
     console.log(`[Product Controller] About to update product ID ${product.id}`);
     console.log(`[Product Controller] Old values:`, oldValues);
     console.log(`[Product Controller] New values:`, { name, description, hsCode, uom });
@@ -279,7 +284,7 @@ export const updateProduct = async (req, res) => {
     // Note: individualHooks must be true for afterUpdate to fire
     console.log(`[Product Controller] Updating product ID ${product.id} with individualHooks: true`);
     console.log(`[Product Controller] Old values stored:`, oldValues);
-    
+
     // Update product and invoice items in a transaction
     await req.tenantDb.transaction(async (transaction) => {
       // Update the product
@@ -293,46 +298,40 @@ export const updateProduct = async (req, res) => {
         individualHooks: true,
         transaction: transaction,
       });
-      
+
       console.log(`[Product Controller] Product updated, now updating invoice items...`);
-      
+
       // Manually update invoice items (hook might not fire reliably)
       const { InvoiceItem } = req.tenantModels;
       const { Op } = req.tenantDb.Sequelize;
-      
+
       // Build where conditions to find invoice items
       const whereConditions = [];
-      
+
       // Always include product_id
       if (product.id) {
         whereConditions.push({ product_id: product.id });
       }
-      
-      // Add name conditions (both old and new)
+
+      // Add name conditions (only match old name if product_id is null)
       if (oldValues.name && String(oldValues.name).trim()) {
-        whereConditions.push({ name: String(oldValues.name).trim() });
+        whereConditions.push({
+          name: String(oldValues.name).trim(),
+          product_id: null
+        });
       }
-      if (name && String(name).trim()) {
-        whereConditions.push({ name: String(name).trim() });
-      }
-      
-      // Add hsCode conditions (both old and new)
-      if (oldValues.hsCode && String(oldValues.hsCode).trim()) {
-        whereConditions.push({ hsCode: String(oldValues.hsCode).trim() });
-      }
-      if (hsCode && String(hsCode).trim()) {
-        whereConditions.push({ hsCode: String(hsCode).trim() });
-      }
-      
+
+      // Removed HS Code matching to prevent false positives with generic HS Codes
+
       console.log(`[Product Controller] Where conditions array:`, whereConditions);
       console.log(`[Product Controller] Where conditions count:`, whereConditions.length);
-      
+
       // Ensure we have at least one condition
       if (whereConditions.length === 0) {
         console.error(`[Product Controller] ⚠️ ERROR: No where conditions! Cannot update all invoice items.`);
         throw new Error('No conditions found to update invoice items');
       }
-      
+
       // Build update data
       const updateData = {
         name: name,
@@ -346,7 +345,7 @@ export const updateProduct = async (req, res) => {
       if (uom !== undefined) {
         updateData.uoM = uom;
       }
-      
+
       // Update invoice items - use Op.or for multiple conditions
       const updateWhere = {
         [Op.and]: [
@@ -354,22 +353,22 @@ export const updateProduct = async (req, res) => {
           { isDeleted: false }
         ],
       };
-      
+
       console.log(`[Product Controller] Updating invoice items...`);
       console.log(`[Product Controller] WHERE conditions:`, whereConditions.map(c => {
         const key = Object.keys(c)[0];
         return `${key}: ${c[key]}`;
       }).join(', '));
       console.log(`[Product Controller] Update data:`, updateData);
-      
+
       const updateResult = await InvoiceItem.update(updateData, {
         where: updateWhere,
         transaction: transaction,
       });
-      
+
       const rowsUpdated = Array.isArray(updateResult) ? updateResult[0] : updateResult;
       console.log(`[Product Controller] ✅ Updated ${rowsUpdated} invoice item(s)`);
-      
+
       // Verify the update by querying a few sample items
       if (rowsUpdated > 0) {
         const sampleItems = await InvoiceItem.findAll({
@@ -391,22 +390,18 @@ export const updateProduct = async (req, res) => {
           product_id: item.product_id
         })));
       }
-      
+
       // Also update product_id for invoice items that don't have it set yet
       const productIdUpdateConditions = [];
-      if (oldValues.hsCode && String(oldValues.hsCode).trim()) {
-        productIdUpdateConditions.push({ hsCode: String(oldValues.hsCode).trim(), product_id: null });
-      }
-      if (hsCode && String(hsCode).trim()) {
-        productIdUpdateConditions.push({ hsCode: String(hsCode).trim(), product_id: null });
-      }
+      // Removed HS Code linking
+
       if (oldValues.name && String(oldValues.name).trim()) {
         productIdUpdateConditions.push({ name: String(oldValues.name).trim(), product_id: null });
       }
       if (name && String(name).trim()) {
         productIdUpdateConditions.push({ name: String(name).trim(), product_id: null });
       }
-      
+
       if (productIdUpdateConditions.length > 0) {
         const productIdUpdateResult = await InvoiceItem.update(
           { product_id: product.id },
@@ -424,9 +419,9 @@ export const updateProduct = async (req, res) => {
         console.log(`[Product Controller] ✅ Updated product_id for ${productIdRowsUpdated} invoice item(s)`);
       }
     });
-    
+
     console.log(`[Product Controller] Transaction committed, invoice items updated`);
-    
+
     // Reload product to get updated values
     await product.reload();
 
@@ -452,8 +447,8 @@ export const updateProduct = async (req, res) => {
     // Reload product to get updated values
     await product.reload();
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Product updated successfully. ${relatedInvoiceItems.length > 0 ? `${relatedInvoiceItems.length} related invoice item(s) ${postedInvoicesCount > 0 ? 'in ' + postedInvoicesCount + ' posted invoice(s)' : ''} will be updated automatically.` : ''}`,
       data: product,
       updatedInvoiceItemsCount: relatedInvoiceItems.length,
@@ -687,55 +682,19 @@ export const bulkCreateProducts = async (req, res) => {
       `✅ Phase 1 (Validation) completed in ${validationTime.toFixed(2)}ms`
     );
 
-    // Phase 2: Batch duplicate checking (single query instead of individual queries)
-    const duplicateStart = process.hrtime.bigint();
-    const names = [...new Set(validProducts.map((p) => p.name))];
+    // Phase 2: Duplicate Check - MODIFIED: Business logic now allows duplicate names as per user request
+    const duplicateTime = 0;
 
-    const existingProducts = await Product.findAll({
-      where: {
-        name: { [Op.in]: names },
-      },
-      attributes: ["name"],
-    });
-
-    // Create lookup map for O(1) performance
-    const existingByName = new Set(existingProducts.map((p) => p.name));
-
-    const duplicateErrors = [];
-    const uniqueProducts = [];
-
-    validProducts.forEach((product) => {
-      // BUSINESS LOGIC: Product is duplicate only if name already exists
-      // HS code duplicates are now allowed as per business requirements
-      const isDuplicate = existingByName.has(product.name);
-
-      if (isDuplicate) {
-        duplicateErrors.push({
-          row: product._row,
-          error: `Product with name "${product.name}" already exists. Please use a different name.`,
-        });
-      } else {
-        uniqueProducts.push(product);
-      }
-    });
-
-    const duplicateTime =
-      Number(process.hrtime.bigint() - duplicateStart) / 1000000;
-    console.log(
-      `✅ Phase 2 (Duplicate Check) completed in ${duplicateTime.toFixed(2)}ms`
-    );
+    // We proceed with all valid products
+    const productsToInsert = validProducts;
 
     // Phase 3: Ultra-fast bulk insert with chunking
     const insertStart = process.hrtime.bigint();
-    const chunkSize = 1000; // Process 1000 products per chunk
-    const chunks = Math.ceil(uniqueProducts.length / chunkSize);
-
-    console.log(
-      `📦 Processing ${uniqueProducts.length} unique products in ${chunks} chunks of ${chunkSize}`
-    );
+    const chunkSize = 2000;
+    const chunks = Math.ceil(productsToInsert.length / chunkSize);
 
     for (let i = 0; i < chunks; i++) {
-      const chunk = uniqueProducts.slice(i * chunkSize, (i + 1) * chunkSize);
+      const chunk = productsToInsert.slice(i * chunkSize, (i + 1) * chunkSize);
 
       // Prepare chunk data for bulk insert
       const chunkData = chunk.map((product) => ({
@@ -745,41 +704,95 @@ export const bulkCreateProducts = async (req, res) => {
         uom: product.uom,
         createdAt: new Date(),
         updatedAt: new Date(),
+        created_by_user_id: req.user?.userId || req.user?.id || null,
+        created_by_email: req.user?.email || null,
+        created_by_name:
+          (req.user?.firstName || req.user?.lastName)
+            ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+            : (req.user?.role === "admin" ? "Admin" : null),
       }));
 
       // ULTRA-OPTIMIZATION: Use bulkCreate for maximum performance
       const createdChunk = await Product.bulkCreate(chunkData, {
         ignoreDuplicates: true,
-        validate: false, // Skip validation for speed
+        validate: false,
         returning: true,
       });
 
       results.created.push(...createdChunk);
 
-      console.log(
-        `  📦 Chunk ${i + 1}/${chunks}: ${createdChunk.length} products created`
+      // Log individual audit events for this chunk of products
+      try {
+        const auditEntries = createdChunk.map((product) => ({
+          entityType: "product",
+          entityId: product.id,
+          operation: "CREATE",
+          userId: req.user?.userId || req.user?.id || null,
+          userEmail: req.user?.email || null,
+          userName:
+            req.user?.firstName || req.user?.lastName
+              ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+              : req.user?.userName || "Unknown",
+          userRole: req.user?.role || null,
+          tenantId: req.tenant?.id || req.tenant?.tenantId || null,
+          tenantName:
+            req.tenant?.seller_business_name || req.tenant?.name || null,
+          oldValues: null,
+          newValues: JSON.stringify(product),
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.get ? req.get("User-Agent") : null,
+          requestId: req.headers?.["x-request-id"] || `bulk_product_${Date.now()}_${i}`,
+          created_at: new Date(),
+          additionalInfo: JSON.stringify({
+            source: "bulk_upload",
+            chunk: i + 1,
+            totalChunks: chunks,
+          }),
+        }));
+
+        await AuditLog.bulkCreate(auditEntries);
+      } catch (individualAuditError) {
+        console.error(
+          `⚠️ Failed to log individual audit events for products in chunk ${i + 1}:`,
+          individualAuditError
+        );
+      }
+    }
+
+    // Log summary audit event for bulk product creation
+    try {
+      await logAuditEvent(
+        req,
+        "product",
+        null, // No specific entity ID for bulk operations
+        "BULK_CREATE",
+        null,
+        {
+          totalProducts: products.length,
+          successfulProducts: results.created.length,
+          failedProducts: results.errors.length,
+          processingTimeMs: Number(process.hrtime.bigint() - startTime) / 1000000,
+        },
+        {
+          entityName: `Bulk Upload - ${results.created.length} products`,
+          endpoint: req.originalUrl,
+          method: req.method,
+          errorCount: results.errors.length,
+        }
+      );
+    } catch (auditError) {
+      console.error(
+        "⚠️ Failed to log audit event for bulk product creation:",
+        auditError
       );
     }
 
     const insertTime = Number(process.hrtime.bigint() - insertStart) / 1000000;
-    console.log(
-      `✅ Phase 3 (Bulk Insert) completed in ${insertTime.toFixed(2)}ms`
-    );
 
     // Combine all errors
     results.errors = [...validationErrors, ...duplicateErrors];
 
     const totalTime = Number(process.hrtime.bigint() - startTime) / 1000000;
-
-    console.log(
-      `🎉 Ultra-fast bulk product creation completed in ${totalTime.toFixed(2)}ms`
-    );
-    console.log(
-      `📊 Results: ${results.created.length} created, ${results.errors.length} errors`
-    );
-    console.log(
-      `🚀 Performance: ${(products.length / (totalTime / 1000)).toFixed(2)} products/second`
-    );
 
     results.performance = {
       totalTime: totalTime.toFixed(2),

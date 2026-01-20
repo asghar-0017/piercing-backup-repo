@@ -117,7 +117,7 @@ class InvoiceBackupService {
     tenant = {},
     request = {}
   }) {
-    const backupReason = isUpdate 
+    const backupReason = isUpdate
       ? `Draft invoice updated - ${invoice.invoice_number || invoice.system_invoice_id}`
       : `Draft invoice created - ${invoice.invoice_number || invoice.system_invoice_id}`;
 
@@ -149,7 +149,7 @@ class InvoiceBackupService {
     tenant = {},
     request = {}
   }) {
-    const backupReason = isUpdate 
+    const backupReason = isUpdate
       ? `Saved invoice updated - ${invoice.invoice_number || invoice.system_invoice_id}`
       : `Invoice saved and validated - ${invoice.invoice_number || invoice.system_invoice_id}`;
 
@@ -214,7 +214,9 @@ class InvoiceBackupService {
     invoiceItems = [],
     user = {},
     tenant = {},
-    request = {}
+    request = {},
+    fbrRequestData = null,
+    fbrResponseData = null
   }) {
     const backupReason = `Invoice posted - ${invoice.invoice_number || invoice.system_invoice_id}`;
 
@@ -229,7 +231,9 @@ class InvoiceBackupService {
       statusAfter: 'posted',
       user,
       tenant,
-      request
+      request,
+      fbrRequestData,
+      fbrResponseData
     });
   }
 
@@ -292,6 +296,37 @@ class InvoiceBackupService {
   }
 
   /**
+   * Create backup for FBR submission (Request & Response)
+   */
+  async createFbrSubmissionBackup({
+    tenantDb,
+    tenantModels,
+    invoice,
+    fbrRequestData,
+    fbrResponseData,
+    user = {},
+    tenant = {},
+    request = {}
+  }) {
+    const backupReason = `FBR submission - ${invoice.invoice_number || invoice.system_invoice_id}`;
+
+    return this.createBackup({
+      tenantDb,
+      tenantModels,
+      invoice,
+      backupType: 'FBR_RESPONSE',
+      backupReason,
+      statusBefore: invoice.status,
+      statusAfter: invoice.status,
+      user,
+      tenant,
+      request,
+      fbrRequestData,
+      fbrResponseData
+    });
+  }
+
+  /**
    * Update backup summary for an invoice
    */
   async updateBackupSummary({
@@ -304,6 +339,12 @@ class InvoiceBackupService {
   }) {
     try {
       const { InvoiceBackupSummary } = tenantModels;
+
+      // Skip summary creation if invoice.id is null (e.g., FBR submissions without linked invoice)
+      if (!invoice.id) {
+        console.log('⚠️ Skipping backup summary creation: invoice.id is null');
+        return null;
+      }
 
       // Get current summary or create new one
       let summary = await InvoiceBackupSummary.findOne({
@@ -414,17 +455,17 @@ class InvoiceBackupService {
     if (!invoice) return null;
 
     const sanitized = { ...invoice };
-    
+
     // Remove sensitive fields if any
     delete sanitized.password;
     delete sanitized.token;
     delete sanitized.secret;
-    
+
     // Convert to plain object if it's a Sequelize instance
     if (sanitized.dataValues) {
       return sanitized.dataValues;
     }
-    
+
     return sanitized;
   }
 
@@ -435,12 +476,12 @@ class InvoiceBackupService {
     if (!item) return null;
 
     const sanitized = { ...item };
-    
+
     // Convert to plain object if it's a Sequelize instance
     if (sanitized.dataValues) {
       return sanitized.dataValues;
     }
-    
+
     return sanitized;
   }
 
@@ -449,23 +490,23 @@ class InvoiceBackupService {
    */
   getUserDisplayName(user) {
     if (!user) return null;
-    
+
     if (user.firstName || user.lastName) {
       return `${user.firstName || ''} ${user.lastName || ''}`.trim();
     }
-    
+
     if (user.name) {
       return user.name;
     }
-    
+
     if (user.email) {
       return user.email;
     }
-    
+
     if (user.role === 'admin') {
       return `Admin (${user.id || user.userId || 'Unknown'})`;
     }
-    
+
     return `User (${user.id || user.userId || 'Unknown'})`;
   }
 }

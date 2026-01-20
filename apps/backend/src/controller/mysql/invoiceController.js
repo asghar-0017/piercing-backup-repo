@@ -668,30 +668,30 @@ export const createInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoiceItemsForAudit
           ? invoiceItemsForAudit.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues
       {
@@ -1119,30 +1119,30 @@ export const saveInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: items
           ? items.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues
       {
@@ -1286,78 +1286,7 @@ export const saveAndValidateInvoice = async (req, res) => {
       });
     }
 
-    // FBR Validation before saving
-    let fbrValidationResult = null;
-
-    if (req.tenant?.sandboxProductionToken) {
-      try {
-        console.log("🔍 Starting FBR validation for invoice...");
-
-        // Import FBR validation function
-        const { validateInvoiceData } = await import(
-          "../../service/FBRService.js"
-        );
-
-        // Prepare invoice data for FBR validation
-        const fbrInvoiceData = {
-          invoiceType,
-          invoiceDate,
-          sellerNTNCNIC,
-          sellerFullNTN,
-          sellerBusinessName,
-          sellerProvince,
-          sellerAddress,
-          sellerCity,
-          buyerNTNCNIC,
-          buyerBusinessName,
-          buyerProvince,
-          buyerAddress: buyerAddress
-            ? buyerAddress.replace(/\n/g, " ")
-            : buyerAddress,
-          buyerRegistrationType,
-          invoiceRefNo,
-          companyInvoiceRefNo,
-          internal_invoice_no: internalInvoiceNo,
-          transctypeId,
-          items: items.map((item) => ({
-            productName: item.name || item.productName,
-            productDescription: item.productDescription
-              ? item.productDescription.replace(/\n/g, " ")
-              : item.productDescription,
-            hsCode: item.hsCode,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            totalValues: item.totalValues,
-            sroScheduleNo: item.sroScheduleNo,
-            sroItemSerialNo: item.sroItemSerialNo,
-          })),
-        };
-
-        fbrValidationResult = await validateInvoiceData(
-          fbrInvoiceData,
-          "sandbox",
-          req.tenant.sandboxProductionToken,
-        );
-
-        console.log("✅ FBR validation successful");
-      } catch (fbrError) {
-        console.error("❌ FBR validation failed:", fbrError);
-        return res.status(400).json({
-          success: false,
-          message: "FBR validation failed",
-          error: fbrError.response?.data || fbrError.message,
-        });
-      }
-    } else {
-      console.log(
-        "⚠️ Skipping FBR validation - no tenant FBR credentials available",
-      );
-    }
-
-    // Save as saved (validated with FBR) - upsert behavior like saveInvoice
+    // Save as saved - upsert behavior like saveInvoice
 
     const result = await req.tenantDb.transaction(async (t) => {
       let invoice = null;
@@ -1688,35 +1617,34 @@ export const saveAndValidateInvoice = async (req, res) => {
 
         // Financial Information
         totalAmount: result.totalAmount,
-        fbrValidation: fbrValidationResult ? "success" : "skipped",
 
         // Complete Invoice Items with All Details
         invoice_items: items
           ? items.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues
       {
@@ -1724,16 +1652,13 @@ export const saveAndValidateInvoice = async (req, res) => {
         endpoint: req.originalUrl,
         method: req.method,
         itemsCount: items ? items.length : 0,
-        fbrValidationResult: fbrValidationResult ? "validated" : "skipped",
       },
     );
 
     res.status(201).json({
       success: true,
 
-      message: fbrValidationResult
-        ? "Invoice validated with FBR and saved successfully"
-        : "Invoice saved successfully (FBR validation skipped)",
+      message: "Invoice saved successfully",
 
       data: {
         invoice_id: result.id,
@@ -1743,15 +1668,6 @@ export const saveAndValidateInvoice = async (req, res) => {
         system_invoice_id: result.system_invoice_id,
 
         status: result.status,
-        fbrValidation: fbrValidationResult
-          ? {
-              success: true,
-              result: fbrValidationResult,
-            }
-          : {
-              success: false,
-              reason: "No FBR token or credentials available",
-            },
       },
     });
   } catch (error) {
@@ -2719,10 +2635,10 @@ export const getAllInvoices = async (req, res) => {
         updated_at: plainInvoice.updated_at,
         ...(req.user?.role === "admin"
           ? {
-              created_by_user_id: plainInvoice.created_by_user_id,
-              created_by_email: plainInvoice.created_by_email,
-              created_by_name: plainInvoice.created_by_name,
-            }
+            created_by_user_id: plainInvoice.created_by_user_id,
+            created_by_email: plainInvoice.created_by_email,
+            created_by_name: plainInvoice.created_by_name,
+          }
           : {}),
       };
     });
@@ -4087,25 +4003,7 @@ export const submitSavedInvoice = async (req, res) => {
 
     const { postData } = await import("../../service/FBRService.js");
 
-    // Create backup for FBR request
-    try {
-      await InvoiceBackupService.createFbrRequestBackup({
-        tenantDb: req.tenantDb,
-        tenantModels: req.tenantModels,
-        invoice: invoice,
-        fbrRequestData: fbrData,
-        user: req.user,
-        tenant: req.tenant,
-        request: {
-          ip: req.ip || req.connection?.remoteAddress,
-          userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null,
-        },
-      });
-    } catch (backupError) {
-      console.error("❌ Error creating FBR request backup:", backupError);
-      // Don't fail the main operation if backup fails
-    }
+    // Backup creation moved to after response to include both request and response data
 
     // Submit directly to FBR (skipping validation)
 
@@ -4123,12 +4021,13 @@ export const submitSavedInvoice = async (req, res) => {
 
     console.log("FBR Response Type:", typeof postRes.data);
 
-    // Create backup for FBR response
+    // Create backup for FBR submission (Request + Response)
     try {
-      await InvoiceBackupService.createFbrResponseBackup({
+      await InvoiceBackupService.createFbrSubmissionBackup({
         tenantDb: req.tenantDb,
         tenantModels: req.tenantModels,
         invoice: invoice,
+        fbrRequestData: fbrData,
         fbrResponseData: postRes.data,
         user: req.user,
         tenant: req.tenant,
@@ -4430,30 +4329,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // oldValues (before submission)
       {
@@ -4492,30 +4391,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues (after submission)
       {
@@ -4605,13 +4504,13 @@ export const bulkCreateInvoices = async (req, res) => {
       totalInvoices: invoices.length,
       sampleInvoice: invoices[0]
         ? {
-            invoiceType: invoices[0].invoiceType,
-            invoiceDate: invoices[0].invoiceDate,
-            companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
-            internalInvoiceNo: invoices[0].internalInvoiceNo,
-            buyerBusinessName: invoices[0].buyerBusinessName,
-            itemsCount: invoices[0].items?.length || 0,
-          }
+          invoiceType: invoices[0].invoiceType,
+          invoiceDate: invoices[0].invoiceDate,
+          companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
+          internalInvoiceNo: invoices[0].internalInvoiceNo,
+          buyerBusinessName: invoices[0].buyerBusinessName,
+          itemsCount: invoices[0].items?.length || 0,
+        }
         : null,
       sampleInternalInvoiceNo: invoices[0]?.internalInvoiceNo,
       hasInternalInvoiceNo: !!invoices[0]?.internalInvoiceNo,
@@ -4635,15 +4534,15 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingBuyers =
       uniqueBuyerNTNs.length > 0
         ? await Buyer.findAll({
-            where: { buyerNTNCNIC: uniqueBuyerNTNs },
-            attributes: [
-              "buyerNTNCNIC",
-              "buyerBusinessName",
-              "buyerProvince",
-              "buyerAddress",
-              "buyerRegistrationType",
-            ],
-          })
+          where: { buyerNTNCNIC: uniqueBuyerNTNs },
+          attributes: [
+            "buyerNTNCNIC",
+            "buyerBusinessName",
+            "buyerProvince",
+            "buyerAddress",
+            "buyerRegistrationType",
+          ],
+        })
         : [];
 
     // DEBUG: Also check total buyers in database
@@ -4695,13 +4594,13 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingProducts =
       uniqueProductNames.length > 0
         ? await Product.findAll({
-            where: {
-              name: {
-                [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
-              },
+          where: {
+            name: {
+              [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
             },
-            attributes: ["id", "name", "description", "hsCode", "uom"],
-          })
+          },
+          attributes: ["id", "name", "description", "hsCode", "uom"],
+        })
         : [];
 
     // Create lookup maps for O(1) access - case insensitive
@@ -5576,99 +5475,134 @@ export const bulkCreateInvoices = async (req, res) => {
     });
 
     // SIMPLIFIED: Process all invoices in a single transaction like regular uploads
+    // SIMPLIFIED & OPTIMIZED: Process in chunks within a single transaction
     console.log(
-      `🚀 Processing ${invoiceBatches.length} invoices in a single transaction...`,
+      `🚀 Processing ${invoiceBatches.length} invoices in chunks...`,
     );
 
     const allCreatedInvoices = await sequelize.transaction(async (t) => {
       // No buyer creation - only use existing buyers
       // No product creation - only use existing products
-      console.log(
-        `🔒 SAFETY CHECK: No products will be created during this upload process`,
-      );
-      console.log(`🔒 Only existing products from database will be used`);
 
-      // OPTIMIZED: Bulk create all invoices at once
-      console.log(`🔄 Bulk creating ${invoiceBatches.length} invoices...`);
+      let allCreated = [];
 
-      // Ensure timestamps are set for all invoices
-      const now = new Date();
-      const validInvoices = invoiceBatches.map((invoice) => ({
-        ...invoice,
-        created_at: invoice.created_at || now,
-        updated_at: invoice.updated_at || now,
-      }));
+      // Process invoices in chunks
+      for (let i = 0; i < invoiceChunks.length; i++) {
+        const chunk = invoiceChunks[i];
+        console.log(`🔄 Processing chunk ${i + 1}/${invoiceChunks.length} with ${chunk.length} invoices...`);
 
-      let createdInvoices;
-      try {
-        createdInvoices = await Invoice.bulkCreate(validInvoices, {
-          transaction: t,
-          validate: false,
-          ignoreDuplicates: true,
-          returning: true, // Get the created records with IDs
-        });
-      } catch (createError) {
-        console.error("❌ Invoice bulk create failed:", createError);
-        throw new Error(`Invoice bulk create failed: ${createError.message}`);
-      }
+        // Ensure timestamps are set
+        const now = new Date();
+        const validInvoices = chunk.map((invoice) => ({
+          ...invoice,
+          created_at: invoice.created_at || now,
+          updated_at: invoice.updated_at || now,
+        }));
 
-      console.log(`✅ Successfully created ${createdInvoices.length} invoices`);
+        try {
+          const createdChunk = await Invoice.bulkCreate(validInvoices, {
+            transaction: t,
+            validate: false,
+            ignoreDuplicates: true,
+            returning: true,
+          });
 
-      // OPTIMIZED: Bulk create all invoice items at once
-      if (invoiceItemBatches.length > 0) {
-        console.log(
-          `🔄 Bulk creating ${invoiceItemBatches.length} invoice items...`,
-        );
+          allCreated = allCreated.concat(createdChunk);
 
-        // Map items to their corresponding invoice IDs
-        const itemsWithInvoiceIds = invoiceItemBatches
-          .map((item) => {
-            const invoiceIndex = item._invoiceIndex;
-            const correspondingInvoice = createdInvoices[invoiceIndex];
+          // Process items for this chunk
+          // We need to map the original indices to the created invoices
+          // Since we process in order, we can calculate the offset
+          const offset = i * chunkSize;
 
-            if (!correspondingInvoice) {
-              console.warn(
-                `⚠️ No corresponding invoice found for item at index ${item._invoiceIndex}`,
-              );
-              return null;
+          // Find items that belong to invoices in this current chunk
+          // invoiceItemBatches has _invoiceIndex which refers to the index in the original invoiceBatches array
+          // The current chunk covers indices from `offset` to `offset + chunk.length - 1`
+          const minIndex = offset;
+          const maxIndex = offset + chunk.length;
+
+          const chunkItemBatches = invoiceItemBatches.filter(item =>
+            item._invoiceIndex >= minIndex && item._invoiceIndex < maxIndex
+          );
+
+          if (chunkItemBatches.length > 0) {
+            console.log(`  Items for chunk ${i + 1}: ${chunkItemBatches.length}`);
+
+            const itemsWithInvoiceIds = chunkItemBatches.map(item => {
+              // The createdChunk array corresponds to indices 0 to chunk.length-1 relative to this loop
+              // item._invoiceIndex - minIndex gives us the index in createdChunk
+              const localIndex = item._invoiceIndex - minIndex;
+              const invoice = createdChunk[localIndex];
+
+              if (!invoice) return null;
+
+              const itemRecord = {
+                ...item,
+                invoice_id: invoice.id
+              };
+              delete itemRecord._invoiceIndex;
+              return itemRecord;
+            }).filter(item => item !== null);
+
+            // Bulk create items for this chunk (further chunking items if too many)
+            const itemSubChunkSize = 2000;
+            for (let j = 0; j < itemsWithInvoiceIds.length; j += itemSubChunkSize) {
+              const itemSubChunk = itemsWithInvoiceIds.slice(j, j + itemSubChunkSize);
+              await InvoiceItem.bulkCreate(itemSubChunk, {
+                transaction: t,
+                validate: false,
+                ignoreDuplicates: true,
+              });
+            }
+          }
+
+          // Log audit for this chunk immediately to free memory/progress
+          if (createdChunk.length > 0) {
+            const userId = req.user?.userId || req.user?.id || null;
+            let validatedUserId = null;
+
+            if (userId) {
+              // We can cache this lookup outside the loop if we want, but doing it per chunk is acceptable overhead
+              const { default: User } = await import("../../model/mysql/User.js");
+              const userExists = await User.findByPk(userId, { attributes: ['id'], raw: true });
+              if (userExists) validatedUserId = userId;
             }
 
-            const itemRecord = {
-              ...item,
-              invoice_id: correspondingInvoice.id,
-            };
-            // Remove the _invoiceIndex field as it's not needed in the database
-            delete itemRecord._invoiceIndex;
-            return itemRecord;
-          })
-          .filter((item) => item !== null);
+            const auditEntries = createdChunk.map((invoice) => ({
+              entityType: "invoice",
+              entityId: invoice.id,
+              operation: "CREATE",
+              userId: validatedUserId,
+              userEmail: req.user?.email || null,
+              userName: req.user?.firstName || req.user?.lastName
+                ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+                : req.user?.userName || req.user?.email || "Unknown",
+              userRole: req.user?.role || null,
+              tenantId: req.tenant?.id || req.tenant?.tenantId || null,
+              tenantName: req.tenant?.seller_business_name || req.tenant?.name || null,
+              oldValues: null,
+              newValues: JSON.stringify(invoice),
+              ipAddress: req.ip || req.connection?.remoteAddress,
+              userAgent: req.get ? req.get("User-Agent") : null,
+              requestId: req.headers?.["x-request-id"] || `bulk_${Date.now()}_chunk_${i}`,
+              created_at: new Date(),
+              additionalInfo: JSON.stringify({
+                source: "bulk_upload",
+                processId,
+                bulkBatchId: processId,
+                chunk: i + 1
+              }),
+            }));
 
-        console.log(
-          `🔍 Prepared ${itemsWithInvoiceIds.length} items for bulk insertion`,
-        );
-
-        if (itemsWithInvoiceIds.length > 0) {
-          try {
-            await InvoiceItem.bulkCreate(itemsWithInvoiceIds, {
-              transaction: t,
-              validate: false,
-              ignoreDuplicates: true,
-            });
-            console.log(
-              `✅ Successfully created ${itemsWithInvoiceIds.length} items`,
-            );
-          } catch (itemError) {
-            console.error("❌ Invoice items bulk create failed:", itemError);
-            throw new Error(
-              `Failed to create invoice items: ${itemError.message}`,
-            );
+            await AuditLog.bulkCreate(auditEntries);
           }
+
+        } catch (chunkError) {
+          console.error(`❌ Error in chunk ${i + 1}:`, chunkError);
+          throw chunkError;
         }
-      } else {
-        console.log(`⚠️ No items found`);
       }
 
-      return createdInvoices;
+      return allCreated;
     });
 
     // Process results (now it's a single array of invoices, not batches)
@@ -5723,16 +5657,35 @@ export const bulkCreateInvoices = async (req, res) => {
     if (allCreatedInvoices && allCreatedInvoices.length > 0) {
       // Create individual audit logs for each invoice (for history tracking)
       try {
+        // Validate user ID exists before creating audit logs
+        const userId = req.user?.userId || req.user?.id || null;
+        let validatedUserId = null;
+
+        if (userId) {
+          // Check if user exists in database
+          const { default: User } = await import("../../model/mysql/User.js");
+          const userExists = await User.findByPk(userId, {
+            attributes: ['id'],
+            raw: true,
+          });
+
+          if (userExists) {
+            validatedUserId = userId;
+          } else {
+            console.warn(`⚠️ User ID ${userId} does not exist in database, setting to null`);
+          }
+        }
+
         const auditEntries = allCreatedInvoices.map((invoice) => ({
           entityType: "invoice",
           entityId: invoice.id,
           operation: "CREATE",
-          userId: req.user?.userId || req.user?.id || null,
+          userId: validatedUserId, // Use validated user ID (null if doesn't exist)
           userEmail: req.user?.email || null,
           userName:
             req.user?.firstName || req.user?.lastName
               ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-              : req.user?.userName || "Unknown",
+              : req.user?.userName || req.user?.email || "Unknown",
           userRole: req.user?.role || null,
           tenantId: req.tenant?.id || req.tenant?.tenantId || null,
           tenantName:
@@ -5759,42 +5712,6 @@ export const bulkCreateInvoices = async (req, res) => {
           "⚠️ Failed to log individual audit events:",
           individualAuditError,
         );
-      }
-
-      try {
-        await logAuditEvent(
-          req,
-          "invoice",
-          null, // No specific entity ID for bulk operations
-          "BULK_CREATE",
-          null, // oldValues (null for bulk creation)
-          {
-            totalInvoices: allCreatedInvoices.length,
-            successfulInvoices: totalInvoicesCreated,
-            failedInvoices: errors.length,
-            warnings: warnings.length,
-            processingTimeMs: processingTime.toFixed(2),
-            totalTimeMs: totalTime.toFixed(2),
-          }, // newValues
-          {
-            entityName: `Bulk Upload - ${allCreatedInvoices.length} invoices`,
-            endpoint: req.originalUrl,
-            method: req.method,
-            chunkSize: chunkSize,
-            invoiceIds: allCreatedInvoices.map((inv) => inv.id),
-            errorCount: errors.length,
-            warningCount: warnings.length,
-          },
-        );
-        console.log(
-          `✅ Audit logged for bulk creation of ${allCreatedInvoices.length} invoices`,
-        );
-      } catch (auditError) {
-        console.error(
-          "⚠️ Failed to log audit event for bulk creation:",
-          auditError,
-        );
-        // Don't fail the operation if audit logging fails
       }
     }
 
@@ -6489,13 +6406,55 @@ export const submitInvoiceDataController = async (req, res) => {
 
     // Call FBR service to submit invoice data
 
+    // Call FBR service to submit invoice data
     const submissionResult = await submitInvoiceData(
       invoiceData,
-
       environment,
-
       fbrToken,
     );
+
+    // Create backup for FBR submission (Request + Response)
+    try {
+      // Try to find the invoice to link it properly
+      let invoiceBackup = null;
+      if (req.tenantModels && req.tenantModels.Invoice) {
+        const { Invoice } = req.tenantModels;
+        const invoiceNum = invoiceData.invoiceNumber || invoiceData.invoice_number;
+        if (invoiceNum) {
+          invoiceBackup = await Invoice.findOne({ where: { invoice_number: invoiceNum } });
+        }
+      }
+
+      const mockInvoice = {
+        id: invoiceBackup ? invoiceBackup.id : null, // Use null if no invoice found
+        invoice_number: invoiceData.invoiceNumber || invoiceData.invoice_number || "UNKNOWN",
+        system_invoice_id: invoiceBackup ? invoiceBackup.system_invoice_id : null,
+        status: invoiceBackup ? invoiceBackup.status : "unknown",
+        ...invoiceData
+      };
+
+      if (invoiceBackup) {
+        // If we found the real invoice, use its data as base
+        Object.assign(mockInvoice, invoiceBackup.toJSON());
+      }
+
+      await InvoiceBackupService.createFbrSubmissionBackup({
+        tenantDb: req.tenantDb,
+        tenantModels: req.tenantModels,
+        invoice: mockInvoice,
+        fbrRequestData: invoiceData,
+        fbrResponseData: submissionResult,
+        user: req.user,
+        tenant: req.tenant,
+        request: {
+          ip: req.ip || req.connection?.remoteAddress,
+          userAgent: req.get ? req.get("User-Agent") : null,
+          requestId: req.headers?.["x-request-id"] || null,
+        },
+      });
+    } catch (backupError) {
+      console.error("❌ Error creating FBR backup in submitInvoiceDataController:", backupError);
+    }
 
     res.json({
       success: true,
@@ -6616,16 +6575,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
         provinceMap = Array.isArray(provinces)
           ? provinces.reduce((acc, p) => {
-              const desc =
-                p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
+            const desc =
+              p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
 
-              const code =
-                p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
+            const code =
+              p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
 
-              if (desc && code) acc[desc.toUpperCase()] = code;
+            if (desc && code) acc[desc.toUpperCase()] = code;
 
-              return acc;
-            }, {})
+            return acc;
+          }, {})
           : {};
 
         const tenantProvince = (
@@ -6828,10 +6787,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                      id: rateId ? String(rateId) : null,
+                    id: rateId ? String(rateId) : null,
 
-                      desc: String(rateDesc).trim(),
-                    }
+                    desc: String(rateDesc).trim(),
+                  }
                   : null;
               })
 
@@ -6897,10 +6856,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                      id: rateId ? String(rateId) : null,
+                    id: rateId ? String(rateId) : null,
 
-                      desc: String(rateDesc).trim(),
-                    }
+                    desc: String(rateDesc).trim(),
+                  }
                   : null;
               })
 
@@ -7866,17 +7825,17 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
       // item_sroItemSerialNo dropdown
       template.getCell(r, headerIndex("item_sroItemSerialNo")).dataValidation =
-        {
-          type: "list",
-          allowBlank: true,
-          formulae: [
-            `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
-          ],
-          showErrorMessage: true,
-          errorStyle: "warning",
-          errorTitle: "Invalid SRO Item",
-          error: "Select a valid SRO Item from the dropdown list.",
-        };
+      {
+        type: "list",
+        allowBlank: true,
+        formulae: [
+          `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
+        ],
+        showErrorMessage: true,
+        errorStyle: "warning",
+        errorTitle: "Invalid SRO Item",
+        error: "Select a valid SRO Item from the dropdown list.",
+      };
 
       // item_uoM dropdown
       template.getCell(r, headerIndex("item_uoM")).dataValidation = {
@@ -7940,16 +7899,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       };
 
       template.getCell(r, headerIndex("item_advanceIncomeTax")).dataValidation =
-        {
-          type: "decimal",
-          operator: "greaterThanOrEqual",
-          formulae: [0],
-          allowBlank: true,
-          showErrorMessage: true,
-          errorStyle: "warning",
-          errorTitle: "Invalid Advance Income Tax",
-          error: "Advance Income Tax must be a positive number.",
-        };
+      {
+        type: "decimal",
+        operator: "greaterThanOrEqual",
+        formulae: [0],
+        allowBlank: true,
+        showErrorMessage: true,
+        errorStyle: "warning",
+        errorTitle: "Invalid Advance Income Tax",
+        error: "Advance Income Tax must be a positive number.",
+      };
 
       // Auto-populate Sales Type based on Transaction Type selection
       const transctypeColLetter = getColLetter(headerIndex("transctypeId"));

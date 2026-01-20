@@ -16,7 +16,7 @@ const AuditSummary = masterSequelize.define(
     },
     entityId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       field: "entity_id",
     },
     entityName: {

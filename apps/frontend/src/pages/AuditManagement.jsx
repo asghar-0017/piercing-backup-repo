@@ -271,8 +271,10 @@ const AuditManagement = () => {
     fetchStatistics();
 
     if (activeTab === "logs") {
-      if (filters.entityId && filters.entityType) {
-        // If specific entity is selected, fetch its history
+      // Validate that entityId is a valid number before fetching history
+      const entityIdNum = parseInt(filters.entityId);
+      if (filters.entityId && filters.entityType && !isNaN(entityIdNum) && entityIdNum > 0) {
+        // If specific entity is selected with valid ID, fetch its history
         fetchEntityHistory(filters.entityType, filters.entityId);
       } else {
         // Otherwise fetch regular audit logs
@@ -1180,8 +1182,8 @@ const AuditManagement = () => {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === tab.id
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                     }`}
                 >
                   <span className="mr-2">{tab.icon}</span>

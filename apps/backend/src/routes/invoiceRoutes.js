@@ -16,7 +16,7 @@ router.use(authenticateToken, identifyTenant);
 router.post("/invoices", requirePermission("invoice.create"), invoiceController.createInvoice);
 router.post("/invoices/save", requirePermission("invoice_save"), invoiceController.saveInvoice);
 router.post(
-  "/invoices/save-validate",requirePermission("invoice_validate"),
+  "/invoices/save-validate", requirePermission("invoice_validate"),
   invoiceController.saveAndValidateInvoice
 );
 
@@ -50,7 +50,6 @@ router.get("/invoices/:id", requirePermission("invoice.view"), invoiceController
 router.put("/invoices/:id", requirePermission("invoice.edit"), invoiceController.updateInvoice);
 router.delete("/invoices/:id", requirePermission("invoice.delete"), invoiceController.deleteInvoice);
 router.post("/invoices/:id/recover", requirePermission("invoice.delete"), invoiceController.recoverInvoice);
-router.post("/invoices/:id/submit", requirePermission("invoice.submit"), invoiceController.submitSavedInvoice);
 
 // Get document types from FBR
 router.get(

@@ -22,13 +22,20 @@ export const getAuditLogs = async (req, res) => {
       sortOrder = "DESC",
     } = req.query;
 
+    // Helper function to safely parse integer values
+    const safeParseInt = (value) => {
+      if (!value || value === '') return undefined;
+      const parsed = parseInt(value);
+      return isNaN(parsed) ? undefined : parsed;
+    };
+
     const filters = {
       entityType,
-      entityId: entityId ? parseInt(entityId) : undefined,
+      entityId: safeParseInt(entityId),
       operation,
-      userId: userId ? parseInt(userId) : undefined,
+      userId: safeParseInt(userId),
       userEmail,
-      tenantId: tenantId ? parseInt(tenantId) : undefined,
+      tenantId: safeParseInt(tenantId),
       startDate,
       endDate,
       search,
@@ -76,11 +83,18 @@ export const getAuditSummary = async (req, res) => {
       sortOrder = "DESC",
     } = req.query;
 
+    // Helper function to safely parse integer values
+    const safeParseInt = (value) => {
+      if (!value || value === '') return undefined;
+      const parsed = parseInt(value);
+      return isNaN(parsed) ? undefined : parsed;
+    };
+
     const filters = {
       entityType,
-      tenantId: tenantId ? parseInt(tenantId) : undefined,
+      tenantId: safeParseInt(tenantId),
       isDeleted: isDeleted !== undefined ? isDeleted === "true" : undefined,
-      createdByUserId: createdByUserId ? parseInt(createdByUserId) : undefined,
+      createdByUserId: safeParseInt(createdByUserId),
       startDate,
       endDate,
       search,
@@ -122,7 +136,15 @@ export const getEntityAuditLogs = async (req, res) => {
       );
     }
 
-    const logs = await AuditService.getEntityAuditLogs(entityType, parseInt(entityId));
+    // Validate that entityId is a valid number
+    const parsedEntityId = parseInt(entityId);
+    if (isNaN(parsedEntityId)) {
+      return res.status(400).json(
+        formatResponse(false, `Invalid entity ID: ${entityId}`, null, 400)
+      );
+    }
+
+    const logs = await AuditService.getEntityAuditLogs(entityType, parsedEntityId);
 
     return res.status(200).json(
       formatResponse(true, "Entity audit logs fetched successfully", { logs }, 200)
@@ -148,7 +170,15 @@ export const getEntityEditHistory = async (req, res) => {
       );
     }
 
-    const history = await AuditService.getEntityEditHistory(entityType, parseInt(entityId));
+    // Validate that entityId is a valid number
+    const parsedEntityId = parseInt(entityId);
+    if (isNaN(parsedEntityId)) {
+      return res.status(400).json(
+        formatResponse(false, `Invalid entity ID: ${entityId}`, null, 400)
+      );
+    }
+
+    const history = await AuditService.getEntityEditHistory(entityType, parsedEntityId);
 
     return res.status(200).json(
       formatResponse(true, "Entity edit history fetched successfully", { history }, 200)
@@ -168,8 +198,15 @@ export const getAuditStatistics = async (req, res) => {
   try {
     const { tenantId, startDate, endDate } = req.query;
 
+    // Helper function to safely parse integer values
+    const safeParseInt = (value) => {
+      if (!value || value === '') return undefined;
+      const parsed = parseInt(value);
+      return isNaN(parsed) ? undefined : parsed;
+    };
+
     const filters = {
-      tenantId: tenantId ? parseInt(tenantId) : undefined,
+      tenantId: safeParseInt(tenantId),
       startDate,
       endDate,
     };

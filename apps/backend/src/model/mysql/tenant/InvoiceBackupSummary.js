@@ -12,8 +12,8 @@ export const createInvoiceBackupSummaryModel = (sequelize) => {
       },
       original_invoice_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        unique: true,
+        allowNull: true,
+        unique: false,
         comment: 'ID of the original invoice',
       },
       latest_backup_id: {

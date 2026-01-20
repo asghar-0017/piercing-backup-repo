@@ -165,7 +165,7 @@ const Products = () => {
                 updatePostedInvoices: true,
               }
             );
-            
+
             setProducts(
               products.map((p) =>
                 p.id === editingProduct.id ? confirmResponse.data.data : p
@@ -239,12 +239,12 @@ const Products = () => {
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      
+
       let errorMessage = "Failed to save product. Please try again.";
-      
+
       if (error.response) {
         const { status, data } = error.response;
-        
+
         if (status === 400) {
           if (data.message && data.message.includes("HS Code is required")) {
             errorMessage = "HS Code is required for the product.";
@@ -267,7 +267,7 @@ const Products = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage, {
         autoClose: 5000,
         hideProgressBar: false,
@@ -310,7 +310,7 @@ const Products = () => {
 
       if (response.data.success) {
         const { summary, createdProducts, errors, performance } = response.data.data;
-        
+
         // Update the products list with successfully created products
         if (createdProducts && createdProducts.length > 0) {
           setProducts((prev) => [...prev, ...createdProducts]);
@@ -351,10 +351,10 @@ const Products = () => {
       }
     } catch (error) {
       console.error("Error uploading products:", error);
-      
+
       // Fallback to individual uploads if bulk endpoint fails
       console.log("Bulk upload failed, falling back to individual uploads...");
-      
+
       const createdProducts = [];
       const errors = [];
 

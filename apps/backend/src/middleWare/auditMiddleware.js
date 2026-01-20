@@ -235,15 +235,15 @@ export const logAuditEvent = async (req, entityType, entityId, operation, oldVal
     if (operation === "UPDATE" && oldValues && newValues) {
       changedFields = {};
       const allKeys = new Set([...Object.keys(oldValues || {}), ...Object.keys(newValues || {})]);
-      
+
       for (const key of allKeys) {
         const oldVal = oldValues?.[key];
         const newVal = newValues?.[key];
-        
+
         // Convert undefined to null for proper JSON serialization
         const normalizedOldVal = oldVal === undefined ? null : oldVal;
         const normalizedNewVal = newVal === undefined ? null : newVal;
-        
+
         // Only include if values are actually different
         if (normalizedOldVal !== normalizedNewVal) {
           changedFields[key] = {
@@ -252,12 +252,12 @@ export const logAuditEvent = async (req, entityType, entityId, operation, oldVal
           };
         }
       }
-      
+
       // Debug logging
       console.log('🔍 Audit Debug - Changed Fields:', JSON.stringify(changedFields, null, 2));
       console.log('🔍 Audit Debug - Old Values:', JSON.stringify(oldValues, null, 2));
       console.log('🔍 Audit Debug - New Values:', JSON.stringify(newValues, null, 2));
-      
+
       // If no fields actually changed, don't log an update event
       if (Object.keys(changedFields).length === 0) {
         console.log('🔍 Audit Debug - No changes detected, skipping audit log');
@@ -278,14 +278,14 @@ export const logAuditEvent = async (req, entityType, entityId, operation, oldVal
       },
       tenant: {
         id: entityType === "invoice" ? null : (req.tenant?.id || req.tenant?.tenantId),
-        name: entityType === "invoice" ? null : req.tenant?.sellerBusinessName,
+        name: entityType === "invoice" ? null : (req.tenant?.seller_business_name || req.tenant?.name || req.tenant?.sellerBusinessName),
       },
       oldValues,
       newValues,
       changedFields,
       request: {
-        ip: entityType === "invoice" ? null : (req.ip || req.connection?.remoteAddress),
-        userAgent: entityType === "invoice" ? null : (req.get ? req.get("User-Agent") : null),
+        ip: req.ip || req.connection?.remoteAddress || null,
+        userAgent: (req.get ? req.get("User-Agent") : null) || null,
         requestId: req.headers?.["x-request-id"] || uuidv4(),
       },
       additionalInfo: {

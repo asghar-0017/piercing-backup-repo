@@ -6,6 +6,7 @@ import TenantDatabaseService from "../service/TenantDatabaseService.js";
 import AdminUser from "../model/mysql/AdminUser.js";
 import AdminSession from "../model/mysql/AdminSession.js";
 import Tenant from "../model/mysql/Tenant.js";
+import AuditLog from "../model/mysql/AuditLog.js";
 import AutoSchemaSync from "../config/auto-schema-sync.js";
 
 const mysqlConnector = async (dbConfig, logger) => {

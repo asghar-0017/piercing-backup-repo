@@ -12,7 +12,7 @@ export const createInvoiceBackupModel = (sequelize) => {
       },
       original_invoice_id: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         comment: 'ID of the original invoice',
       },
       system_invoice_id: {
@@ -28,7 +28,7 @@ export const createInvoiceBackupModel = (sequelize) => {
       backup_type: {
         type: DataTypes.ENUM(
           'DRAFT',
-          'SAVED', 
+          'SAVED',
           'EDIT',
           'POST',
           'FBR_REQUEST',

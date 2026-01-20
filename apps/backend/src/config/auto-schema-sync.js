@@ -448,7 +448,7 @@ class AutoSchemaSync {
         allowNull: true,
         isUpdate: true,
       },
-      
+
       // Foreign key relationships
       {
         table: "invoices",
@@ -641,6 +641,18 @@ class AutoSchemaSync {
             `tenant: ${tenant.seller_business_name}`,
           );
 
+          // Fix invoice_backups nullable constraint if needed
+          await this.fixInvoiceBackupNullableConstraint(
+            tenantSequelize,
+            `tenant: ${tenant.seller_business_name}`,
+          );
+
+          // Fix invoice_backup_summary nullable constraint if needed
+          await this.fixInvoiceBackupSummaryNullableConstraint(
+            tenantSequelize,
+            `tenant: ${tenant.seller_business_name}`,
+          );
+
           await tenantSequelize.close();
         } catch (error) {
           this.log(
@@ -668,7 +680,7 @@ class AutoSchemaSync {
         sql: `
           CREATE TABLE IF NOT EXISTS \`invoice_backups\` (
             \`id\` int(11) NOT NULL AUTO_INCREMENT,
-            \`original_invoice_id\` int(11) NOT NULL COMMENT 'ID of the original invoice',
+            \`original_invoice_id\` int(11) DEFAULT NULL COMMENT 'ID of the original invoice',
             \`system_invoice_id\` varchar(20) DEFAULT NULL COMMENT 'System invoice ID for reference',
             \`invoice_number\` varchar(100) DEFAULT NULL COMMENT 'Invoice number at time of backup',
             \`backup_type\` enum('DRAFT','SAVED','EDIT','POST','FBR_REQUEST','FBR_RESPONSE') NOT NULL COMMENT 'Type of backup operation',
@@ -709,7 +721,7 @@ class AutoSchemaSync {
         sql: `
           CREATE TABLE IF NOT EXISTS \`invoice_backup_summary\` (
             \`id\` int(11) NOT NULL AUTO_INCREMENT,
-            \`original_invoice_id\` int(11) NOT NULL COMMENT 'ID of the original invoice',
+            \`original_invoice_id\` int(11) DEFAULT NULL COMMENT 'ID of the original invoice',
             \`latest_backup_id\` int(11) DEFAULT NULL COMMENT 'ID of the latest backup entry',
             \`total_backups\` int(11) NOT NULL DEFAULT 0 COMMENT 'Total number of backups for this invoice',
             \`last_backup_type\` enum('DRAFT','SAVED','EDIT','POST','FBR_REQUEST','FBR_RESPONSE') DEFAULT NULL COMMENT 'Type of the last backup operation',
@@ -753,6 +765,124 @@ class AutoSchemaSync {
           );
         }
       }
+    }
+  }
+
+  /**
+   * Fix invoice_backups table to allow NULL for original_invoice_id
+   * This is needed for FBR submissions that don't have a linked invoice yet
+   */
+  async fixInvoiceBackupNullableConstraint(sequelize, databaseType) {
+    try {
+      const tableExists = await this.tableExists(sequelize, 'invoice_backups');
+      if (!tableExists) {
+        this.log(`Table invoice_backups does not exist in ${databaseType}, skipping nullable fix`, 'warn');
+        return;
+      }
+
+      // Check if the column exists and if it's NOT NULL
+      const [results] = await sequelize.query(
+        `SELECT IS_NULLABLE, COLUMN_TYPE 
+         FROM information_schema.columns 
+         WHERE table_schema = DATABASE() 
+         AND table_name = 'invoice_backups' 
+         AND column_name = 'original_invoice_id'`,
+      );
+
+      if (results.length === 0) {
+        this.log(`Column original_invoice_id not found in invoice_backups (${databaseType})`, 'warn');
+        return;
+      }
+
+      const columnInfo = results[0];
+      if (columnInfo.IS_NULLABLE === 'NO') {
+        // Column is NOT NULL, need to fix it
+        const sql = `ALTER TABLE \`invoice_backups\` 
+                     MODIFY COLUMN \`original_invoice_id\` INT NULL 
+                     COMMENT 'ID of the original invoice'`;
+
+        await sequelize.query(sql);
+        this.log(`✅ Fixed invoice_backups.original_invoice_id to allow NULL (${databaseType})`);
+        this.results.columnsAdded++; // Increment counter for tracking
+      } else {
+        this.log(`Column invoice_backups.original_invoice_id already allows NULL (${databaseType})`);
+      }
+    } catch (error) {
+      this.log(
+        `Error fixing invoice_backups nullable constraint: ${error.message}`,
+        'warn',
+      );
+      this.results.warnings.push(
+        `Fix invoice_backups nullable (${databaseType}): ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Fix invoice_backup_summary table to allow NULL for original_invoice_id
+   * This is needed for FBR submissions that don't have a linked invoice yet
+   */
+  async fixInvoiceBackupSummaryNullableConstraint(sequelize, databaseType) {
+    try {
+      const tableExists = await this.tableExists(sequelize, 'invoice_backup_summary');
+      if (!tableExists) {
+        this.log(`Table invoice_backup_summary does not exist in ${databaseType}, skipping nullable fix`, 'warn');
+        return;
+      }
+
+      // Check if the column exists and if it's NOT NULL
+      const [results] = await sequelize.query(
+        `SELECT IS_NULLABLE, COLUMN_TYPE 
+         FROM information_schema.columns 
+         WHERE table_schema = DATABASE() 
+         AND table_name = 'invoice_backup_summary' 
+         AND column_name = 'original_invoice_id'`,
+      );
+
+      if (results.length === 0) {
+        this.log(`Column original_invoice_id not found in invoice_backup_summary (${databaseType})`, 'warn');
+        return;
+      }
+
+      const columnInfo = results[0];
+      if (columnInfo.IS_NULLABLE === 'NO') {
+        // Column is NOT NULL, need to fix it
+        const sql = `ALTER TABLE \`invoice_backup_summary\` 
+                     MODIFY COLUMN \`original_invoice_id\` INT NULL 
+                     COMMENT 'ID of the original invoice'`;
+
+        await sequelize.query(sql);
+        this.log(`✅ Fixed invoice_backup_summary.original_invoice_id to allow NULL (${databaseType})`);
+        this.results.columnsAdded++; // Increment counter for tracking
+      } else {
+        this.log(`Column invoice_backup_summary.original_invoice_id already allows NULL (${databaseType})`);
+      }
+
+      // Also remove the UNIQUE constraint if it exists
+      const [indexResults] = await sequelize.query(
+        `SELECT CONSTRAINT_NAME 
+         FROM information_schema.TABLE_CONSTRAINTS 
+         WHERE table_schema = DATABASE() 
+         AND table_name = 'invoice_backup_summary' 
+         AND CONSTRAINT_TYPE = 'UNIQUE' 
+         AND CONSTRAINT_NAME LIKE '%original_invoice%'`,
+      );
+
+      if (indexResults.length > 0) {
+        for (const index of indexResults) {
+          const dropSql = `ALTER TABLE \`invoice_backup_summary\` DROP INDEX \`${index.CONSTRAINT_NAME}\``;
+          await sequelize.query(dropSql);
+          this.log(`✅ Removed UNIQUE constraint ${index.CONSTRAINT_NAME} from invoice_backup_summary (${databaseType})`);
+        }
+      }
+    } catch (error) {
+      this.log(
+        `Error fixing invoice_backup_summary nullable constraint: ${error.message}`,
+        'warn',
+      );
+      this.results.warnings.push(
+        `Fix invoice_backup_summary nullable (${databaseType}): ${error.message}`,
+      );
     }
   }
 
