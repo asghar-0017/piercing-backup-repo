@@ -176,13 +176,13 @@ export const submitInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata`,
+      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata_sb`,
       invoiceData,
       config
     );
 
     console.log("FBR Invoice Submission API Response:", {
-      endpoint: "di_data/v1/di/postinvoicedata",
+      endpoint: "di_data/v1/di/postinvoicedata_sb",
       status: response.status,
       data: response.data,
     });
