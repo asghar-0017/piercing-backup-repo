@@ -52,7 +52,7 @@ const testBulkUpload = async () => {
     });
 
     const response = await fetch(
-      "http://localhost:5150/api/tenant/tenant_1756409312403_uo1hmt4tz/invoices/bulk",
+      "https://fbrupdatedsandbox.inplsoftwares.com/api/tenant/tenant_1756409312403_uo1hmt4tz/invoices/bulk",
       {
         method: "POST",
         headers: {

@@ -134,7 +134,7 @@ export const validateInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata`,
+      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata_sb`,
       invoiceData,
       config
     );
@@ -148,7 +148,7 @@ export const validateInvoiceData = async (
     return response.data;
   } catch (error) {
     console.error("FBR Invoice Validation API Error:", {
-      endpoint: "di_data/v1/di/validateinvoicedata",
+      endpoint: "di_data/v1/di/validateinvoicedata_sb",
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
