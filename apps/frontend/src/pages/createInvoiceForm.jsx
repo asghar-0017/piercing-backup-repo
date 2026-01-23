@@ -3229,7 +3229,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+        scenarioId: "SN001", // Hardcoded SN001 for FBR validation
         items: itemsToSave.map(
           (
             {
@@ -3330,7 +3330,7 @@ export default function CreateInvoice() {
           sellerAddress: sanitizeAddress(formData.sellerAddress),
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
           transctypeId: formData.transctypeId,
-          // scenarioId: "SN001", // Hardcoded SN001 for save and validate
+          scenarioId: "SN001", // Hardcoded SN001 for save and validate
           items: backendItems, // Use backend items that include all fields
         };
 
@@ -3716,7 +3716,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for submit
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: cleanedItems,
       };
 
@@ -3815,25 +3815,34 @@ export default function CreateInvoice() {
       // Prepare data for backend with FBR invoice number
       // Note: We need to include the original form data fields that were removed during FBR cleaning
 
-      // Create items for backend that include all fields (including advanceIncomeTax)
-      const backendItems = itemsToSubmit.map((item) => ({
-        ...item,
-        quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
-        unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
-        valueSalesExcludingST: Number(
-          Number(item.valueSalesExcludingST || 0).toFixed(2),
-        ),
-        salesTaxApplicable:
-          Math.round(Number(item.salesTaxApplicable) * 100) / 100,
-        salesTaxWithheldAtSource: Number(
-          Number(item.salesTaxWithheldAtSource || 0).toFixed(2),
-        ),
-        totalValues: Number(Number(item.totalValues).toFixed(2)),
-        furtherTax: Number(Number(item.furtherTax || 0).toFixed(2)),
-        fedPayable: Number(Number(item.fedPayable || 0).toFixed(2)),
-        discount: Number(Number(item.discount || 0).toFixed(2)),
-        advanceIncomeTax: Number(Number(item.advanceIncomeTax || 0).toFixed(2)), // Keep in database
-      }));
+      // Create items for backend that include all fields and FBR item numbers
+      const fbrStatuses = responseData?.validationResponse?.invoiceStatuses ||
+        responseData?.data?.validationResponse?.invoiceStatuses || [];
+
+      const backendItems = itemsToSubmit.map((item, index) => {
+        const itemSNo = index + 1;
+        const fbrStatus = fbrStatuses.find(s => parseInt(s.itemSNo) === itemSNo);
+
+        return {
+          ...item,
+          invoiceItemNo: fbrStatus?.invoiceNo || "", // This is the FBR item ID
+          quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
+          unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
+          valueSalesExcludingST: Number(
+            Number(item.valueSalesExcludingST || 0).toFixed(2),
+          ),
+          salesTaxApplicable:
+            Math.round(Number(item.salesTaxApplicable) * 100) / 100,
+          salesTaxWithheldAtSource: Number(
+            Number(item.salesTaxWithheldAtSource || 0).toFixed(2),
+          ),
+          totalValues: Number(Number(item.totalValues).toFixed(2)),
+          furtherTax: Number(Number(item.furtherTax || 0).toFixed(2)),
+          fedPayable: Number(Number(item.fedPayable || 0).toFixed(2)),
+          discount: Number(Number(item.discount || 0).toFixed(2)),
+          advanceIncomeTax: Number(Number(item.advanceIncomeTax || 0).toFixed(2)), // Keep in database
+        };
+      });
 
       const backendData = {
         ...formData, // Use original form data to preserve all fields
@@ -3841,7 +3850,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for submit
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: backendItems, // Use backend items that include all fields
         fbr_invoice_number: fbrInvoiceNumber,
         status: "posted", // Set status as posted since it's been submitted to FBR

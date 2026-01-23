@@ -140,7 +140,7 @@ export const validateInvoiceData = async (
     );
 
     console.log("FBR Invoice Validation API Response:", {
-      endpoint: "di_data/v1/di/validateinvoicedata",
+      endpoint: "di_data/v1/di/validateinvoicedata_sb",
       status: response.status,
       data: response.data,
     });
@@ -190,7 +190,7 @@ export const submitInvoiceData = async (
     return response.data;
   } catch (error) {
     console.error("FBR Invoice Submission API Error:", {
-      endpoint: "di_data/v1/di/postinvoicedata",
+      endpoint: "di_data/v1/di/postinvoicedata_sb",
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -202,7 +202,7 @@ export const submitInvoiceData = async (
 // New function to fetch SRO Schedule from FBR
 export const getSROSchedule = async (
   rateId,
-  date = "04-Feb-2024",
+  date = new Date().toISOString().split("T")[0],
   originationSupplierCsv,
   environment = "sandbox",
   token = null
@@ -250,7 +250,7 @@ export const getSROSchedule = async (
 // New function to fetch SRO Items from FBR
 export const getSROItems = async (
   sroId,
-  date = "2025-03-25",
+  date = new Date().toISOString().split("T")[0],
   environment = "sandbox",
   token = null
 ) => {

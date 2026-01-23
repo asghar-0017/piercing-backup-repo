@@ -171,7 +171,7 @@ const TenantDashboard = () => {
       const params = new URLSearchParams();
       params.append('start_date', fromDate.format('YYYY-MM-DD'));
       params.append('end_date', toDate.format('YYYY-MM-DD'));
-      
+
       const res = await api.get(
         `/tenant/${selectedTenant.tenant_id}/dashboard/summary?${params.toString()}`
       );
@@ -196,7 +196,7 @@ const TenantDashboard = () => {
         } else {
           setError(
             err.response.data?.message ||
-              "Bad request. Please check your Company selection."
+            "Bad request. Please check your Company selection."
           );
         }
       } else if (err.response?.status === 401) {
@@ -225,7 +225,7 @@ const TenantDashboard = () => {
     }
 
     // Fallback: show aggregated data for the selected date range
-    const dateRangeLabel = fromDate.format('MMM DD') === toDate.format('MMM DD') 
+    const dateRangeLabel = fromDate.format('MMM DD') === toDate.format('MMM DD')
       ? fromDate.format('MMM DD, YYYY')
       : `${fromDate.format('MMM DD')} - ${toDate.format('MMM DD, YYYY')}`;
 
@@ -402,8 +402,8 @@ const TenantDashboard = () => {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "repeat(2, 1fr)",
-              md: "repeat(2, 1fr)",
-              lg: "repeat(4, 1fr)",
+              md: "repeat(3, 1fr)",
+              lg: "repeat(5, 1fr)",
             },
             gap: 2,
             minWidth: 0,
@@ -415,8 +415,12 @@ const TenantDashboard = () => {
               value: dashboard.metrics?.total_invoices_created || 0,
             },
             {
-              label: "Total Invoices Saved",
+              label: "Total Invoices Draft",
               value: dashboard.metrics?.total_invoices_draft || 0,
+            },
+            {
+              label: "Total Invoices Saved",
+              value: dashboard.metrics?.total_invoices_saved || 0,
             },
             {
               label: "Total Posted to FBR",
@@ -518,9 +522,9 @@ const TenantDashboard = () => {
               </Box>
               <Box sx={{ width: "100%", height: 320 }}>
                 <ResponsiveContainer width="100%" height={320}>
-                    <BarChart
-                      data={getChartData()}
-                      barSize={60}
+                  <BarChart
+                    data={getChartData()}
+                    barSize={60}
                     barGap={20}
                     margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                   >
@@ -713,16 +717,16 @@ const TenantDashboard = () => {
                               <Chip
                                 label={
                                   inv.postedToFBR ||
-                                  inv.isPostedToFBR ||
-                                  inv.fbrPosted
+                                    inv.isPostedToFBR ||
+                                    inv.fbrPosted
                                     ? "YES"
                                     : "NO"
                                 }
                                 size="small"
                                 color={
                                   inv.postedToFBR ||
-                                  inv.isPostedToFBR ||
-                                  inv.fbrPosted
+                                    inv.isPostedToFBR ||
+                                    inv.fbrPosted
                                     ? "success"
                                     : "error"
                                 }

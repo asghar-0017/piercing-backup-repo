@@ -499,6 +499,7 @@ export const createInvoice = async (req, res) => {
             saleType: cleanValue(item.saleType),
 
             sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+            invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
           };
 
           // Only include extraTax when it's a positive value (> 0)
@@ -1032,6 +1033,7 @@ export const saveInvoice = async (req, res) => {
             saleType: cleanValue(item.saleType),
 
             sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+            invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
           };
 
           // Only include extraTax when it's a positive value (> 0)
@@ -1534,6 +1536,7 @@ export const saveAndValidateInvoice = async (req, res) => {
             saleType: cleanValue(item.saleType),
 
             sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+            invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
           };
 
           // Only include extraTax when it's a positive value (> 0)
@@ -1700,8 +1703,8 @@ export const getAllInvoices = async (req, res) => {
       buyer_id,
       buyer_ids,
       product_ids,
-      sort_by = "companyInvoiceRefNo",
-      sort_order = "ASC",
+      sort_by = "created_at",
+      sort_order = "DESC",
     } = req.query;
 
     // Ensure numeric pagination params
@@ -1709,28 +1712,10 @@ export const getAllInvoices = async (req, res) => {
     const limitNumber = parseInt(limit, 10) || 10;
     const offset = limitNumber >= 999999 ? 0 : (pageNumber - 1) * limitNumber;
 
-    const whereClause = {};
+    const whereClause = { isDeleted: false };
 
-    // Restrict invoice visibility for regular users to only their own
-    console.log("User filtering - userType:", req.userType, "user:", req.user);
-    if (req.userType === "user" && req.user?.role !== "admin") {
-      const creatorId = req.user?.userId || req.user?.id;
-      console.log(
-        "Regular user - creatorId:",
-        creatorId,
-        "email:",
-        req.user?.email,
-      );
-      if (creatorId) {
-        whereClause.created_by_user_id = creatorId;
-        console.log("Filtering by created_by_user_id:", creatorId);
-      } else if (req.user?.email) {
-        whereClause.created_by_email = req.user.email;
-        console.log("Filtering by created_by_email:", req.user.email);
-      }
-    } else {
-      console.log("Admin user or no user restrictions applied");
-    }
+    // Regular users can see ALL company invoices as requested
+    console.log("Invoice visibility - showing all non-deleted data for the tenant");
 
     // Add search functionality
 
@@ -2532,6 +2517,7 @@ export const getAllInvoices = async (req, res) => {
 
     const { count, rows } = await Invoice.findAndCountAll({
       where: whereClause,
+      logging: console.log,
 
       include: [
         {
@@ -3944,6 +3930,7 @@ export const submitSavedInvoice = async (req, res) => {
           saleType: cleanValue(item.saleType),
 
           sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+          invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
         };
 
         // Only include extraTax when it's a positive value (> 0) and not applicable for reduced/exempt
@@ -5836,30 +5823,37 @@ export const getDashboardSummary = async (req, res) => {
       // Filter by invoiceDate using string comparison since it's stored as STRING
       // This handles both YYYY-MM-DD and DD-MM-YYYY formats that might be in the database
       whereDateRange = {
-        [Op.or]: [
-          // Handle YYYY-MM-DD format
+        [Op.and]: [
           {
-            invoiceDate: {
-              [Op.between]: [startDateStr, endDateStr],
-            },
+            [Op.or]: [{ isDeleted: false }, { isDeleted: null }],
           },
-          // Handle DD-MM-YYYY format (convert and compare)
           {
-            invoiceDate: {
-              [Op.and]: [
-                // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
-                sequelize.where(
-                  sequelize.fn(
-                    "STR_TO_DATE",
-                    sequelize.col("invoiceDate"),
-                    "%d-%m-%Y",
-                  ),
-                  {
-                    [Op.between]: [startDateStr, endDateStr],
-                  },
-                ),
-              ],
-            },
+            [Op.or]: [
+              // Handle YYYY-MM-DD format
+              {
+                invoiceDate: {
+                  [Op.between]: [startDateStr, endDateStr],
+                },
+              },
+              // Handle DD-MM-YYYY format (convert and compare)
+              {
+                invoiceDate: {
+                  [Op.and]: [
+                    // Convert DD-MM-YYYY to YYYY-MM-DD for comparison
+                    sequelize.where(
+                      sequelize.fn(
+                        "STR_TO_DATE",
+                        sequelize.col("invoiceDate"),
+                        "%d-%m-%Y",
+                      ),
+                      {
+                        [Op.between]: [startDateStr, endDateStr],
+                      },
+                    ),
+                  ],
+                },
+              },
+            ],
           },
         ],
       };
@@ -5871,30 +5865,36 @@ export const getDashboardSummary = async (req, res) => {
       );
 
       whereDateRange = {
+        [Op.or]: [{ isDeleted: false }, { isDeleted: null }],
         created_at: { [Op.between]: [startDate, endDate] },
       };
     }
 
-    // Add user filter for non-admin users
-    if (req.userType === "user" && req.user?.role !== "admin") {
-      const userId = req.user?.userId || req.user?.id;
-      if (userId) {
-        whereDateRange.created_by_user_id = userId;
-      }
-    }
+    // Regular users can see ALL company dashboard data as requested
+    console.log("Dashboard visibility - showing all non-deleted metrics for the tenant");
 
     // Key metrics
 
-    const [totalCreated, totalDrafts, totalPosted, totalAmount] =
+    const [totalCreated, totalDrafts, totalSaved, totalPosted, totalAmount] =
       await Promise.all([
-        Invoice.count({ where: whereDateRange }),
+        Invoice.count({ where: whereDateRange, logging: console.log }),
 
         Invoice.count({ where: { ...whereDateRange, status: "draft" } }),
 
-        Invoice.count({ where: { ...whereDateRange, status: "posted" } }),
+        Invoice.count({ where: { ...whereDateRange, status: "saved" } }),
+
+        Invoice.count({
+          where: {
+            ...whereDateRange,
+            status: { [Op.in]: ["posted", "submitted", "validated"] },
+          },
+        }),
 
         // For InvoiceItem sum, we need to join with Invoice to filter by invoiceDate
         InvoiceItem.sum("totalValues", {
+          where: {
+            [Op.or]: [{ isDeleted: false }, { isDeleted: null }],
+          },
           include: [
             {
               model: Invoice,
@@ -5988,7 +5988,7 @@ export const getDashboardSummary = async (req, res) => {
 
       group: ["Invoice.id"],
 
-      order: [["invoiceDate", "DESC"]],
+      order: [["created_at", "DESC"]],
 
       limit: 10,
 
@@ -6021,6 +6021,8 @@ export const getDashboardSummary = async (req, res) => {
           total_invoices_created: totalCreated,
 
           total_invoices_draft: totalDrafts,
+
+          total_invoices_saved: totalSaved,
 
           total_posted_to_fbr: totalPosted,
 
@@ -6412,6 +6414,7 @@ export const submitInvoiceDataController = async (req, res) => {
       environment,
       fbrToken,
     );
+    console.log("Submission result:", submissionResult);
 
     // Create backup for FBR submission (Request + Response)
     try {
@@ -6444,6 +6447,7 @@ export const submitInvoiceDataController = async (req, res) => {
         invoice: mockInvoice,
         fbrRequestData: invoiceData,
         fbrResponseData: submissionResult,
+        invoiceItems: invoiceData.items,
         user: req.user,
         tenant: req.tenant,
         request: {
