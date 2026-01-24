@@ -650,7 +650,7 @@ export default function BasicTable() {
                 : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+              // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
               items: cleanedItems,
             };
 
@@ -1045,7 +1045,7 @@ export default function BasicTable() {
                 : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              scenarioId: "SN001",
+              // scenarioId: "SN001",
               items: cleanedItems,
             };
 

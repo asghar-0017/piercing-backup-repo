@@ -134,13 +134,13 @@ export const validateInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata_sb`,
+      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata`,
       invoiceData,
       config
     );
 
     console.log("FBR Invoice Validation API Response:", {
-      endpoint: "di_data/v1/di/validateinvoicedata_sb",
+      endpoint: "di_data/v1/di/validateinvoicedata",
       status: response.status,
       data: response.data,
     });
@@ -148,7 +148,7 @@ export const validateInvoiceData = async (
     return response.data;
   } catch (error) {
     console.error("FBR Invoice Validation API Error:", {
-      endpoint: "di_data/v1/di/validateinvoicedata_sb",
+      endpoint: "di_data/v1/di/validateinvoicedata",
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
@@ -176,7 +176,7 @@ export const submitInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata_sb`,
+      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata`,
       invoiceData,
       config
     );
