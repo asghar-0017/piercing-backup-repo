@@ -6734,6 +6734,27 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     const rateIdDescPairsByType = {};
 
     if (token) {
+      const formatFbrShortDate = (d = new Date()) => {
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${day}-${months[d.getMonth()]}-${d.getFullYear()}`;
+      };
+
+      const saleTypeToRateDate = formatFbrShortDate();
+
       const candidateProvinceCodes = [];
 
       if (provinceCode) {
@@ -6760,7 +6781,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         for (const code of candidateProvinceCodes) {
           try {
             const ratesRaw = await fetchData(
-              `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${encodeURIComponent(
+              `pdi/v2/SaleTypeToRate?date=${saleTypeToRateDate}&transTypeId=${encodeURIComponent(
                 tt.id,
               )}&originationSupplier=${encodeURIComponent(code)}`,
 
@@ -6827,7 +6848,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         if (aggregated.size === 0) {
           try {
             const ratesRawNoProv = await fetchData(
-              `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${encodeURIComponent(
+              `pdi/v2/SaleTypeToRate?date=${saleTypeToRateDate}&transTypeId=${encodeURIComponent(
                 tt.id,
               )}`,
 
@@ -7029,13 +7050,34 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       let successfulFetches = 0;
       let failedFetches = 0;
 
+      const formatSroScheduleDate = (d = new Date()) => {
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${day}-${months[d.getMonth()]}-${d.getFullYear()}`;
+      };
+
+      const sroScheduleDate = formatSroScheduleDate();
+
       for (const rateId of uniqueRateIds) {
         try {
           console.log(`Fetching SRO Schedule data for rate_id=${rateId}...`);
 
           // Fetch SRO Schedule data for each rate ID
           const sroRaw = await fetchData(
-            `pdi/v1/SroSchedule?rate_id=${rateId}&date=04-Feb-2024&origination_supplier_csv=1`,
+            `pdi/v1/SroSchedule?rate_id=${rateId}&date=${sroScheduleDate}&origination_supplier_csv=1`,
             "sandbox",
             token,
           );

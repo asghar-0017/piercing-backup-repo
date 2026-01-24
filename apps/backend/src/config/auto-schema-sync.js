@@ -362,6 +362,13 @@ class AutoSchemaSync {
         allowNull: false,
         defaultValue: 0,
       },
+      {
+        table: "invoice_items",
+        column: "invoiceItemNo",
+        type: "varchar(255)",
+        allowNull: true,
+        defaultValue: "",
+      },
 
       // Invoice items DECIMAL field updates (increase precision for large amounts)
       {

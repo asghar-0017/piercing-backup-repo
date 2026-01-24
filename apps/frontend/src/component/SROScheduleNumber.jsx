@@ -1,5 +1,6 @@
 import { Box, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import React, { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { fetchData } from "../API/GetApi";
 import { useTenantSelection } from "../Context/TenantSelectionProvider";
 import { getSellerProvinceCode } from "../utils/provinceMatcher";
@@ -110,8 +111,9 @@ const SROScheduleNumber = ({
         return;
       }
 
+      const currentDate = dayjs().format("DD-MMM-YYYY");
       const response = await fetchData(
-        `pdi/v1/SroSchedule?rate_id=${RateId}&date=04-Feb-2024&origination_supplier_csv=${provinceCode}`
+        `pdi/v1/SroSchedule?rate_id=${RateId}&date=${currentDate}&origination_supplier_csv=${provinceCode}`
       );
       console.log(`SRO for item ${index}:`, response);
       setSro(response);

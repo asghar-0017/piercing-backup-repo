@@ -1,5 +1,6 @@
 import { Box, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import React, { useEffect, useState } from "react";
+import dayjs from "dayjs";
 import { fetchData } from "../API/GetApi";
 import { useTenantSelection } from "../Context/TenantSelectionProvider";
 
@@ -26,8 +27,9 @@ const SROItem = ({ index, item, handleItemChange, disabled }) => {
       }
 
       try {
+        const currentDate = dayjs().format("YYYY-MM-DD");
         const response = await fetchData(
-          `pdi/v2/SROItem?date=2025-03-25&sro_id=${itemSROId}`
+          `pdi/v2/SROItem?date=${currentDate}&sro_id=${itemSROId}`
         );
         console.log(`SRO ITEM RESPONSE for item ${index}:`, response);
         setSro(response);

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Box, Button, Typography, Paper, Alert } from "@mui/material";
+import dayjs from "dayjs";
 import { getSellerProvinceCode } from "../utils/provinceMatcher";
 
 /**
@@ -61,7 +62,8 @@ const ProvinceMatcherExample = () => {
       
       // Step 2: Use the province code for rate selection
       // In a real scenario, you would call the rate API here
-      const rateApiUrl = `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${transactionTypeId}&originationSupplier=${provinceCode}`;
+      const currentDate = dayjs().format("DD-MMM-YYYY");
+      const rateApiUrl = `pdi/v2/SaleTypeToRate?date=${currentDate}&transTypeId=${transactionTypeId}&originationSupplier=${provinceCode}`;
       
       setResult({
         sellerProvince,
@@ -168,7 +170,8 @@ const handleProvinceMatching = async () => {
     
     if (provinceCode) {
       // Use the province code for rate selection
-      const rateApiUrl = \`pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=80&originationSupplier=\${provinceCode}\`;
+      const currentDate = dayjs().format("DD-MMM-YYYY");
+      const rateApiUrl = \`pdi/v2/SaleTypeToRate?date=\${currentDate}&transTypeId=80&originationSupplier=\${provinceCode}\`;
       
       // Call your rate API here
       const rates = await fetchRates(rateApiUrl);

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography, Paper, Alert } from "@mui/material";
+import dayjs from "dayjs";
 import { getSellerProvinceCode, getRatesForSellerProvince } from "../utils/provinceMatcher";
 import { fetchData } from "../API/GetApi";
 
@@ -35,8 +36,9 @@ const ProvinceMatcherTest = () => {
       // Test 3: Test SRO API call directly
       let sroResult = null;
       try {
+        const currentDate = dayjs().format("DD-MMM-YYYY");
         sroResult = await fetchData(
-          `pdi/v1/SroSchedule?rate_id=1&date=04-Feb-2024&origination_supplier_csv=${provinceCode}`
+          `pdi/v1/SroSchedule?rate_id=1&date=${currentDate}&origination_supplier_csv=${provinceCode}`
         );
         console.log(`SRO API result:`, sroResult);
       } catch (sroError) {

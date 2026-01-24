@@ -8,6 +8,7 @@ import {
   Button,
   CircularProgress,
 } from "@mui/material";
+import dayjs from "dayjs";
 import { fetchData } from "../API/GetApi";
 import { useTenantSelection } from "../Context/TenantSelectionProvider";
 import {
@@ -134,8 +135,10 @@ const RateSelector = ({
 
     setLoading(true);
     try {
+      const currentDate = dayjs().format("DD-MMM-YYYY");
+      
       const response = await fetchData(
-        `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${effectiveTransactionTypeId}&originationSupplier=${provinceCode}`
+        `pdi/v2/SaleTypeToRate?date=${currentDate}&transTypeId=${effectiveTransactionTypeId}&originationSupplier=${provinceCode}`
       );
       console.log("Rate Response:", response);
       console.log("Transaction Type ID:", effectiveTransactionTypeId);

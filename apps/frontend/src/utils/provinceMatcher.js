@@ -1,4 +1,5 @@
 import { fetchData } from "../API/GetApi";
+import dayjs from "dayjs";
 import { getRatesForTransactionType } from "./hardcodedRates";
 
 /**
@@ -285,8 +286,9 @@ export const getRatesForSellerProvince = async (
     }
 
     // Fetch rates using the province code
+    const currentDate = dayjs().format("DD-MMM-YYYY");
     const rates = await fetchData(
-      `pdi/v2/SaleTypeToRate?date=24-Feb-2024&transTypeId=${transactionTypeId}&originationSupplier=${provinceCode}`,
+      `pdi/v2/SaleTypeToRate?date=${currentDate}&transTypeId=${transactionTypeId}&originationSupplier=${provinceCode}`,
       environment
     );
 
