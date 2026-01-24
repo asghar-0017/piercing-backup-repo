@@ -118,7 +118,7 @@ export const getProvinces = async (environment = "sandbox", token = null) => {
 // New function to validate invoice data with FBR
 export const validateInvoiceData = async (
   invoiceData,
-  environment = "sandbox",
+  environment = "production",
   token = null
 ) => {
   if (!token) {
@@ -160,7 +160,7 @@ export const validateInvoiceData = async (
 // New function to submit invoice data to FBR
 export const submitInvoiceData = async (
   invoiceData,
-  environment = "sandbox",
+  environment = "production",
   token = null
 ) => {
   if (!token) {
@@ -182,7 +182,7 @@ export const submitInvoiceData = async (
     );
 
     console.log("FBR Invoice Submission API Response:", {
-      endpoint: "di_data/v1/di/postinvoicedata_sb",
+      endpoint: "di_data/v1/di/postinvoicedata",
       status: response.status,
       data: response.data,
     });
@@ -190,7 +190,7 @@ export const submitInvoiceData = async (
     return response.data;
   } catch (error) {
     console.error("FBR Invoice Submission API Error:", {
-      endpoint: "di_data/v1/di/postinvoicedata_sb",
+      endpoint: "di_data/v1/di/postinvoicedata",
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,

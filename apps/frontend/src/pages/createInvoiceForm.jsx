@@ -63,6 +63,7 @@ import ProductModal from "../component/ProductModal";
 import hsCodeCache from "../utils/hsCodeCache";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { showError, showErrorFromResponse } from "../utils/errorHandler.jsx";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
@@ -1921,10 +1922,10 @@ export default function CreateInvoice() {
         errorMessage = error.message;
       }
 
-      Swal.fire({
-        icon: "error",
+      await showError({
         title: "Error",
-        text: errorMessage,
+        message: errorMessage,
+        type: "error",
       });
     }
   };
@@ -2872,11 +2873,10 @@ export default function CreateInvoice() {
         setInvoiceDateError(
           "This date exceeds the current date. Please select today or a past date.",
         );
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "This date exceeds the current date. Please select today or a past date.",
-          confirmButtonColor: "#d33",
+          message: "This date exceeds the current date. Please select today or a past date.",
+          type: "error",
         });
         setSaveLoading(false);
         return;
@@ -2885,11 +2885,10 @@ export default function CreateInvoice() {
       setIsSubmitVisible(false);
       // Basic validation for save
       if (!selectedTenant) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select a Company before saving the invoice.",
-          confirmButtonColor: "#d33",
+          message: "Please select a Company before saving the invoice.",
+          type: "error",
         });
         setSaveLoading(false);
         return;
@@ -3048,12 +3047,10 @@ export default function CreateInvoice() {
       }
     } catch (error) {
       console.error("Save Error:", error);
-      Swal.fire({
-        icon: "error",
+      await showError({
         title: "Error",
-        text: `Failed to save invoice: ${error.response?.data?.message || error.message
-          }`,
-        confirmButtonColor: "#d33",
+        message: `Failed to save invoice: ${error.response?.data?.message || error.message}`,
+        type: "error",
       });
     } finally {
       setSaveLoading(false);
@@ -3143,22 +3140,20 @@ export default function CreateInvoice() {
         setInvoiceDateError(
           "This date exceeds the current date. Please select today or a past date.",
         );
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "This date exceeds the current date. Please select today or a past date.",
-          confirmButtonColor: "#d33",
+          message: "This date exceeds the current date. Please select today or a past date.",
+          type: "error",
         });
         setSaveValidateLoading(false);
         return;
       }
       // Basic validation for save and validate
       if (!selectedTenant) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select a Company before saving the invoice.",
-          confirmButtonColor: "#d33",
+          message: "Please select a Company before saving the invoice.",
+          type: "error",
         });
         setSaveValidateLoading(false);
         return;
@@ -3175,11 +3170,10 @@ export default function CreateInvoice() {
 
       for (const { field, label } of sellerRequiredFields) {
         if (!formData[field] || formData[field].trim() === "") {
-          Swal.fire({
-            icon: "error",
+          await showError({
             title: "Error",
-            text: `${label} is required. Please select a Company to populate seller information.`,
-            confirmButtonColor: "#d33",
+            message: `${label} is required. Please select a Company to populate seller information.`,
+            type: "error",
           });
           setSaveValidateLoading(false);
           return;
@@ -3203,18 +3197,16 @@ export default function CreateInvoice() {
 
       // If there are validation errors, show them and stop
       if (validationErrors.length > 0) {
-        const errorMessages = validationErrors
-          .map(
-            (error) =>
-              `Item ${error.itemNumber} validation failed: ${error.errors.join(", ")}`,
-          )
-          .join("\n");
+        const errorDetails = validationErrors.map((error) => ({
+          item: error.itemNumber,
+          error: error.errors.join(", "),
+        }));
 
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Item Validation Failed",
-          text: errorMessages,
-          confirmButtonColor: "#d33",
+          message: "Please fix the following validation errors:",
+          details: errorDetails,
+          type: "error",
         });
         setSaveValidateLoading(false);
         return;
@@ -3286,7 +3278,7 @@ export default function CreateInvoice() {
 
       // Validate with FBR API through backend
       const validateRes = await api.post(
-        `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=sandbox`,
+        `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=production`,
         cleanedData,
       );
 
@@ -3385,7 +3377,10 @@ export default function CreateInvoice() {
           ) {
             validation.invoiceStatuses.forEach((status, index) => {
               if (status.error) {
-                errorDetails.push(`Item ${index + 1}: ${status.error}`);
+                errorDetails.push({
+                  item: status.itemSNo || index + 1,
+                  error: status.error,
+                });
               }
             });
           }
@@ -3404,100 +3399,27 @@ export default function CreateInvoice() {
         ) {
           errorData.invoiceStatuses.forEach((status, index) => {
             if (status.error) {
-              errorDetails.push(`Item ${index + 1}: ${status.error}`);
+              errorDetails.push({
+                item: status.itemSNo || index + 1,
+                error: status.error,
+              });
             }
           });
         }
 
-        // Combine error message with details
-        const fullErrorMessage =
-          errorDetails.length > 0
-            ? `${errorMessage}\n\nDetails:\n${errorDetails.join("\n")}`
-            : errorMessage;
-
-        Swal.fire({
-          icon: "error",
+        // Show structured error modal
+        await showError({
           title: "FBR Validation Failed",
-          text: fullErrorMessage,
-          confirmButtonColor: "#d33",
-          width: "600px",
-          customClass: {
-            popup: "swal-wide",
-          },
+          message: errorMessage,
+          details: errorDetails,
+          type: "error",
+          width: "700px",
         });
       }
     } catch (error) {
       console.error("Save and Validate Error:", error);
-
-      // Enhanced error handling for different types of errors
-      let errorTitle = "Error";
-      let errorMessage = "Failed to save and validate invoice";
-      let errorDetails = [];
-
-      // Check if it's a validation error from FBR
-      const errorResponse = error.response?.data;
-
-      if (errorResponse) {
-        // Handle FBR API validation errors
-        const fbrError =
-          errorResponse?.validationResponse?.error ||
-          errorResponse?.data?.error ||
-          errorResponse?.data?.message ||
-          errorResponse?.error ||
-          errorResponse?.message;
-
-        if (fbrError) {
-          errorTitle = "FBR Validation Error";
-          errorMessage = fbrError;
-
-          // Check for item-specific errors in validation response
-          if (errorResponse.validationResponse?.invoiceStatuses) {
-            errorResponse.validationResponse.invoiceStatuses.forEach(
-              (status, index) => {
-                if (status.error) {
-                  errorDetails.push(`Item ${index + 1}: ${status.error}`);
-                }
-              },
-            );
-          }
-        } else {
-          // Handle other API response errors
-          if (errorResponse.errors && Array.isArray(errorResponse.errors)) {
-            errorDetails = errorResponse.errors;
-          } else if (errorResponse.message) {
-            errorMessage = errorResponse.message;
-          }
-        }
-      } else {
-        // Handle network and other errors
-        if (error.code === "ECONNABORTED") {
-          errorTitle = "Request Timeout";
-          errorMessage = "FBR API request timed out. Please try again.";
-        } else if (error.code === "ERR_NETWORK") {
-          errorTitle = "Network Error";
-          errorMessage =
-            "Unable to connect to FBR API. Please check your internet connection.";
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-      }
-
-      // Combine error message with details
-      const fullErrorMessage =
-        errorDetails.length > 0
-          ? `${errorMessage}\n\nDetails:\n${errorDetails.join("\n")}`
-          : errorMessage;
-
-      Swal.fire({
-        icon: "error",
-        title: errorTitle,
-        text: fullErrorMessage,
-        confirmButtonColor: "#d33",
-        width: "600px",
-        customClass: {
-          popup: "swal-wide",
-        },
-      });
+      // Use the error handler utility to show structured error
+      await showErrorFromResponse(error, { width: "700px" });
     } finally {
       setSaveValidateLoading(false);
     }
@@ -3522,22 +3444,20 @@ export default function CreateInvoice() {
         setInvoiceDateError(
           "This date exceeds the current date. Please select today or a past date.",
         );
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "This date exceeds the current date. Please select today or a past date.",
-          confirmButtonColor: "#d33",
+          message: "This date exceeds the current date. Please select today or a past date.",
+          type: "error",
         });
         setLoading(false);
         return;
       }
       // Validate that a tenant is selected and seller information is populated
       if (!selectedTenant) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select a Company before creating an invoice.",
-          confirmButtonColor: "#d33",
+          message: "Please select a Company before creating an invoice.",
+          type: "error",
         });
         setLoading(false);
         return;
@@ -3554,11 +3474,10 @@ export default function CreateInvoice() {
 
       for (const { field, label } of sellerRequiredFields) {
         if (!formData[field] || formData[field].trim() === "") {
-          Swal.fire({
-            icon: "error",
+          await showError({
             title: "Error",
-            text: `${label} is required. Please select a Company to populate seller information.`,
-            confirmButtonColor: "#d33",
+            message: `${label} is required. Please select a Company to populate seller information.`,
+            type: "error",
           });
           setLoading(false);
           return;
@@ -3570,11 +3489,10 @@ export default function CreateInvoice() {
         addedItems.length === 0 &&
         (!formData.items || formData.items.length === 0)
       ) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "At least one item is required. Please add items to the list.",
-          confirmButtonColor: "#d33",
+          message: "At least one item is required. Please add items to the list.",
+          type: "error",
         });
         setLoading(false);
         return;
@@ -3635,11 +3553,10 @@ export default function CreateInvoice() {
             (field === "valueSalesExcludingST" && item[field] <= 0) ||
             (field === "retailPrice" && parseFloat(item[field]) <= 0)
           ) {
-            Swal.fire({
-              icon: "error",
+            await showError({
               title: "Error",
-              text: message,
-              confirmButtonColor: "#d33",
+              message: message,
+              type: "error",
             });
             setLoading(false);
             return;
@@ -3722,7 +3639,7 @@ export default function CreateInvoice() {
 
       // STEP 1: Hit FBR API through backend
       const fbrResponse = await api.post(
-        `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=sandbox`,
+        `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=production`,
         cleanedData,
       );
 
@@ -3943,11 +3860,10 @@ export default function CreateInvoice() {
         errorMessage = error.message || "An unexpected error occurred";
       }
 
-      Swal.fire({
-        icon: "error",
+      await showError({
         title: errorTitle,
-        text: errorMessage,
-        confirmButtonColor: "#d33",
+        message: errorMessage,
+        type: "error",
       });
     } finally {
       setLoading(false);

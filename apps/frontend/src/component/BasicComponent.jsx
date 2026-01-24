@@ -44,6 +44,7 @@ import hsCodeCache from "../utils/hsCodeCache";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import { showError, showErrorFromResponse } from "../utils/errorHandler.jsx";
 
 export default function BasicTable() {
   const [invoices, setInvoices] = useState([]);
@@ -252,9 +253,7 @@ export default function BasicTable() {
       }
     } catch (error) {
       console.error("Error fetching invoices:", error);
-      if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please log in again.");
-      }
+      await showErrorFromResponse(error);
       setInvoices([]);
     } finally {
       if (isSearchOperation) {
@@ -288,7 +287,11 @@ export default function BasicTable() {
   const handleButtonClick = async (invoice) => {
     try {
       if (!selectedTenant) {
-        toast.error("No Company selected");
+        await showError({
+          title: "Error",
+          message: "No Company selected",
+          type: "error",
+        });
         return;
       }
 
@@ -296,7 +299,11 @@ export default function BasicTable() {
       const token =
         localStorage.getItem("tenantToken") || localStorage.getItem("token");
       if (!token) {
-        toast.error("Authentication token not found");
+        await showError({
+          title: "Error",
+          message: "Authentication token not found",
+          type: "error",
+        });
         return;
       }
 
@@ -305,18 +312,18 @@ export default function BasicTable() {
       window.open(link, "_blank");
     } catch (error) {
       console.error("Error printing invoice:", error);
-      if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please log in again.");
-      } else {
-        toast.error("Error printing invoice. Check console for details.");
-      }
+      await showErrorFromResponse(error);
     }
   };
 
   const handleViewInvoice = async (invoice) => {
     try {
       if (!selectedTenant) {
-        toast.error("No Company selected");
+        await showError({
+          title: "Error",
+          message: "No Company selected",
+          type: "error",
+        });
         return;
       }
 
@@ -329,24 +336,26 @@ export default function BasicTable() {
         setViewModalOpen(true);
       } else {
         console.error("Failed to fetch invoice:", response.data.message);
-        toast.error("Failed to fetch invoice details");
+        await showError({
+          title: "Error",
+          message: "Failed to fetch invoice details",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("Error fetching invoice data:", error);
-      if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please log in again.");
-      } else {
-        toast.error(
-          "Error fetching invoice details. Check console for details."
-        );
-      }
+      await showErrorFromResponse(error);
     }
   };
 
   const handleEditInvoice = async (invoice) => {
     try {
       if (!selectedTenant) {
-        toast.error("No Company selected");
+        await showError({
+          title: "Error",
+          message: "No Company selected",
+          type: "error",
+        });
         return;
       }
 
@@ -367,17 +376,15 @@ export default function BasicTable() {
         }
       } else {
         console.error("Failed to fetch invoice:", response.data.message);
-        toast.error("Failed to fetch invoice details");
+        await showError({
+          title: "Error",
+          message: "Failed to fetch invoice details",
+          type: "error",
+        });
       }
     } catch (error) {
       console.error("Error fetching invoice data:", error);
-      if (error.response?.status === 401) {
-        toast.error("Authentication failed. Please log in again.");
-      } else {
-        toast.error(
-          "Error fetching invoice details. Check console for details."
-        );
-      }
+      await showErrorFromResponse(error);
     }
   };
 
@@ -472,21 +479,7 @@ export default function BasicTable() {
       }
     } catch (error) {
       console.error("Error in bulk upload:", error);
-      let errorMessage = "Error uploading invoices.";
-      if (error.response) {
-        const { status, data } = error.response;
-        if (status === 400) {
-          errorMessage =
-            data.message ||
-            "Invalid data provided. Please check your file format.";
-        } else if (status === 500) {
-          errorMessage = "Server error occurred. Please try again later.";
-        } else {
-          errorMessage =
-            data.message || "An error occurred while uploading invoices.";
-        }
-      }
-      toast.error(errorMessage);
+      await showErrorFromResponse(error);
       throw error;
     }
   };
@@ -507,7 +500,11 @@ export default function BasicTable() {
     if (result.isConfirmed) {
       try {
         if (!selectedTenant) {
-          Swal.fire("Error", "No Company selected", "error");
+          await showError({
+            title: "Error",
+            message: "No Company selected",
+            type: "error",
+          });
           return;
         }
 
@@ -525,23 +522,15 @@ export default function BasicTable() {
           getMyInvoices();
         } else {
           console.error("Failed to delete invoice:", response.data.message);
-          Swal.fire("Error", "Failed to delete invoice", "error");
+          await showError({
+            title: "Error",
+            message: "Failed to delete invoice",
+            type: "error",
+          });
         }
       } catch (error) {
         console.error("Error deleting invoice:", error);
-        if (error.response?.status === 401) {
-          Swal.fire(
-            "Error",
-            "Authentication failed. Please log in again.",
-            "error"
-          );
-        } else {
-          Swal.fire(
-            "Error",
-            "Error deleting invoice. Please try again.",
-            "error"
-          );
-        }
+        await showErrorFromResponse(error);
       }
     }
   };
@@ -551,22 +540,20 @@ export default function BasicTable() {
     setSaveValidateLoading(true);
     try {
       if (!selectedTenant) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select a Company before saving and validating invoices.",
-          confirmButtonColor: "#d33",
+          message: "Please select a Company before saving and validating invoices.",
+          type: "error",
         });
         setSaveValidateLoading(false);
         return;
       }
 
       if (selectedInvoices.size === 0) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select at least one invoice to save and validate.",
-          confirmButtonColor: "#d33",
+          message: "Please select at least one invoice to save and validate.",
+          type: "error",
         });
         setSaveValidateLoading(false);
         return;
@@ -669,7 +656,7 @@ export default function BasicTable() {
 
             // STEP 1: Hit FBR API through backend - validateinvoicedata
             const fbrValidateResponse = await api.post(
-              `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=sandbox`,
+              `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=production`,
               cleanedData
             );
 
@@ -695,16 +682,17 @@ export default function BasicTable() {
                 if (validation.error) {
                   errorMessage = validation.error;
                 }
-                // Check for item-specific errors
+                // Check for item-specific errors - structure as objects like createInvoiceForm.jsx
                 if (
                   validation.invoiceStatuses &&
                   Array.isArray(validation.invoiceStatuses)
                 ) {
-                  validation.invoiceStatuses.forEach((status) => {
+                  validation.invoiceStatuses.forEach((status, index) => {
                     if (status.error) {
-                      errorDetails.push(
-                        `Item ${status.itemSNo}: ${status.error}`
-                      );
+                      errorDetails.push({
+                        item: status.itemSNo || index + 1,
+                        error: status.error,
+                      });
                     }
                   });
                 }
@@ -716,15 +704,26 @@ export default function BasicTable() {
                 errorMessage = fbrValidateResponse.data.message;
               }
 
-              const fullErrorMessage =
-                errorDetails.length > 0
-                  ? `${errorMessage}\n\nDetails:\n${errorDetails.join("\n")}`
-                  : errorMessage;
+              // Check for additional error details in the response
+              if (
+                validationData?.invoiceStatuses &&
+                Array.isArray(validationData.invoiceStatuses)
+              ) {
+                validationData.invoiceStatuses.forEach((status, index) => {
+                  if (status.error) {
+                    errorDetails.push({
+                      item: status.itemSNo || index + 1,
+                      error: status.error,
+                    });
+                  }
+                });
+              }
 
               results.push({
                 invoiceNumber: invoice.invoiceNumber,
                 status: "error",
-                message: fullErrorMessage,
+                message: errorMessage,
+                itemErrors: errorDetails.length > 0 ? errorDetails : undefined, // Store item errors separately
               });
               continue; // Skip to next invoice
             }
@@ -765,7 +764,10 @@ export default function BasicTable() {
             invoiceNumber: invoice.invoiceNumber,
             status: "error",
             message:
-              error.response?.data?.message || "Error processing invoice",
+              error.message ||
+              error.response?.data?.message ||
+              "Error processing invoice",
+            itemErrors: error.itemErrors || [], // Store item errors if present
           });
         }
       }
@@ -784,13 +786,37 @@ export default function BasicTable() {
         setIsSubmitVisible(true);
         getMyInvoices(); // Refresh the list
       } else if (successful.length === 0) {
-        Swal.fire({
-          icon: "error",
+        // Flatten all errors including item-level errors
+        const errorDetails = [];
+        let generalMessage = "All selected invoices failed validation or saving.";
+        
+        failed.forEach((f) => {
+          if (f.itemErrors && f.itemErrors.length > 0) {
+            // If there are item-level errors, show each item error separately
+            f.itemErrors.forEach((itemError) => {
+              errorDetails.push({
+                item: `Invoice ${f.invoiceNumber} - Item ${itemError.item}`,
+                error: itemError.error,
+              });
+            });
+            // Include general error message if available
+            if (f.message && f.message !== "Invoice validation with FBR failed.") {
+              generalMessage = f.message;
+            }
+          } else {
+            // If no item errors, show invoice-level error
+            errorDetails.push({
+              item: f.invoiceNumber,
+              error: f.message,
+            });
+          }
+        });
+        await showError({
           title: "All Invoices Failed to Validate and Save",
-          text: failed
-            .map((f) => `${f.invoiceNumber}: ${f.message}`)
-            .join("\n"),
-          confirmButtonColor: "#d33",
+          message: generalMessage,
+          details: errorDetails,
+          type: "error",
+          width: "700px",
         });
       } else {
         Swal.fire({
@@ -804,12 +830,7 @@ export default function BasicTable() {
       }
     } catch (error) {
       console.error("Save and Validate Error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to save and validate invoices. Please try again.",
-        confirmButtonColor: "#d33",
-      });
+      await showErrorFromResponse(error);
     } finally {
       setSaveValidateLoading(false);
     }
@@ -817,12 +838,20 @@ export default function BasicTable() {
   const handleBulkPrint = async () => {
     try {
       if (!selectedTenant) {
-        toast.error("No Company selected");
+        await showError({
+          title: "Error",
+          message: "No Company selected",
+          type: "error",
+        });
         return;
       }
 
       if (selectedInvoices.size === 0) {
-        toast.error("Please select at least one invoice to print");
+        await showError({
+          title: "Error",
+          message: "Please select at least one invoice to print",
+          type: "error",
+        });
         return;
       }
 
@@ -830,7 +859,11 @@ export default function BasicTable() {
       const token =
         localStorage.getItem("tenantToken") || localStorage.getItem("token");
       if (!token) {
-        toast.error("Authentication token not found");
+        await showError({
+          title: "Error",
+          message: "Authentication token not found",
+          type: "error",
+        });
         return;
       }
 
@@ -893,7 +926,7 @@ export default function BasicTable() {
       setSelectMode(false);
     } catch (error) {
       console.error("Error generating bulk PDF:", error);
-      toast.error("Error generating PDF. Please try again.");
+      await showErrorFromResponse(error);
     }
   };
 
@@ -902,22 +935,20 @@ export default function BasicTable() {
     setSubmitLoading(true);
     try {
       if (!selectedTenant) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select a Company before submitting invoices.",
-          confirmButtonColor: "#d33",
+          message: "Please select a Company before submitting invoices.",
+          type: "error",
         });
         setSubmitLoading(false);
         return;
       }
 
       if (selectedInvoices.size === 0) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select at least one invoice to submit.",
-          confirmButtonColor: "#d33",
+          message: "Please select at least one invoice to submit.",
+          type: "error",
         });
         setSubmitLoading(false);
         return;
@@ -1070,7 +1101,7 @@ export default function BasicTable() {
 
             // STEP 1: Hit FBR API through backend
             const fbrResponse = await api.post(
-              `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=sandbox`,
+              `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=production`,
               cleanedData
             );
 
@@ -1122,36 +1153,50 @@ export default function BasicTable() {
                 status: fbrResponse.status,
               };
 
-              const collectErrorMessages = (det) => {
-                const messages = [];
-                if (det && typeof det === "object") {
-                  if (det.error) messages.push(det.error);
-                  if (Array.isArray(det.invoiceStatuses)) {
-                    det.invoiceStatuses.forEach((s) => {
-                      if (s?.error)
-                        messages.push(`Item ${s.itemSNo}: ${s.error}`);
-                    });
-                  }
-                  if (det.validationResponse) {
-                    const v = det.validationResponse;
-                    if (v?.error) messages.push(v.error);
-                    if (Array.isArray(v?.invoiceStatuses)) {
-                      v.invoiceStatuses.forEach((s) => {
-                        if (s?.error)
-                          messages.push(`Item ${s.itemSNo}: ${s.error}`);
+              // Collect item errors as objects like createInvoiceForm.jsx
+              let errorMessage = "FBR submission failed";
+              const itemErrors = [];
+
+              if (details && typeof details === "object") {
+                if (details.error) {
+                  errorMessage = details.error;
+                }
+                // Check for item-specific errors in invoiceStatuses
+                if (Array.isArray(details.invoiceStatuses)) {
+                  details.invoiceStatuses.forEach((s, index) => {
+                    if (s?.error) {
+                      itemErrors.push({
+                        item: s.itemSNo || index + 1,
+                        error: s.error,
                       });
                     }
+                  });
+                }
+                // Check for item-specific errors in validationResponse
+                if (details.validationResponse) {
+                  const v = details.validationResponse;
+                  if (v?.error && !errorMessage.includes(v.error)) {
+                    errorMessage = v.error;
+                  }
+                  if (Array.isArray(v?.invoiceStatuses)) {
+                    v.invoiceStatuses.forEach((s, index) => {
+                      if (s?.error) {
+                        itemErrors.push({
+                          item: s.itemSNo || index + 1,
+                          error: s.error,
+                        });
+                      }
+                    });
                   }
                 }
-                return messages.filter(Boolean);
+              }
+
+              // Store error with item errors separately
+              throw {
+                message: errorMessage,
+                itemErrors: itemErrors,
+                invoiceNumber: invoice.invoiceNumber,
               };
-
-              const errorMessages = collectErrorMessages(details);
-              const message = errorMessages.length
-                ? `FBR submission failed: ${errorMessages.join("; ")}`
-                : "FBR submission failed";
-
-              throw new Error(message);
             }
 
             // Ensure we have a valid FBR invoice number
@@ -1223,6 +1268,7 @@ export default function BasicTable() {
               error.message ||
               error.response?.data?.message ||
               "Error processing invoice",
+            itemErrors: error.itemErrors || [], // Store item errors if present
           });
         }
       }
@@ -1242,13 +1288,37 @@ export default function BasicTable() {
         setSelectedInvoices(new Set()); // Clear selection
         setSelectMode(false); // Exit select mode
       } else if (successful.length === 0) {
-        Swal.fire({
-          icon: "error",
+        // Flatten all errors including item-level errors
+        const errorDetails = [];
+        let generalMessage = "All selected invoices failed to submit.";
+        
+        failed.forEach((f) => {
+          if (f.itemErrors && f.itemErrors.length > 0) {
+            // If there are item-level errors, show each item error separately
+            f.itemErrors.forEach((itemError) => {
+              errorDetails.push({
+                item: `Invoice ${f.invoiceNumber} - Item ${itemError.item}`,
+                error: itemError.error,
+              });
+            });
+            // Include general error message if available
+            if (f.message && f.message !== "FBR submission failed") {
+              generalMessage = f.message;
+            }
+          } else {
+            // If no item errors, show invoice-level error
+            errorDetails.push({
+              item: f.invoiceNumber,
+              error: f.message,
+            });
+          }
+        });
+        await showError({
           title: "All Invoices Failed to Submit",
-          text: failed
-            .map((f) => `${f.invoiceNumber}: ${f.message}`)
-            .join("\n"),
-          confirmButtonColor: "#d33",
+          message: generalMessage,
+          details: errorDetails,
+          type: "error",
+          width: "700px",
         });
       } else {
         Swal.fire({
@@ -1261,12 +1331,7 @@ export default function BasicTable() {
       }
     } catch (error) {
       console.error("Submit Error:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Failed to submit invoices. Please try again.",
-        confirmButtonColor: "#d33",
-      });
+      await showErrorFromResponse(error);
     } finally {
       setSubmitLoading(false);
     }
@@ -1318,21 +1383,19 @@ export default function BasicTable() {
   const handleBulkDelete = async () => {
     try {
       if (!selectedTenant) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select a Company before deleting invoices.",
-          confirmButtonColor: "#d33",
+          message: "Please select a Company before deleting invoices.",
+          type: "error",
         });
         return;
       }
 
       if (selectedInvoices.size === 0) {
-        Swal.fire({
-          icon: "error",
+        await showError({
           title: "Error",
-          text: "Please select at least one invoice to delete.",
-          confirmButtonColor: "#d33",
+          message: "Please select at least one invoice to delete.",
+          type: "error",
         });
         return;
       }
@@ -1409,13 +1472,16 @@ export default function BasicTable() {
           confirmButtonColor: "#28a745",
         });
       } else if (success === 0) {
-        Swal.fire({
-          icon: "error",
+        const errorDetails = failed.map((f) => ({
+          item: f.invoiceNumber,
+          error: f.message || "Failed to delete",
+        }));
+        await showError({
           title: "Deletion Failed",
-          text: failed
-            .map((f) => `${f.invoiceNumber}: ${f.message}`)
-            .join("\n"),
-          confirmButtonColor: "#d33",
+          message: "All selected invoices failed to delete.",
+          details: errorDetails,
+          type: "error",
+          width: "700px",
         });
       } else {
         Swal.fire({

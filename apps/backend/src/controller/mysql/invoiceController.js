@@ -6266,7 +6266,7 @@ export const getProvincesController = async (req, res) => {
 
 export const validateInvoiceDataController = async (req, res) => {
   try {
-    const { environment = "sandbox" } = req.query;
+    const { environment = "production" } = req.query;
 
     const invoiceData = req.body;
 
@@ -6373,7 +6373,7 @@ export const validateInvoiceDataController = async (req, res) => {
 
 export const submitInvoiceDataController = async (req, res) => {
   try {
-    const { environment = "sandbox" } = req.query;
+    const { environment = "production" } = req.query;
 
     const invoiceData = req.body;
 

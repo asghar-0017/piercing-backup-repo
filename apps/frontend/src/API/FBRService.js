@@ -269,40 +269,13 @@ export const postInvoiceDataToFBR = async (invoiceData) => {
     };
   } catch (error) {
     console.error("Error posting invoice data to FBR:", error);
-
-    // Handle specific error cases
-    if (error.response?.status === 401) {
-      throw new Error(
-        "Authentication failed. Please check your FBR credentials."
-      );
-    } else if (error.response?.status === 400) {
-      throw new Error(
-        "Invalid invoice data. Please check your invoice details."
-      );
-    } else if (error.response?.status === 500) {
-      throw new Error(
-        "FBR system is temporarily unavailable. Please try again later."
-      );
-    } else if (error.response?.data) {
-      throw new Error(
-        error.response.data.message || "Error submitting invoice to FBR."
-      );
-    } else if (error.code === "ECONNABORTED") {
-      throw new Error(
-        "Request timeout. FBR system may be slow. Please try again."
-      );
-    } else if (error.code === "ERR_NETWORK") {
-      throw new Error(
-        "Network error. Please check your internet connection and try again."
-      );
-    } else {
-      throw new Error(
-        error.message ||
-          "Unable to connect to FBR system. Please try again later."
-      );
-    }
+    throw new Error(
+      error.message ||
+        "Unable to submit invoice to FBR system. Please try again later."
+    );
   }
 };
+
 
 // New function to fetch transaction types from FBR
 export const getTransactionTypes = async () => {
@@ -527,163 +500,6 @@ export const getProvincesFromBackend = async (tenantId) => {
     }
   }
 };
-
-// New function to validate invoice data through backend instead of FBR directly
-export const validateInvoiceDataFromBackend = async (tenantId, invoiceData) => {
-  try {
-    // Get current token dynamically from context
-    let token = API_CONFIG.getCurrentToken("sandbox");
-
-    if (!token) {
-      // Fallback to production token if sandbox is not available
-      token = API_CONFIG.getCurrentToken("production");
-    }
-
-    // Also try localStorage fallback
-    if (!token) {
-      token = localStorage.getItem("sandboxProductionToken");
-    }
-
-    if (!token) {
-      throw new Error(
-        "No FBR token found. Please ensure the Company is selected and credentials are loaded."
-      );
-    }
-
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    };
-
-    // Call our backend API instead of FBR directly
-    const response = await axios({
-      method: "POST",
-      url: `/api/tenant/${tenantId}/validate-invoice`,
-      headers: config.headers,
-      data: invoiceData,
-      timeout: 30000, // 30 second timeout for validation
-    });
-
-    console.log("Backend Invoice Validation API Response:", response.data);
-
-    // Return the data directly - let the calling component handle the structure
-    return response.data;
-  } catch (error) {
-    console.error("Error validating invoice data through backend:", error);
-
-    // Handle specific error cases and throw appropriate errors
-    if (error.response?.status === 401) {
-      throw new Error("Authentication failed. Please check your credentials.");
-    } else if (error.response?.status === 400) {
-      throw new Error(
-        error.response.data.message || "Invalid invoice data provided."
-      );
-    } else if (error.response?.status === 404) {
-      throw new Error("Invoice validation API endpoint not found.");
-    } else if (error.response?.status === 500) {
-      throw new Error(
-        "System is temporarily unavailable. Please try again later."
-      );
-    } else if (error.response?.data) {
-      throw new Error(
-        error.response.data.message ||
-          "Error validating invoice data through backend API."
-      );
-    } else if (error.code === "ECONNABORTED") {
-      throw new Error("Request timeout. System may be slow. Please try again.");
-    } else if (error.code === "ERR_NETWORK") {
-      throw new Error(
-        "Network error. Please check your internet connection and try again."
-      );
-    } else {
-      throw new Error(
-        error.message ||
-          "Unable to validate invoice data through backend API. Please try again later."
-      );
-    }
-  }
-};
-
-// New function to submit invoice data through backend instead of FBR directly
-export const submitInvoiceDataFromBackend = async (tenantId, invoiceData) => {
-  try {
-    // Get current token dynamically from context
-    let token = API_CONFIG.getCurrentToken("sandbox");
-
-    if (!token) {
-      // Fallback to production token if sandbox is not available
-      token = API_CONFIG.getCurrentToken("production");
-    }
-
-    // Also try localStorage fallback
-    if (!token) {
-      token = localStorage.getItem("sandboxProductionToken");
-    }
-
-    if (!token) {
-      throw new Error(
-        "No FBR token found. Please ensure the Company is selected and credentials are loaded."
-      );
-    }
-
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    };
-
-    // Call our backend API instead of FBR directly
-    const response = await axios({
-      method: "POST",
-      url: `/api/tenant/${tenantId}/submit-invoice`,
-      headers: config.headers,
-      data: invoiceData,
-      timeout: 30000, // 30 second timeout for submission
-    });
-
-    console.log("Backend Invoice Submission API Response:", response.data);
-
-    // Return the data directly - let the calling component handle the structure
-    return response.data;
-  } catch (error) {
-    console.error("Error submitting invoice data through backend:", error);
-
-    // Handle specific error cases and throw appropriate errors
-    if (error.response?.status === 401) {
-      throw new Error("Authentication failed. Please check your credentials.");
-    } else if (error.response?.status === 400) {
-      throw new Error(
-        error.response.data.message || "Invalid invoice data provided."
-      );
-    } else if (error.response?.status === 404) {
-      throw new Error("Invoice submission API endpoint not found.");
-    } else if (error.response?.status === 500) {
-      throw new Error(
-        "System is temporarily unavailable. Please try again later."
-      );
-    } else if (error.response?.data) {
-      throw new Error(
-        error.response.data.message ||
-          "Error submitting invoice data through backend API."
-      );
-    } else if (error.code === "ECONNABORTED") {
-      throw new Error("Request timeout. System may be slow. Please try again.");
-    } else if (error.code === "ERR_NETWORK") {
-      throw new Error(
-        "Network error. Please check your internet connection and try again."
-      );
-    } else {
-      throw new Error(
-        error.message ||
-          "Unable to submit invoice data through backend API. Please try again later."
-      );
-    }
-  }
-};
-
 // New function to check registration status with NTN and date for Further Tax calculation
 export const checkRegistrationStatusWithDate = async (ntn, date) => {
   try {
