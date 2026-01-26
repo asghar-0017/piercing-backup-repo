@@ -66,7 +66,6 @@ const initializeAdminUser = async () => {
     if (!adminExists) {
       const bcrypt = await import("bcryptjs");
       const hashedPassword = await bcrypt.hash("r_plasticprocessingpasJK76^h", 10);
-
       await AdminUser.create({
         email: "plasticprocessing@inpl.com",
         password: hashedPassword,
