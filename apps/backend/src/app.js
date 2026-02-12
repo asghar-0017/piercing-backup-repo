@@ -138,10 +138,26 @@ app.post("/api/buyer-check", async (req, res) => {
   }
 });
 
+// 404 for undefined routes
+import AppError from "./utils/AppError.js";
+import globalErrorHandler from "./middleWare/errorMiddleware.js";
+
+app.all("*", (req, res, next) => {
+  // Skip for frontend assets handled by next middleware
+  if (req.path.startsWith("/api")) {
+    next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+  } else {
+    next();
+  }
+});
+
 // Catch-all route for SPA - must be last
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
+
+// Global Error Handler
+app.use(globalErrorHandler);
 
 export const logger = {
   info: (msg) => console.log(`INFO: ${msg}`),

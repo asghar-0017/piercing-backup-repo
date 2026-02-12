@@ -621,6 +621,39 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     return stringValue;
   };
 
+  // Helper to extract seller details robustly (handling both camelCase and snake_case)
+  const getSellerDetail = (tenant, fieldName) => {
+    if (!tenant) return "";
+
+    // keys to check in order of preference
+    const keysToCheck = [
+      fieldName, // e.g. sellerNTNCNIC
+      fieldName.toLowerCase(), // e.g. sellerntncnic
+      // Convert camelCase to snake_case
+      fieldName.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`), // e.g. seller_ntn_cnic
+    ];
+
+    // Special case for NTN/CNIC which has inconsistent naming
+    if (fieldName === "sellerNTNCNIC") {
+      keysToCheck.push("seller_ntn_cnic");
+      keysToCheck.push("seller_ntn");
+      keysToCheck.push("ntn");
+      keysToCheck.push("cnic");
+    }
+
+    for (const key of keysToCheck) {
+      if (
+        tenant[key] !== undefined &&
+        tenant[key] !== null &&
+        tenant[key] !== ""
+      ) {
+        return tenant[key];
+      }
+    }
+
+    return "";
+  };
+
   const processFile = async (selectedFile) => {
     // Validate file type
     const validTypes = [
@@ -650,13 +683,72 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         setPreviewData(invoices);
         setErrors(processingErrors);
 
+        // helper to fix rate
+        const fixRate = (item) => {
+          if (item.item_rate) {
+            let rateVal = String(item.item_rate).trim();
+            if (rateVal && !rateVal.includes("%")) {
+              item.item_rate = `${rateVal}%`;
+            }
+          }
+          // Also check 'rate' if it exists
+          if (item.rate) {
+            let rateVal = String(item.rate).trim();
+            if (rateVal && !rateVal.includes("%")) {
+              item.rate = `${rateVal}%`;
+            }
+          }
+          return item;
+        };
+
+        // Post-process to ensure rate has %
+        const processedInvoices = invoices.map((row) => {
+          // Create a shallow copy to avoid mutating the original locked object if frozen
+          const newRow = { ...row };
+
+          if (newRow.items && Array.isArray(newRow.items)) {
+            newRow.items = newRow.items.map((item) => fixRate({ ...item }));
+            return newRow;
+          } else {
+            return fixRate(newRow);
+          }
+        });
+
+        // Now populate seller details if a tenant is selected
+        if (selectedTenant) {
+          const extractedSellerInfo = {
+            sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
+            sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
+            sellerBusinessName: getSellerDetail(
+              selectedTenant,
+              "sellerBusinessName",
+            ),
+            sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
+            sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
+          };
+
+          // Apply seller info to all rows
+          processedInvoices.forEach((row) => {
+            Object.assign(row, extractedSellerInfo);
+            // If items are grouped, also apply to items if needed (though usually on invoice level)
+            if (row.items && Array.isArray(row.items)) {
+              row.items.forEach((item) =>
+                Object.assign(item, extractedSellerInfo),
+              );
+            }
+          });
+        }
+
+        // Re-set preview data with fixed rates
+        setPreviewData(processedInvoices);
+
         if (processingErrors.length > 0) {
           toast.warning(
             `File processed with ${processingErrors.length} errors`,
           );
         } else {
           toast.success(
-            `File processed successfully: ${invoices.length} invoices found`,
+            `File processed successfully: ${processedInvoices.length} invoices found`,
           );
         }
 
@@ -665,7 +757,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           setTotalRowsInFile(result.totalRows);
         } else {
           // Fallback: estimate from invoices/items
-          const estRows = invoices.reduce(
+          const estRows = processedInvoices.reduce(
             (acc, inv) => acc + (inv.items?.length || 1),
             0,
           );
@@ -673,7 +765,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         }
 
         // Check for existing invoices
-        await checkExistingInvoices(invoices);
+        await checkExistingInvoices(processedInvoices);
       } else {
         toast.error(`File processing failed: ${result.error}`);
         setErrors([{ message: result.error }]);
@@ -1011,8 +1103,27 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
     // Populate seller details from selected tenant
     if (selectedTenant) {
+      // Debug logging for tenant details
+      console.log("🔍 Selected Tenant Details:", selectedTenant);
+
+      const extractedSellerInfo = {
+        sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
+        sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
+        sellerBusinessName: getSellerDetail(
+          selectedTenant,
+          "sellerBusinessName",
+        ),
+        sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
+        sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
+      };
+
+      console.log("🔍 Extracted Seller Info:", extractedSellerInfo);
+
       // Validate that tenant has required seller information
-      if (!selectedTenant.sellerNTNCNIC || !selectedTenant.sellerBusinessName) {
+      if (
+        !extractedSellerInfo.sellerNTNCNIC ||
+        !extractedSellerInfo.sellerBusinessName
+      ) {
         toast.error(
           "Selected company is missing required seller information (NTN/CNIC or Business Name)",
         );
@@ -1022,11 +1133,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       validData = validData.map((row) => ({
         ...row,
-        sellerNTNCNIC: selectedTenant.sellerNTNCNIC || "",
-        sellerFullNTN: selectedTenant.sellerFullNTN || "",
-        sellerBusinessName: selectedTenant.sellerBusinessName || "",
-        sellerProvince: selectedTenant.sellerProvince || "",
-        sellerAddress: selectedTenant.sellerAddress || "",
+        sellerNTNCNIC: extractedSellerInfo.sellerNTNCNIC,
+        sellerFullNTN: extractedSellerInfo.sellerFullNTN,
+        sellerBusinessName: extractedSellerInfo.sellerBusinessName,
+        sellerProvince: extractedSellerInfo.sellerProvince,
+        sellerAddress: extractedSellerInfo.sellerAddress,
       }));
     } else {
       toast.error("Please select a tenant before uploading invoices");
@@ -1226,11 +1337,14 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         invoicesToUpload = previewData.map((invoice) => ({
           ...invoice,
           // Ensure seller details are populated from selected tenant
-          sellerNTNCNIC: selectedTenant?.sellerNTNCNIC || "",
-          sellerFullNTN: selectedTenant?.sellerFullNTN || "",
-          sellerBusinessName: selectedTenant?.sellerBusinessName || "",
-          sellerProvince: selectedTenant?.sellerProvince || "",
-          sellerAddress: selectedTenant?.sellerAddress || "",
+          sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
+          sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
+          sellerBusinessName: getSellerDetail(
+            selectedTenant,
+            "sellerBusinessName",
+          ),
+          sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
+          sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
         }));
       } else {
         // Data is individual rows, need to group them
@@ -1286,7 +1400,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             cleanedItem.hsCode = cleanedItem.item_hsCode;
           }
           if (cleanedItem.item_rate) {
-            cleanedItem.rate = cleanedItem.item_rate;
+            let rateVal = String(cleanedItem.item_rate).trim();
+            // If it's a number or string without %, append %
+            if (rateVal && !rateVal.includes("%")) {
+              rateVal = `${rateVal}%`;
+            }
+            cleanedItem.rate = rateVal;
           }
           if (cleanedItem.item_uoM) {
             cleanedItem.uoM = cleanedItem.item_uoM;
@@ -1386,11 +1505,14 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               companyInvoiceRefNo: cleanedItem.companyInvoiceRefNo,
               internalInvoiceNo: cleanedItem.internalInvoiceNo, // Keep this for reference
               // Seller details from selected tenant
-              sellerNTNCNIC: selectedTenant?.sellerNTNCNIC || "",
-              sellerFullNTN: selectedTenant?.sellerFullNTN || "",
-              sellerBusinessName: selectedTenant?.sellerBusinessName || "",
-              sellerProvince: selectedTenant?.sellerProvince || "",
-              sellerAddress: selectedTenant?.sellerAddress || "",
+              sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
+              sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
+              sellerBusinessName: getSellerDetail(
+                selectedTenant,
+                "sellerBusinessName",
+              ),
+              sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
+              sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
               // Buyer details
               buyerNTNCNIC: cleanedItem.buyerNTNCNIC,
               transctypeId: cleanedItem.transctypeId,
@@ -1414,11 +1536,14 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         invoicesToUpload = Array.from(groupedInvoices.values()).map(
           (invoice) => ({
             ...invoice,
-            sellerNTNCNIC: selectedTenant?.sellerNTNCNIC || "",
-            sellerFullNTN: selectedTenant?.sellerFullNTN || "",
-            sellerBusinessName: selectedTenant?.sellerBusinessName || "",
-            sellerProvince: selectedTenant?.sellerProvince || "",
-            sellerAddress: selectedTenant?.sellerAddress || "",
+            sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
+            sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
+            sellerBusinessName: getSellerDetail(
+              selectedTenant,
+              "sellerBusinessName",
+            ),
+            sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
+            sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
           }),
         );
       }

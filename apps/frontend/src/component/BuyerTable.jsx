@@ -53,10 +53,12 @@ export default function BuyerTable({
   });
 
   // Pagination logic
-  const totalPages = rowsPerPage === "All" ? 1 : Math.ceil(filteredBuyers.length / rowsPerPage);
-  const paginatedBuyers = rowsPerPage === "All" 
-    ? filteredBuyers 
-    : filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const totalPages =
+    rowsPerPage === "All" ? 1 : Math.ceil(filteredBuyers.length / rowsPerPage);
+  const paginatedBuyers =
+    rowsPerPage === "All"
+      ? filteredBuyers
+      : filteredBuyers.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   useEffect(() => {
     setPage(1);
@@ -217,7 +219,7 @@ export default function BuyerTable({
                       for (const id of ids) {
                         try {
                           const response = await api.delete(
-                            `/tenant/${selectedTenant.tenant_id}/buyers/${id}`
+                            `/tenant/${selectedTenant.tenant_id}/buyers/${id}`,
                           );
                           if (response.data?.success) successes.push(id);
                           else
@@ -271,8 +273,71 @@ export default function BuyerTable({
                 </Button>
               </PermissionGate>
             )}
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={() => {
+                // Define headers for the CSV
+                const headers = [
+                  "S.No",
+                  "NTN/CNIC",
+                  "Business Name",
+                  "Phone Number",
+                  "Province",
+                  "Address",
+                  "Registration Type",
+                  "Created By",
+                ];
+
+                // Map buyers data to rows
+                const rows = buyers.map((buyer, index) => [
+                  index + 1,
+                  buyer.buyerNTNCNIC || "",
+                  buyer.buyerBusinessName || "",
+                  buyer.buyerPhoneNumber || "",
+                  buyer.buyerProvince || "",
+                  buyer.buyerAddress || "",
+                  buyer.buyerRegistrationType || "",
+                  buyer.created_by_name
+                    ? `${buyer.created_by_name} (${buyer.created_by_user_id || ""})`
+                    : buyer.created_by_email || "-",
+                ]);
+
+                // Combine headers and rows
+                const csvContent = [
+                  headers.join(","),
+                  ...rows.map((row) =>
+                    row
+                      .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+                      .join(","),
+                  ),
+                ].join("\n");
+
+                // Create a blob and trigger download
+                const blob = new Blob([csvContent], {
+                  type: "text/csv;charset=utf-8;",
+                });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute(
+                  "download",
+                  `buyers_export_${new Date().toISOString().slice(0, 10)}.csv`,
+                );
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              sx={{ mr: 1 }}
+            >
+              Export Buyers
+            </Button>
             <PermissionGate permission="buyer.create">
-              <Button variant="contained" color="primary" onClick={() => onAdd()}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => onAdd()}
+              >
                 Add Buyer
               </Button>
             </PermissionGate>
@@ -362,17 +427,17 @@ export default function BuyerTable({
                             checked={
                               paginatedBuyers.length > 0 &&
                               paginatedBuyers.every((b) =>
-                                selectedIds.has(b.id)
+                                selectedIds.has(b.id),
                               )
                             }
                             onChange={() => {
                               const allVisibleSelected = paginatedBuyers.every(
-                                (b) => selectedIds.has(b.id)
+                                (b) => selectedIds.has(b.id),
                               );
                               const next = new Set(selectedIds);
                               if (allVisibleSelected) {
                                 paginatedBuyers.forEach((b) =>
-                                  next.delete(b.id)
+                                  next.delete(b.id),
                                 );
                               } else {
                                 paginatedBuyers.forEach((b) => next.add(b.id));
@@ -442,7 +507,9 @@ export default function BuyerTable({
                           scope="row"
                           sx={{ fontWeight: 700, fontSize: 13 }}
                         >
-                          {rowsPerPage === "All" ? index + 1 : (page - 1) * rowsPerPage + index + 1}
+                          {rowsPerPage === "All"
+                            ? index + 1
+                            : (page - 1) * rowsPerPage + index + 1}
                         </TableCell>
                         <TableCell
                           component="th"
@@ -538,10 +605,9 @@ export default function BuyerTable({
                 }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  {rowsPerPage === "All" 
+                  {rowsPerPage === "All"
                     ? `Showing all ${filteredBuyers.length} buyers`
-                    : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, filteredBuyers.length)} of ${filteredBuyers.length} buyers`
-                  }
+                    : `Showing ${(page - 1) * rowsPerPage + 1} to ${Math.min(page * rowsPerPage, filteredBuyers.length)} of ${filteredBuyers.length} buyers`}
                 </Typography>
                 {rowsPerPage !== "All" && (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

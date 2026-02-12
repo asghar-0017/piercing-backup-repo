@@ -29,6 +29,10 @@ import {
 } from "../../service/FBRService.js";
 import AuditLog from "../../model/mysql/AuditLog.js";
 
+import auditRoutes from "../../routes/auditRoutes.js";
+import AppError from "../../utils/AppError.js";
+import catchAsync from "../../utils/catchAsync.js";
+
 const { toWords } = numberToWords;
 
 // Helper function to generate system invoice ID
@@ -130,217 +134,739 @@ const generateShortInvoiceId = async (Invoice, prefix) => {
   }
 };
 
-export const createInvoice = async (req, res) => {
+export const createInvoice = catchAsync(async (req, res, next) => {
+  const { Invoice, InvoiceItem, Buyer } = req.tenantModels;
+
+  const {
+    invoice_number,
+
+    invoiceType,
+
+    invoiceDate,
+
+    sellerNTNCNIC,
+
+    sellerFullNTN,
+
+    sellerBusinessName,
+
+    sellerProvince,
+
+    sellerAddress,
+
+    sellerCity,
+
+    buyerNTNCNIC,
+
+    buyerBusinessName,
+
+    buyerProvince,
+
+    buyerAddress,
+
+    buyerRegistrationType,
+
+    invoiceRefNo,
+
+    companyInvoiceRefNo,
+
+    internalInvoiceNo,
+
+    transctypeId,
+
+    items,
+
+    status = "posted",
+
+    fbr_invoice_number = null,
+  } = req.body;
+
+  // Debug: Log internal invoice number
+  console.log("🔍 Backend Debug: Internal Invoice No:", {
+    internalInvoiceNo: internalInvoiceNo,
+    hasValue: !!internalInvoiceNo,
+    trimmedValue: internalInvoiceNo?.trim(),
+    reqBodyKeys: Object.keys(req.body),
+  });
+
+  // Use fbr_invoice_number as invoice_number if invoice_number is not provided
+
+  const finalInvoiceNumber = invoice_number || fbr_invoice_number;
+
+  // Debug: Log the received items data
+
+  console.log("Received items data:", JSON.stringify(items, null, 2));
+
+  // Enforce allowed statuses only
+
+  const allowedStatuses = ["draft", "posted"];
+
+  if (!allowedStatuses.includes(status)) {
+    return next(
+      new AppError("Invalid status. Allowed: 'draft', or 'posted'", 400),
+    );
+  }
+
+  // Check if invoice number already exists (only if provided)
+
+  let existingInvoice = null;
+
+  if (finalInvoiceNumber) {
+    existingInvoice = await Invoice.findOne({
+      where: { invoice_number: finalInvoiceNumber },
+    });
+  }
+
+  if (existingInvoice) {
+    return next(new AppError("Invoice with this number already exists", 409));
+  }
+
+  // Auto-create/validate buyer before creating invoice
+  let buyerId = null;
   try {
-    const { Invoice, InvoiceItem, Buyer } = req.tenantModels;
+    if (buyerNTNCNIC && String(buyerNTNCNIC).trim()) {
+      const existingBuyer = await Buyer.findOne({
+        where: { buyerNTNCNIC: String(buyerNTNCNIC).trim() },
+      });
+      if (existingBuyer) {
+        buyerId = existingBuyer.id;
+        if (
+          buyerBusinessName &&
+          String(buyerBusinessName).trim() &&
+          String(existingBuyer.buyerBusinessName || "")
+            .trim()
+            .toLowerCase() !== String(buyerBusinessName).trim().toLowerCase()
+        ) {
+          return next(new AppError("This Buyer already exists", 409));
+        }
+      } else {
+        const newBuyer = await Buyer.create({
+          buyerNTNCNIC: String(buyerNTNCNIC).trim(),
+          buyerBusinessName: buyerBusinessName || null,
+          buyerProvince: buyerProvince || "",
+          buyerAddress: buyerAddress || null,
+          buyerRegistrationType: buyerRegistrationType || "Unregistered",
+          created_by_user_id: req.user?.userId || req.user?.id || null,
+          created_by_email: req.user?.email || null,
+          created_by_name:
+            req.user?.firstName || req.user?.lastName
+              ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+              : req.user?.role === "admin"
+                ? "Admin"
+                : null,
+        });
+        buyerId = newBuyer.id;
+      }
+    }
+  } catch (e) {
+    console.error("Buyer check/create error:", e);
+    return next(
+      new AppError(`Error validating/creating buyer: ${e.message}`, 500),
+    );
+  }
 
-    const {
-      invoice_number,
+  // Server-side FBR registration mismatch check
+  try {
+    if (
+      buyerNTNCNIC &&
+      String(buyerNTNCNIC).trim() &&
+      buyerRegistrationType &&
+      String(buyerRegistrationType).trim()
+    ) {
+      const selectedType = String(buyerRegistrationType).trim().toLowerCase();
+      if (selectedType === "unregistered") {
+        const axios = (await import("axios")).default;
+        const upstream = await axios.post(
+          "https://buyercheckapi.inplsoftwares.online/checkbuyer.php",
+          {
+            token: "89983e4a-c009-3f9b-bcd6-a605c3086709",
+            registrationNo: String(buyerNTNCNIC).trim(),
+          },
+          { headers: { "Content-Type": "application/json" }, timeout: 10000 },
+        );
+        const data = upstream.data;
+        let derived = "Unregistered";
+        if (data && typeof data.REGISTRATION_TYPE === "string") {
+          derived =
+            data.REGISTRATION_TYPE.toLowerCase() === "registered"
+              ? "Registered"
+              : "Unregistered";
+        } else {
+          let isRegistered = false;
+          if (typeof data === "boolean") {
+            isRegistered = data === true;
+          } else if (data) {
+            isRegistered =
+              data.isRegistered === true ||
+              data.registered === true ||
+              (typeof data.status === "string" &&
+                data.status.toLowerCase() === "registered") ||
+              (typeof data.registrationType === "string" &&
+                data.registrationType.toLowerCase() === "registered");
+          }
+          derived = isRegistered ? "Registered" : "Unregistered";
+        }
+        if (derived === "Registered") {
+          return next(
+            new AppError(
+              "Buyer Registration Type is not correct (FBR: Registered)",
+              400,
+            ),
+          );
+        }
+      }
+    }
+  } catch (fbrErr) {
+    console.error("FBR registration check failed:", fbrErr);
+    // If the upstream fails, proceed rather than hard-blocking; comment next line to block on failure
+    // return res.status(502).json({ success: false, message: "FBR registration check failed", error: fbrErr.message });
+  }
 
-      invoiceType,
+  // Create invoice with transaction
 
-      invoiceDate,
+  const result = await req.tenantDb.transaction(async (t) => {
+    // Generate system invoice ID
 
-      sellerNTNCNIC,
+    const systemInvoiceId = await generateSystemInvoiceId(Invoice);
 
-      sellerFullNTN,
+    // Create invoice with posted status
 
-      sellerBusinessName,
+    const invoice = await Invoice.create(
+      {
+        invoice_number: finalInvoiceNumber,
 
-      sellerProvince,
+        system_invoice_id: systemInvoiceId,
 
-      sellerAddress,
+        invoiceType,
 
-      sellerCity,
+        invoiceDate,
 
-      buyerNTNCNIC,
+        sellerNTNCNIC,
 
-      buyerBusinessName,
+        sellerFullNTN,
 
-      buyerProvince,
+        sellerBusinessName,
 
-      buyerAddress,
+        sellerProvince,
 
-      buyerRegistrationType,
+        sellerAddress,
 
-      invoiceRefNo,
+        sellerCity,
 
-      companyInvoiceRefNo,
+        buyerNTNCNIC,
 
-      internalInvoiceNo,
+        buyerBusinessName,
 
-      transctypeId,
+        buyerProvince,
 
-      items,
+        buyerAddress,
 
-      status = "posted",
+        buyerRegistrationType,
 
-      fbr_invoice_number = null,
-    } = req.body;
+        buyer_id: buyerId, // Set foreign key to buyer
 
-    // Debug: Log internal invoice number
-    console.log("🔍 Backend Debug: Internal Invoice No:", {
-      internalInvoiceNo: internalInvoiceNo,
-      hasValue: !!internalInvoiceNo,
-      trimmedValue: internalInvoiceNo?.trim(),
-      reqBodyKeys: Object.keys(req.body),
+        invoiceRefNo,
+
+        companyInvoiceRefNo,
+
+        internal_invoice_no: internalInvoiceNo,
+
+        transctypeId,
+
+        status: "posted", // Always set as posted when using createInvoice
+
+        fbr_invoice_number,
+        created_by_user_id: req.user?.userId || req.user?.id || null,
+        created_by_email: req.user?.email || null,
+        created_by_name:
+          req.user?.firstName || req.user?.lastName
+            ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+            : req.user?.role === "admin"
+              ? `Admin (${req.user?.id || "Unknown"})`
+              : null,
+      },
+
+      { transaction: t },
+    );
+
+    // Create invoice items if provided
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      const invoiceItems = items.map((item) => {
+        // Debug: Log the incoming item data
+        console.log("🔍 Backend Debug: Incoming item data:", {
+          productName: item.productName,
+          name: item.name,
+          item_productName: item.item_productName,
+          hsCode: item.hsCode,
+        });
+
+        // Helper function to convert empty strings to null
+
+        const cleanValue = (value) => {
+          if (
+            value === "" ||
+            value === "N/A" ||
+            value === null ||
+            value === undefined
+          ) {
+            return null;
+          }
+
+          return value;
+        };
+
+        // Helper function to convert numeric strings to numbers
+
+        const cleanNumericValue = (value) => {
+          const cleaned = cleanValue(value);
+
+          if (cleaned === null) return null;
+
+          const num = parseFloat(cleaned);
+
+          return isNaN(num) ? null : num;
+        };
+
+        // Helper function to clean hsCode with length validation
+        const cleanHsCode = (value) => {
+          const cleaned = cleanValue(value);
+          if (cleaned === null) return null;
+
+          const stringValue = String(cleaned);
+
+          // Extract HS code from description if it contains a dash separator
+          // Format: "8432.1010 - NUCLEAR REACTOR, BOILERS, MACHINERY AN"
+          let hsCode = stringValue;
+          if (stringValue.includes(" - ")) {
+            hsCode = stringValue.split(" - ")[0].trim();
+          }
+
+          // Truncate to 50 characters to match database field length
+          return hsCode.substring(0, 50);
+        };
+
+        const mappedItem = {
+          invoice_id: invoice.id,
+
+          hsCode: cleanHsCode(item.hsCode),
+
+          name: cleanValue(item.productName || item.name),
+
+          productDescription: cleanValue(item.productDescription),
+
+          rate: cleanValue(item.rate),
+
+          uoM: cleanValue(item.uoM),
+
+          quantity: cleanNumericValue(item.quantity),
+
+          unitPrice: cleanNumericValue(item.unitPrice),
+
+          totalValues: cleanNumericValue(item.totalValues),
+
+          valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
+
+          fixedNotifiedValueOrRetailPrice: cleanNumericValue(
+            item.fixedNotifiedValueOrRetailPrice,
+          ),
+
+          salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
+
+          salesTaxWithheldAtSource: cleanNumericValue(
+            item.salesTaxWithheldAtSource,
+          ),
+
+          furtherTax: cleanNumericValue(item.furtherTax),
+
+          sroScheduleNo: cleanValue(item.sroScheduleNo),
+
+          fedPayable: cleanNumericValue(item.fedPayable),
+
+          advanceIncomeTax: cleanNumericValue(item.advanceIncomeTax),
+
+          discount: cleanNumericValue(item.discount),
+
+          saleType: cleanValue(item.saleType),
+
+          sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+          invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
+        };
+
+        // Only include extraTax when it's a positive value (> 0)
+
+        const extraTaxValue = cleanNumericValue(item.extraTax);
+
+        if (extraTaxValue !== null && Number(extraTaxValue) > 0) {
+          mappedItem.extraTax = extraTaxValue;
+        }
+
+        // Debug: Log the mapped item
+        console.log("🔍 Backend Debug: Product name mapping details:", {
+          originalProductName: item.productName,
+          originalName: item.name,
+          finalName: mappedItem.name,
+          cleanValueResult: cleanValue(item.productName || item.name),
+        });
+
+        console.log(
+          "Mapped invoice item:",
+
+          JSON.stringify(mappedItem, null, 2),
+        );
+
+        return mappedItem;
+      });
+
+      console.log(
+        "About to create invoice items:",
+
+        JSON.stringify(invoiceItems, null, 2),
+      );
+
+      // Debug: Check each item before insertion
+      invoiceItems.forEach((item, index) => {
+        console.log(`🔍 Backend Debug: Item ${index} before insertion:`, {
+          name: item.name,
+          productName: item.productName,
+          hsCode: item.hsCode,
+        });
+      });
+
+      const createdItems = await InvoiceItem.bulkCreate(invoiceItems, {
+        transaction: t,
+      });
+
+      console.log(
+        "🔍 Backend Debug: Items created successfully:",
+        createdItems.length,
+      );
+
+      // Debug: Check what was actually inserted
+      if (createdItems && createdItems.length > 0) {
+        console.log("🔍 Backend Debug: First created item:", {
+          id: createdItems[0].id,
+          name: createdItems[0].name,
+          hsCode: createdItems[0].hsCode,
+        });
+      }
+    }
+
+    return invoice;
+  });
+
+  // Create backup for posted invoice (direct creation)
+  try {
+    // Fetch the invoice items for backup
+    const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
+      where: { invoice_id: result.id },
     });
 
-    // Use fbr_invoice_number as invoice_number if invoice_number is not provided
+    await InvoiceBackupService.createPostBackup({
+      tenantDb: req.tenantDb,
+      tenantModels: req.tenantModels,
+      invoice: result,
+      invoiceItems: invoiceItems,
+      user: req.user,
+      tenant: req.tenant,
+      request: {
+        ip: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get ? req.get("User-Agent") : null,
+        requestId: req.headers?.["x-request-id"] || null,
+      },
+    });
+  } catch (backupError) {
+    console.error("❌ Error creating post backup:", backupError);
+    // Don't fail the main operation if backup fails
+  }
 
-    const finalInvoiceNumber = invoice_number || fbr_invoice_number;
+  // Determine operation type: SUBMIT_TO_FBR if posted with FBR invoice number, otherwise CREATE
+  const operation =
+    result.status === "posted" && result.fbr_invoice_number
+      ? "SUBMIT_TO_FBR"
+      : "CREATE";
 
-    // Debug: Log the received items data
+  // Fetch invoice items for audit log if not already available
+  let invoiceItemsForAudit = items;
+  if (!invoiceItemsForAudit || invoiceItemsForAudit.length === 0) {
+    const fetchedItems = await req.tenantModels.InvoiceItem.findAll({
+      where: { invoice_id: result.id },
+    });
+    invoiceItemsForAudit = fetchedItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      hsCode: item.hsCode,
+      productDescription: item.productDescription,
+      quantity: item.quantity,
+      rate: item.rate,
+      uoM: item.uoM,
+      unitPrice: item.unitPrice,
+      totalValues: item.totalValues,
+      valueSalesExcludingST: item.valueSalesExcludingST,
+      fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
+      salesTaxApplicable: item.salesTaxApplicable,
+      salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+      extraTax: item.extraTax,
+      furtherTax: item.furtherTax,
+      sroScheduleNo: item.sroScheduleNo,
+      fedPayable: item.fedPayable,
+      advanceIncomeTax: item.advanceIncomeTax,
+      discount: item.discount,
+      saleType: item.saleType,
+      sroItemSerialNo: item.sroItemSerialNo,
+      billOfLadingUoM: item.billOfLadingUoM,
+    }));
+  }
 
-    console.log("Received items data:", JSON.stringify(items, null, 2));
+  // Log audit event for invoice creation or FBR submission
+  await logAuditEvent(
+    req,
+    "invoice",
+    result.id,
+    operation,
+    null, // oldValues
+    {
+      // Basic Invoice Information
+      invoice_id: result.id,
+      invoice_number: result.invoice_number,
+      system_invoice_id: result.system_invoice_id,
+      status: result.status,
+      fbr_invoice_number: result.fbr_invoice_number,
+      invoiceType: result.invoiceType,
+      invoiceDate: result.invoiceDate,
+      invoiceRefNo: result.invoiceRefNo,
+      companyInvoiceRefNo: result.companyInvoiceRefNo,
+      internal_invoice_no: result.internal_invoice_no,
+      transctypeId: result.transctypeId,
 
-    // Enforce allowed statuses only
+      // Complete Seller Information
+      sellerNTNCNIC: result.sellerNTNCNIC,
+      sellerFullNTN: result.sellerFullNTN,
+      sellerBusinessName: result.sellerBusinessName,
+      sellerProvince: result.sellerProvince,
+      sellerAddress: result.sellerAddress,
+      sellerCity: result.sellerCity,
 
-    const allowedStatuses = ["draft", "posted"];
+      // Complete Buyer Information
+      buyerNTNCNIC: result.buyerNTNCNIC,
+      buyerBusinessName: result.buyerBusinessName,
+      buyerProvince: result.buyerProvince,
+      buyerAddress: result.buyerAddress,
+      buyerRegistrationType: result.buyerRegistrationType,
 
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
+      // Financial Information
+      totalAmount: result.totalAmount,
 
-        message: "Invalid status. Allowed: 'draft', or 'posted'",
-      });
-    }
+      // Complete Invoice Items with All Details
+      invoice_items: invoiceItemsForAudit
+        ? invoiceItemsForAudit.map((item) => ({
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
+        : [],
+    }, // newValues
+    {
+      entityName: result.invoice_number || result.system_invoice_id,
+      itemsCount: invoiceItemsForAudit ? invoiceItemsForAudit.length : 0,
+      fbrInvoiceNumber: result.fbr_invoice_number,
+      isFbrSubmission: operation === "SUBMIT_TO_FBR",
+    },
+  );
 
-    // Check if invoice number already exists (only if provided)
+  res.status(200).json({
+    success: true,
 
-    let existingInvoice = null;
+    message: "Invoice created successfully with FBR invoice number",
 
-    if (finalInvoiceNumber) {
-      existingInvoice = await Invoice.findOne({
-        where: { invoice_number: finalInvoiceNumber },
-      });
-    }
+    data: {
+      invoice_id: result.id,
 
-    if (existingInvoice) {
-      return res.status(409).json({
-        success: false,
+      invoice_number: result.invoice_number,
 
-        message: "Invoice with this number already exists",
-      });
-    }
+      system_invoice_id: result.system_invoice_id,
 
-    // Auto-create/validate buyer before creating invoice
-    let buyerId = null;
-    try {
-      if (buyerNTNCNIC && String(buyerNTNCNIC).trim()) {
-        const existingBuyer = await Buyer.findOne({
-          where: { buyerNTNCNIC: String(buyerNTNCNIC).trim() },
-        });
-        if (existingBuyer) {
-          buyerId = existingBuyer.id;
-          if (
-            buyerBusinessName &&
-            String(buyerBusinessName).trim() &&
-            String(existingBuyer.buyerBusinessName || "")
-              .trim()
-              .toLowerCase() !== String(buyerBusinessName).trim().toLowerCase()
-          ) {
-            return res.status(409).json({
-              success: false,
-              message: "This Buyer already exists",
-            });
-          }
-        } else {
-          const newBuyer = await Buyer.create({
-            buyerNTNCNIC: String(buyerNTNCNIC).trim(),
-            buyerBusinessName: buyerBusinessName || null,
-            buyerProvince: buyerProvince || "",
-            buyerAddress: buyerAddress || null,
-            buyerRegistrationType: buyerRegistrationType || "Unregistered",
-            created_by_user_id: req.user?.userId || req.user?.id || null,
-            created_by_email: req.user?.email || null,
-            created_by_name:
-              req.user?.firstName || req.user?.lastName
-                ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : req.user?.role === "admin"
-                  ? "Admin"
-                  : null,
-          });
-          buyerId = newBuyer.id;
-        }
+      status: result.status,
+
+      fbr_invoice_number: result.fbr_invoice_number,
+    },
+  });
+});
+
+// Save invoice as draft
+
+export const saveInvoice = catchAsync(async (req, res, next) => {
+  const { Invoice, InvoiceItem } = req.tenantModels;
+
+  const {
+    id,
+
+    invoiceType,
+
+    invoiceDate,
+
+    sellerNTNCNIC,
+
+    sellerFullNTN,
+
+    sellerBusinessName,
+
+    sellerProvince,
+
+    sellerAddress,
+
+    sellerCity,
+
+    buyerNTNCNIC,
+
+    buyerBusinessName,
+
+    buyerProvince,
+
+    buyerAddress,
+
+    buyerRegistrationType,
+
+    invoiceRefNo,
+
+    companyInvoiceRefNo,
+
+    internalInvoiceNo,
+
+    transctypeId,
+
+    items,
+  } = req.body;
+
+  // Create or update draft invoice in a transaction
+
+  const result = await req.tenantDb.transaction(async (t) => {
+    let invoice = null;
+
+    if (id) {
+      invoice = await Invoice.findByPk(id, { transaction: t });
+
+      if (!invoice) {
+        throw new AppError("Invoice not found", 404);
       }
-    } catch (e) {
-      console.error("Buyer check/create error:", e);
-      return res.status(500).json({
-        success: false,
-        message: "Error validating/creating buyer",
-        error: e.message,
-      });
-    }
 
-    // Server-side FBR registration mismatch check
-    try {
+      if (invoice.status !== "draft" && invoice.status !== "saved") {
+        throw new AppError("Only draft or saved invoices can be updated", 400);
+      }
+
+      // Generate appropriate invoice number based on current status
+      let updatedInvoiceNumber = invoice.invoice_number;
+
+      // If changing from SAVED to DRAFT, generate new DRAFT number
       if (
-        buyerNTNCNIC &&
-        String(buyerNTNCNIC).trim() &&
-        buyerRegistrationType &&
-        String(buyerRegistrationType).trim()
+        invoice.invoice_number &&
+        invoice.invoice_number.startsWith("SAVED_")
       ) {
-        const selectedType = String(buyerRegistrationType).trim().toLowerCase();
-        if (selectedType === "unregistered") {
-          const axios = (await import("axios")).default;
-          const upstream = await axios.post(
-            "https://buyercheckapi.inplsoftwares.online/checkbuyer.php",
-            {
-              token: "89983e4a-c009-3f9b-bcd6-a605c3086709",
-              registrationNo: String(buyerNTNCNIC).trim(),
-            },
-            { headers: { "Content-Type": "application/json" }, timeout: 10000 },
-          );
-          const data = upstream.data;
-          let derived = "Unregistered";
-          if (data && typeof data.REGISTRATION_TYPE === "string") {
-            derived =
-              data.REGISTRATION_TYPE.toLowerCase() === "registered"
-                ? "Registered"
-                : "Unregistered";
-          } else {
-            let isRegistered = false;
-            if (typeof data === "boolean") {
-              isRegistered = data === true;
-            } else if (data) {
-              isRegistered =
-                data.isRegistered === true ||
-                data.registered === true ||
-                (typeof data.status === "string" &&
-                  data.status.toLowerCase() === "registered") ||
-                (typeof data.registrationType === "string" &&
-                  data.registrationType.toLowerCase() === "registered");
-            }
-            derived = isRegistered ? "Registered" : "Unregistered";
-          }
-          if (derived === "Registered") {
-            return res.status(400).json({
-              success: false,
-              message:
-                "Buyer Registration Type is not correct (FBR: Registered)",
-            });
-          }
-        }
+        updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "DRAFT");
       }
-    } catch (fbrErr) {
-      console.error("FBR registration check failed:", fbrErr);
-      // If the upstream fails, proceed rather than hard-blocking; comment next line to block on failure
-      // return res.status(502).json({ success: false, message: "FBR registration check failed", error: fbrErr.message });
-    }
+      // If changing from DRAFT to DRAFT, keep the same DRAFT number
+      else if (
+        invoice.invoice_number &&
+        invoice.invoice_number.startsWith("DRAFT_")
+      ) {
+        updatedInvoiceNumber = invoice.invoice_number; // Keep existing DRAFT number
+      }
+      // If no invoice number or other format, generate new DRAFT number
+      else {
+        updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "DRAFT");
+      }
 
-    // Create invoice with transaction
+      // Update invoice header
 
-    const result = await req.tenantDb.transaction(async (t) => {
+      await invoice.update(
+        {
+          invoice_number: updatedInvoiceNumber,
+
+          invoiceType,
+
+          invoiceDate,
+
+          sellerNTNCNIC,
+
+          sellerFullNTN,
+
+          sellerBusinessName,
+
+          sellerProvince,
+
+          sellerAddress,
+
+          sellerCity,
+
+          buyerNTNCNIC,
+
+          buyerBusinessName,
+
+          buyerProvince,
+
+          buyerAddress,
+
+          buyerRegistrationType,
+
+          invoiceRefNo,
+
+          companyInvoiceRefNo,
+
+          internal_invoice_no: internalInvoiceNo,
+
+          transctypeId,
+
+          status: "draft",
+
+          fbr_invoice_number: null,
+        },
+
+        { transaction: t },
+      );
+
+      // Replace items
+
+      await InvoiceItem.destroy({
+        where: { invoice_id: invoice.id },
+
+        transaction: t,
+      });
+    } else {
+      // Generate a temporary invoice number for draft
+
+      const tempInvoiceNumber = await generateShortInvoiceId(
+        Invoice,
+
+        "DRAFT",
+      );
+
       // Generate system invoice ID
 
       const systemInvoiceId = await generateSystemInvoiceId(Invoice);
 
-      // Create invoice with posted status
-
-      const invoice = await Invoice.create(
+      invoice = await Invoice.create(
         {
-          invoice_number: finalInvoiceNumber,
+          invoice_number: tempInvoiceNumber,
 
           system_invoice_id: systemInvoiceId,
 
@@ -370,7 +896,421 @@ export const createInvoice = async (req, res) => {
 
           buyerRegistrationType,
 
-          buyer_id: buyerId, // Set foreign key to buyer
+          invoiceRefNo,
+
+          companyInvoiceRefNo,
+
+          internal_invoice_no: internalInvoiceNo,
+
+          transctypeId,
+
+          status: "draft",
+
+          fbr_invoice_number: null,
+          created_by_user_id: req.user?.userId || req.user?.id || null,
+          created_by_email: req.user?.email || null,
+          created_by_name:
+            req.user?.firstName || req.user?.lastName
+              ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+              : req.user?.role === "admin"
+                ? `Admin (${req.user?.id || "Unknown"})`
+                : null,
+        },
+
+        { transaction: t },
+      );
+    }
+
+    // Create invoice items if provided
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      const invoiceItems = items.map((item) => {
+        const cleanValue = (value) => {
+          if (
+            value === "" ||
+            value === "N/A" ||
+            value === null ||
+            value === undefined
+          ) {
+            return null;
+          }
+
+          return value;
+        };
+
+        const cleanNumericValue = (value) => {
+          const cleaned = cleanValue(value);
+
+          if (cleaned === null) return null;
+
+          const num = parseFloat(cleaned);
+
+          return isNaN(num) ? null : num;
+        };
+
+        // Helper function to clean hsCode with length validation
+        const cleanHsCode = (value) => {
+          const cleaned = cleanValue(value);
+          if (cleaned === null) return null;
+
+          const stringValue = String(cleaned);
+
+          // Extract HS code from description if it contains a dash separator
+          // Format: "8432.1010 - NUCLEAR REACTOR, BOILERS, MACHINERY AN"
+          let hsCode = stringValue;
+          if (stringValue.includes(" - ")) {
+            hsCode = stringValue.split(" - ")[0].trim();
+          }
+
+          // Truncate to 50 characters to match database field length
+          return hsCode.substring(0, 50);
+        };
+
+        const mappedItem = {
+          invoice_id: invoice.id,
+
+          hsCode: cleanHsCode(item.hsCode),
+
+          name: cleanValue(item.productName || item.name),
+
+          productDescription: cleanValue(item.productDescription),
+
+          rate: cleanValue(item.rate),
+
+          uoM: cleanValue(item.uoM),
+
+          quantity: cleanNumericValue(item.quantity),
+
+          unitPrice: cleanNumericValue(item.unitPrice),
+
+          totalValues: cleanNumericValue(item.totalValues),
+
+          valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
+
+          fixedNotifiedValueOrRetailPrice: cleanNumericValue(
+            item.fixedNotifiedValueOrRetailPrice,
+          ),
+
+          salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
+
+          salesTaxWithheldAtSource: cleanNumericValue(
+            item.salesTaxWithheldAtSource,
+          ),
+
+          furtherTax: cleanNumericValue(item.furtherTax),
+
+          sroScheduleNo: cleanValue(item.sroScheduleNo),
+
+          fedPayable: cleanNumericValue(item.fedPayable),
+
+          advanceIncomeTax: cleanNumericValue(item.advanceIncomeTax),
+
+          discount: cleanNumericValue(item.discount),
+
+          saleType: cleanValue(item.saleType),
+
+          sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+          invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
+        };
+
+        // Only include extraTax when it's a positive value (> 0)
+
+        const extraTaxValue = cleanNumericValue(item.extraTax);
+
+        if (extraTaxValue !== null && Number(extraTaxValue) > 0) {
+          mappedItem.extraTax = extraTaxValue;
+        }
+
+        return mappedItem;
+      });
+
+      await InvoiceItem.bulkCreate(invoiceItems, { transaction: t });
+    }
+
+    return invoice;
+  });
+
+  // Create backup for draft invoice
+  try {
+    // Fetch the invoice items for backup
+    const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
+      where: { invoice_id: result.id },
+    });
+
+    await InvoiceBackupService.createDraftBackup({
+      tenantDb: req.tenantDb,
+      tenantModels: req.tenantModels,
+      invoice: result,
+      invoiceItems: invoiceItems,
+      isUpdate: !!id,
+      user: req.user,
+      tenant: req.tenant,
+      request: {
+        ip: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get ? req.get("User-Agent") : null,
+        requestId: req.headers?.["x-request-id"] || null,
+      },
+    });
+  } catch (backupError) {
+    console.error("❌ Error creating draft backup:", backupError);
+    // Don't fail the main operation if backup fails
+  }
+
+  // Log audit event for invoice save (draft)
+  await logAuditEvent(
+    req,
+    "invoice",
+    result.id,
+    "SAVE_DRAFT",
+    null, // oldValues (null for new draft)
+    {
+      // Basic Invoice Information
+      invoice_id: result.id,
+      invoice_number: result.invoice_number,
+      system_invoice_id: result.system_invoice_id,
+      status: result.status,
+      fbr_invoice_number: result.fbr_invoice_number,
+      invoiceType: result.invoiceType,
+      invoiceDate: result.invoiceDate,
+      invoiceRefNo: result.invoiceRefNo,
+      companyInvoiceRefNo: result.companyInvoiceRefNo,
+      internal_invoice_no: result.internal_invoice_no,
+      transctypeId: result.transctypeId,
+
+      // Complete Seller Information
+      sellerNTNCNIC: result.sellerNTNCNIC,
+      sellerFullNTN: result.sellerFullNTN,
+      sellerBusinessName: result.sellerBusinessName,
+      sellerProvince: result.sellerProvince,
+      sellerAddress: result.sellerAddress,
+      sellerCity: result.sellerCity,
+
+      // Complete Buyer Information
+      buyerNTNCNIC: result.buyerNTNCNIC,
+      buyerBusinessName: result.buyerBusinessName,
+      buyerProvince: result.buyerProvince,
+      buyerAddress: result.buyerAddress,
+      buyerRegistrationType: result.buyerRegistrationType,
+
+      // Financial Information
+      totalAmount: result.totalAmount,
+
+      // Complete Invoice Items with All Details
+      invoice_items: items
+        ? items.map((item) => ({
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
+        : [],
+    }, // newValues
+    {
+      entityName: result.invoice_number || result.system_invoice_id,
+      endpoint: req.originalUrl,
+      method: req.method,
+      itemsCount: items ? items.length : 0,
+    },
+  );
+
+  res.status(201).json({
+    success: true,
+
+    message: "Invoice saved as draft successfully",
+
+    data: {
+      invoice_id: result.id,
+
+      invoice_number: result.invoice_number,
+
+      system_invoice_id: result.system_invoice_id,
+
+      status: result.status,
+    },
+  });
+});
+
+// Save and validate invoice
+
+export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
+  const { Invoice, InvoiceItem } = req.tenantModels;
+
+  const {
+    id,
+
+    invoiceType,
+
+    invoiceDate,
+
+    sellerNTNCNIC,
+
+    sellerFullNTN,
+
+    sellerBusinessName,
+
+    sellerProvince,
+
+    sellerAddress,
+
+    sellerCity,
+
+    buyerNTNCNIC,
+
+    buyerBusinessName,
+
+    buyerProvince,
+
+    buyerAddress,
+
+    buyerRegistrationType,
+
+    invoiceRefNo,
+
+    companyInvoiceRefNo,
+
+    internalInvoiceNo,
+
+    transctypeId,
+
+    items,
+  } = req.body;
+
+  // Generate appropriate invoice number based on whether it's a new invoice or update
+  let tempInvoiceNumber;
+
+  if (id) {
+    // For updates, we'll determine the invoice number based on current status
+    tempInvoiceNumber = null; // Will be set in the update logic
+  } else {
+    // For new invoices, generate a SAVED invoice number
+    tempInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
+  }
+
+  // Validate the data first (basic validation)
+
+  const validationErrors = [];
+
+  // Validate seller fields
+
+  if (
+    !sellerNTNCNIC ||
+    !sellerBusinessName ||
+    !sellerProvince ||
+    !sellerAddress
+  ) {
+    validationErrors.push("Seller information is incomplete");
+  }
+
+  // Validate buyer fields
+
+  if (!buyerNTNCNIC || !buyerBusinessName || !buyerProvince || !buyerAddress) {
+    validationErrors.push("Buyer information is incomplete");
+  }
+
+  // Validate items
+
+  if (!items || items.length === 0) {
+    validationErrors.push("At least one item is required");
+  } else {
+    items.forEach((item, index) => {
+      if (!item.hsCode || !item.rate || !item.uoM) {
+        validationErrors.push(`Item ${index + 1} has incomplete information`);
+      }
+    });
+  }
+
+  if (validationErrors.length > 0) {
+    return next(
+      new AppError(`Validation failed: ${validationErrors.join(", ")}`, 400),
+    );
+  }
+
+  // Save as saved - upsert behavior like saveInvoice
+
+  const result = await req.tenantDb.transaction(async (t) => {
+    let invoice = null;
+
+    if (id) {
+      invoice = await Invoice.findByPk(id, { transaction: t });
+
+      if (!invoice) {
+        throw new AppError("Invoice not found", 404);
+      }
+
+      if (invoice.status !== "draft" && invoice.status !== "saved") {
+        throw new AppError("Only draft or saved invoices can be updated", 400);
+      }
+
+      // Generate appropriate invoice number for SAVED status
+      let updatedInvoiceNumber = invoice.invoice_number;
+
+      // If changing from DRAFT to SAVED, generate new SAVED number
+      if (
+        invoice.invoice_number &&
+        invoice.invoice_number.startsWith("DRAFT_")
+      ) {
+        updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
+      }
+      // If already SAVED, keep the same SAVED number
+      else if (
+        invoice.invoice_number &&
+        invoice.invoice_number.startsWith("SAVED_")
+      ) {
+        updatedInvoiceNumber = invoice.invoice_number; // Keep existing SAVED number
+      }
+      // If no invoice number or other format, generate new SAVED number
+      else {
+        updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
+      }
+
+      await invoice.update(
+        {
+          invoice_number: updatedInvoiceNumber,
+
+          invoiceType,
+
+          invoiceDate,
+
+          sellerNTNCNIC,
+
+          sellerFullNTN,
+
+          sellerBusinessName,
+
+          sellerProvince,
+
+          sellerAddress,
+
+          sellerCity,
+
+          buyerNTNCNIC,
+
+          buyerBusinessName,
+
+          buyerProvince,
+
+          buyerAddress,
+
+          buyerRegistrationType,
 
           invoiceRefNo,
 
@@ -380,9 +1320,9 @@ export const createInvoice = async (req, res) => {
 
           transctypeId,
 
-          status: "posted", // Always set as posted when using createInvoice
+          status: "saved",
 
-          fbr_invoice_number,
+          fbr_invoice_number: null,
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -396,1234 +1336,248 @@ export const createInvoice = async (req, res) => {
         { transaction: t },
       );
 
-      // Create invoice items if provided
+      await InvoiceItem.destroy({
+        where: { invoice_id: invoice.id },
 
-      if (items && Array.isArray(items) && items.length > 0) {
-        const invoiceItems = items.map((item) => {
-          // Debug: Log the incoming item data
-          console.log("🔍 Backend Debug: Incoming item data:", {
-            productName: item.productName,
-            name: item.name,
-            item_productName: item.item_productName,
-            hsCode: item.hsCode,
-          });
-
-          // Helper function to convert empty strings to null
-
-          const cleanValue = (value) => {
-            if (
-              value === "" ||
-              value === "N/A" ||
-              value === null ||
-              value === undefined
-            ) {
-              return null;
-            }
-
-            return value;
-          };
-
-          // Helper function to convert numeric strings to numbers
-
-          const cleanNumericValue = (value) => {
-            const cleaned = cleanValue(value);
-
-            if (cleaned === null) return null;
-
-            const num = parseFloat(cleaned);
-
-            return isNaN(num) ? null : num;
-          };
-
-          // Helper function to clean hsCode with length validation
-          const cleanHsCode = (value) => {
-            const cleaned = cleanValue(value);
-            if (cleaned === null) return null;
-
-            const stringValue = String(cleaned);
-
-            // Extract HS code from description if it contains a dash separator
-            // Format: "8432.1010 - NUCLEAR REACTOR, BOILERS, MACHINERY AN"
-            let hsCode = stringValue;
-            if (stringValue.includes(" - ")) {
-              hsCode = stringValue.split(" - ")[0].trim();
-            }
-
-            // Truncate to 50 characters to match database field length
-            return hsCode.substring(0, 50);
-          };
-
-          const mappedItem = {
-            invoice_id: invoice.id,
-
-            hsCode: cleanHsCode(item.hsCode),
-
-            name: cleanValue(item.productName || item.name),
-
-            productDescription: cleanValue(item.productDescription),
-
-            rate: cleanValue(item.rate),
-
-            uoM: cleanValue(item.uoM),
-
-            quantity: cleanNumericValue(item.quantity),
-
-            unitPrice: cleanNumericValue(item.unitPrice),
-
-            totalValues: cleanNumericValue(item.totalValues),
-
-            valueSalesExcludingST: cleanNumericValue(
-              item.valueSalesExcludingST,
-            ),
-
-            fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-              item.fixedNotifiedValueOrRetailPrice,
-            ),
-
-            salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
-
-            salesTaxWithheldAtSource: cleanNumericValue(
-              item.salesTaxWithheldAtSource,
-            ),
-
-            furtherTax: cleanNumericValue(item.furtherTax),
-
-            sroScheduleNo: cleanValue(item.sroScheduleNo),
-
-            fedPayable: cleanNumericValue(item.fedPayable),
-
-            advanceIncomeTax: cleanNumericValue(item.advanceIncomeTax),
-
-            discount: cleanNumericValue(item.discount),
-
-            saleType: cleanValue(item.saleType),
-
-            sroItemSerialNo: cleanValue(item.sroItemSerialNo),
-            invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
-          };
-
-          // Only include extraTax when it's a positive value (> 0)
-
-          const extraTaxValue = cleanNumericValue(item.extraTax);
-
-          if (extraTaxValue !== null && Number(extraTaxValue) > 0) {
-            mappedItem.extraTax = extraTaxValue;
-          }
-
-          // Debug: Log the mapped item
-          console.log("🔍 Backend Debug: Product name mapping details:", {
-            originalProductName: item.productName,
-            originalName: item.name,
-            finalName: mappedItem.name,
-            cleanValueResult: cleanValue(item.productName || item.name),
-          });
-
-          console.log(
-            "Mapped invoice item:",
-
-            JSON.stringify(mappedItem, null, 2),
-          );
-
-          return mappedItem;
-        });
-
-        console.log(
-          "About to create invoice items:",
-
-          JSON.stringify(invoiceItems, null, 2),
-        );
-
-        // Debug: Check each item before insertion
-        invoiceItems.forEach((item, index) => {
-          console.log(`🔍 Backend Debug: Item ${index} before insertion:`, {
-            name: item.name,
-            productName: item.productName,
-            hsCode: item.hsCode,
-          });
-        });
-
-        const createdItems = await InvoiceItem.bulkCreate(invoiceItems, {
-          transaction: t,
-        });
-
-        console.log(
-          "🔍 Backend Debug: Items created successfully:",
-          createdItems.length,
-        );
-
-        // Debug: Check what was actually inserted
-        if (createdItems && createdItems.length > 0) {
-          console.log("🔍 Backend Debug: First created item:", {
-            id: createdItems[0].id,
-            name: createdItems[0].name,
-            hsCode: createdItems[0].hsCode,
-          });
-        }
-      }
-
-      return invoice;
-    });
-
-    // Create backup for posted invoice (direct creation)
-    try {
-      // Fetch the invoice items for backup
-      const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id },
+        transaction: t,
       });
-
-      await InvoiceBackupService.createPostBackup({
-        tenantDb: req.tenantDb,
-        tenantModels: req.tenantModels,
-        invoice: result,
-        invoiceItems: invoiceItems,
-        user: req.user,
-        tenant: req.tenant,
-        request: {
-          ip: req.ip || req.connection?.remoteAddress,
-          userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null,
-        },
-      });
-    } catch (backupError) {
-      console.error("❌ Error creating post backup:", backupError);
-      // Don't fail the main operation if backup fails
-    }
-
-    // Determine operation type: SUBMIT_TO_FBR if posted with FBR invoice number, otherwise CREATE
-    const operation =
-      result.status === "posted" && result.fbr_invoice_number
-        ? "SUBMIT_TO_FBR"
-        : "CREATE";
-
-    // Fetch invoice items for audit log if not already available
-    let invoiceItemsForAudit = items;
-    if (!invoiceItemsForAudit || invoiceItemsForAudit.length === 0) {
-      const fetchedItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id },
-      });
-      invoiceItemsForAudit = fetchedItems.map((item) => ({
-        id: item.id,
-        name: item.name,
-        hsCode: item.hsCode,
-        productDescription: item.productDescription,
-        quantity: item.quantity,
-        rate: item.rate,
-        uoM: item.uoM,
-        unitPrice: item.unitPrice,
-        totalValues: item.totalValues,
-        valueSalesExcludingST: item.valueSalesExcludingST,
-        fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
-        salesTaxApplicable: item.salesTaxApplicable,
-        salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-        extraTax: item.extraTax,
-        furtherTax: item.furtherTax,
-        sroScheduleNo: item.sroScheduleNo,
-        fedPayable: item.fedPayable,
-        advanceIncomeTax: item.advanceIncomeTax,
-        discount: item.discount,
-        saleType: item.saleType,
-        sroItemSerialNo: item.sroItemSerialNo,
-        billOfLadingUoM: item.billOfLadingUoM,
-      }));
-    }
-
-    // Log audit event for invoice creation or FBR submission
-    await logAuditEvent(
-      req,
-      "invoice",
-      result.id,
-      operation,
-      null, // oldValues
-      {
-        // Basic Invoice Information
-        invoice_id: result.id,
-        invoice_number: result.invoice_number,
-        system_invoice_id: result.system_invoice_id,
-        status: result.status,
-        fbr_invoice_number: result.fbr_invoice_number,
-        invoiceType: result.invoiceType,
-        invoiceDate: result.invoiceDate,
-        invoiceRefNo: result.invoiceRefNo,
-        companyInvoiceRefNo: result.companyInvoiceRefNo,
-        internal_invoice_no: result.internal_invoice_no,
-        transctypeId: result.transctypeId,
-
-        // Complete Seller Information
-        sellerNTNCNIC: result.sellerNTNCNIC,
-        sellerFullNTN: result.sellerFullNTN,
-        sellerBusinessName: result.sellerBusinessName,
-        sellerProvince: result.sellerProvince,
-        sellerAddress: result.sellerAddress,
-        sellerCity: result.sellerCity,
-
-        // Complete Buyer Information
-        buyerNTNCNIC: result.buyerNTNCNIC,
-        buyerBusinessName: result.buyerBusinessName,
-        buyerProvince: result.buyerProvince,
-        buyerAddress: result.buyerAddress,
-        buyerRegistrationType: result.buyerRegistrationType,
-
-        // Financial Information
-        totalAmount: result.totalAmount,
-
-        // Complete Invoice Items with All Details
-        invoice_items: invoiceItemsForAudit
-          ? invoiceItemsForAudit.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
-          : [],
-      }, // newValues
-      {
-        entityName: result.invoice_number || result.system_invoice_id,
-        itemsCount: invoiceItemsForAudit ? invoiceItemsForAudit.length : 0,
-        fbrInvoiceNumber: result.fbr_invoice_number,
-        isFbrSubmission: operation === "SUBMIT_TO_FBR",
-      },
-    );
-
-    res.status(200).json({
-      success: true,
-
-      message: "Invoice created successfully with FBR invoice number",
-
-      data: {
-        invoice_id: result.id,
-
-        invoice_number: result.invoice_number,
-
-        system_invoice_id: result.system_invoice_id,
-
-        status: result.status,
-
-        fbr_invoice_number: result.fbr_invoice_number,
-      },
-    });
-  } catch (error) {
-    console.error("Error creating invoice:", error);
-
-    res.status(500).json({
-      success: false,
-
-      message: "Error creating invoice",
-
-      error: error.message,
-    });
-  }
-};
-
-// Save invoice as draft
-
-export const saveInvoice = async (req, res) => {
-  try {
-    const { Invoice, InvoiceItem } = req.tenantModels;
-
-    const {
-      id,
-
-      invoiceType,
-
-      invoiceDate,
-
-      sellerNTNCNIC,
-
-      sellerFullNTN,
-
-      sellerBusinessName,
-
-      sellerProvince,
-
-      sellerAddress,
-
-      sellerCity,
-
-      buyerNTNCNIC,
-
-      buyerBusinessName,
-
-      buyerProvince,
-
-      buyerAddress,
-
-      buyerRegistrationType,
-
-      invoiceRefNo,
-
-      companyInvoiceRefNo,
-
-      internalInvoiceNo,
-
-      transctypeId,
-
-      items,
-    } = req.body;
-
-    // Create or update draft invoice in a transaction
-
-    const result = await req.tenantDb.transaction(async (t) => {
-      let invoice = null;
-
-      if (id) {
-        invoice = await Invoice.findByPk(id, { transaction: t });
-
-        if (!invoice) {
-          throw new Error("Invoice not found");
-        }
-
-        if (invoice.status !== "draft" && invoice.status !== "saved") {
-          throw new Error("Only draft or saved invoices can be updated");
-        }
-
-        // Generate appropriate invoice number based on current status
-        let updatedInvoiceNumber = invoice.invoice_number;
-
-        // If changing from SAVED to DRAFT, generate new DRAFT number
-        if (
-          invoice.invoice_number &&
-          invoice.invoice_number.startsWith("SAVED_")
-        ) {
-          updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "DRAFT");
-        }
-        // If changing from DRAFT to DRAFT, keep the same DRAFT number
-        else if (
-          invoice.invoice_number &&
-          invoice.invoice_number.startsWith("DRAFT_")
-        ) {
-          updatedInvoiceNumber = invoice.invoice_number; // Keep existing DRAFT number
-        }
-        // If no invoice number or other format, generate new DRAFT number
-        else {
-          updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "DRAFT");
-        }
-
-        // Update invoice header
-
-        await invoice.update(
-          {
-            invoice_number: updatedInvoiceNumber,
-
-            invoiceType,
-
-            invoiceDate,
-
-            sellerNTNCNIC,
-
-            sellerFullNTN,
-
-            sellerBusinessName,
-
-            sellerProvince,
-
-            sellerAddress,
-
-            sellerCity,
-
-            buyerNTNCNIC,
-
-            buyerBusinessName,
-
-            buyerProvince,
-
-            buyerAddress,
-
-            buyerRegistrationType,
-
-            invoiceRefNo,
-
-            companyInvoiceRefNo,
-
-            internal_invoice_no: internalInvoiceNo,
-
-            transctypeId,
-
-            status: "draft",
-
-            fbr_invoice_number: null,
-          },
-
-          { transaction: t },
-        );
-
-        // Replace items
-
-        await InvoiceItem.destroy({
-          where: { invoice_id: invoice.id },
-
-          transaction: t,
-        });
-      } else {
-        // Generate a temporary invoice number for draft
-
-        const tempInvoiceNumber = await generateShortInvoiceId(
-          Invoice,
-
-          "DRAFT",
-        );
-
-        // Generate system invoice ID
-
-        const systemInvoiceId = await generateSystemInvoiceId(Invoice);
-
-        invoice = await Invoice.create(
-          {
-            invoice_number: tempInvoiceNumber,
-
-            system_invoice_id: systemInvoiceId,
-
-            invoiceType,
-
-            invoiceDate,
-
-            sellerNTNCNIC,
-
-            sellerFullNTN,
-
-            sellerBusinessName,
-
-            sellerProvince,
-
-            sellerAddress,
-
-            sellerCity,
-
-            buyerNTNCNIC,
-
-            buyerBusinessName,
-
-            buyerProvince,
-
-            buyerAddress,
-
-            buyerRegistrationType,
-
-            invoiceRefNo,
-
-            companyInvoiceRefNo,
-
-            internal_invoice_no: internalInvoiceNo,
-
-            transctypeId,
-
-            status: "draft",
-
-            fbr_invoice_number: null,
-            created_by_user_id: req.user?.userId || req.user?.id || null,
-            created_by_email: req.user?.email || null,
-            created_by_name:
-              req.user?.firstName || req.user?.lastName
-                ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : req.user?.role === "admin"
-                  ? `Admin (${req.user?.id || "Unknown"})`
-                  : null,
-          },
-
-          { transaction: t },
-        );
-      }
-
-      // Create invoice items if provided
-
-      if (items && Array.isArray(items) && items.length > 0) {
-        const invoiceItems = items.map((item) => {
-          const cleanValue = (value) => {
-            if (
-              value === "" ||
-              value === "N/A" ||
-              value === null ||
-              value === undefined
-            ) {
-              return null;
-            }
-
-            return value;
-          };
-
-          const cleanNumericValue = (value) => {
-            const cleaned = cleanValue(value);
-
-            if (cleaned === null) return null;
-
-            const num = parseFloat(cleaned);
-
-            return isNaN(num) ? null : num;
-          };
-
-          // Helper function to clean hsCode with length validation
-          const cleanHsCode = (value) => {
-            const cleaned = cleanValue(value);
-            if (cleaned === null) return null;
-
-            const stringValue = String(cleaned);
-
-            // Extract HS code from description if it contains a dash separator
-            // Format: "8432.1010 - NUCLEAR REACTOR, BOILERS, MACHINERY AN"
-            let hsCode = stringValue;
-            if (stringValue.includes(" - ")) {
-              hsCode = stringValue.split(" - ")[0].trim();
-            }
-
-            // Truncate to 50 characters to match database field length
-            return hsCode.substring(0, 50);
-          };
-
-          const mappedItem = {
-            invoice_id: invoice.id,
-
-            hsCode: cleanHsCode(item.hsCode),
-
-            name: cleanValue(item.productName || item.name),
-
-            productDescription: cleanValue(item.productDescription),
-
-            rate: cleanValue(item.rate),
-
-            uoM: cleanValue(item.uoM),
-
-            quantity: cleanNumericValue(item.quantity),
-
-            unitPrice: cleanNumericValue(item.unitPrice),
-
-            totalValues: cleanNumericValue(item.totalValues),
-
-            valueSalesExcludingST: cleanNumericValue(
-              item.valueSalesExcludingST,
-            ),
-
-            fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-              item.fixedNotifiedValueOrRetailPrice,
-            ),
-
-            salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
-
-            salesTaxWithheldAtSource: cleanNumericValue(
-              item.salesTaxWithheldAtSource,
-            ),
-
-            furtherTax: cleanNumericValue(item.furtherTax),
-
-            sroScheduleNo: cleanValue(item.sroScheduleNo),
-
-            fedPayable: cleanNumericValue(item.fedPayable),
-
-            advanceIncomeTax: cleanNumericValue(item.advanceIncomeTax),
-
-            discount: cleanNumericValue(item.discount),
-
-            saleType: cleanValue(item.saleType),
-
-            sroItemSerialNo: cleanValue(item.sroItemSerialNo),
-            invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
-          };
-
-          // Only include extraTax when it's a positive value (> 0)
-
-          const extraTaxValue = cleanNumericValue(item.extraTax);
-
-          if (extraTaxValue !== null && Number(extraTaxValue) > 0) {
-            mappedItem.extraTax = extraTaxValue;
-          }
-
-          return mappedItem;
-        });
-
-        await InvoiceItem.bulkCreate(invoiceItems, { transaction: t });
-      }
-
-      return invoice;
-    });
-
-    // Create backup for draft invoice
-    try {
-      // Fetch the invoice items for backup
-      const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id },
-      });
-
-      await InvoiceBackupService.createDraftBackup({
-        tenantDb: req.tenantDb,
-        tenantModels: req.tenantModels,
-        invoice: result,
-        invoiceItems: invoiceItems,
-        isUpdate: !!id,
-        user: req.user,
-        tenant: req.tenant,
-        request: {
-          ip: req.ip || req.connection?.remoteAddress,
-          userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null,
-        },
-      });
-    } catch (backupError) {
-      console.error("❌ Error creating draft backup:", backupError);
-      // Don't fail the main operation if backup fails
-    }
-
-    // Log audit event for invoice save (draft)
-    await logAuditEvent(
-      req,
-      "invoice",
-      result.id,
-      "SAVE_DRAFT",
-      null, // oldValues (null for new draft)
-      {
-        // Basic Invoice Information
-        invoice_id: result.id,
-        invoice_number: result.invoice_number,
-        system_invoice_id: result.system_invoice_id,
-        status: result.status,
-        fbr_invoice_number: result.fbr_invoice_number,
-        invoiceType: result.invoiceType,
-        invoiceDate: result.invoiceDate,
-        invoiceRefNo: result.invoiceRefNo,
-        companyInvoiceRefNo: result.companyInvoiceRefNo,
-        internal_invoice_no: result.internal_invoice_no,
-        transctypeId: result.transctypeId,
-
-        // Complete Seller Information
-        sellerNTNCNIC: result.sellerNTNCNIC,
-        sellerFullNTN: result.sellerFullNTN,
-        sellerBusinessName: result.sellerBusinessName,
-        sellerProvince: result.sellerProvince,
-        sellerAddress: result.sellerAddress,
-        sellerCity: result.sellerCity,
-
-        // Complete Buyer Information
-        buyerNTNCNIC: result.buyerNTNCNIC,
-        buyerBusinessName: result.buyerBusinessName,
-        buyerProvince: result.buyerProvince,
-        buyerAddress: result.buyerAddress,
-        buyerRegistrationType: result.buyerRegistrationType,
-
-        // Financial Information
-        totalAmount: result.totalAmount,
-
-        // Complete Invoice Items with All Details
-        invoice_items: items
-          ? items.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
-          : [],
-      }, // newValues
-      {
-        entityName: result.invoice_number || result.system_invoice_id,
-        endpoint: req.originalUrl,
-        method: req.method,
-        itemsCount: items ? items.length : 0,
-      },
-    );
-
-    res.status(201).json({
-      success: true,
-
-      message: "Invoice saved as draft successfully",
-
-      data: {
-        invoice_id: result.id,
-
-        invoice_number: result.invoice_number,
-
-        system_invoice_id: result.system_invoice_id,
-
-        status: result.status,
-      },
-    });
-  } catch (error) {
-    console.error("Error saving invoice:", error);
-
-    res.status(500).json({
-      success: false,
-
-      message: "Error saving invoice",
-
-      error: error.message,
-    });
-  }
-};
-
-// Save and validate invoice
-
-export const saveAndValidateInvoice = async (req, res) => {
-  try {
-    const { Invoice, InvoiceItem } = req.tenantModels;
-
-    const {
-      id,
-
-      invoiceType,
-
-      invoiceDate,
-
-      sellerNTNCNIC,
-
-      sellerFullNTN,
-
-      sellerBusinessName,
-
-      sellerProvince,
-
-      sellerAddress,
-
-      sellerCity,
-
-      buyerNTNCNIC,
-
-      buyerBusinessName,
-
-      buyerProvince,
-
-      buyerAddress,
-
-      buyerRegistrationType,
-
-      invoiceRefNo,
-
-      companyInvoiceRefNo,
-
-      internalInvoiceNo,
-
-      transctypeId,
-
-      items,
-    } = req.body;
-
-    // Generate appropriate invoice number based on whether it's a new invoice or update
-    let tempInvoiceNumber;
-
-    if (id) {
-      // For updates, we'll determine the invoice number based on current status
-      tempInvoiceNumber = null; // Will be set in the update logic
     } else {
-      // For new invoices, generate a SAVED invoice number
-      tempInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
+      // Generate system invoice ID
+
+      const systemInvoiceId = await generateSystemInvoiceId(Invoice);
+
+      invoice = await Invoice.create(
+        {
+          invoice_number: tempInvoiceNumber,
+
+          system_invoice_id: systemInvoiceId,
+
+          invoiceType,
+
+          invoiceDate,
+
+          sellerNTNCNIC,
+
+          sellerFullNTN,
+
+          sellerBusinessName,
+
+          sellerProvince,
+
+          sellerAddress,
+
+          sellerCity,
+
+          buyerNTNCNIC,
+
+          buyerBusinessName,
+
+          buyerProvince,
+
+          buyerAddress,
+
+          buyerRegistrationType,
+
+          invoiceRefNo,
+
+          companyInvoiceRefNo,
+
+          internal_invoice_no: internalInvoiceNo,
+
+          transctypeId,
+
+          status: "saved",
+
+          fbr_invoice_number: null,
+          created_by_user_id: req.user?.userId || req.user?.id || null,
+          created_by_email: req.user?.email || null,
+          created_by_name:
+            req.user?.firstName || req.user?.lastName
+              ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+              : req.user?.role === "admin"
+                ? `Admin (${req.user?.id || "Unknown"})`
+                : null,
+        },
+
+        { transaction: t },
+      );
     }
 
-    // Validate the data first (basic validation)
-
-    const validationErrors = [];
-
-    // Validate seller fields
-
-    if (
-      !sellerNTNCNIC ||
-      !sellerBusinessName ||
-      !sellerProvince ||
-      !sellerAddress
-    ) {
-      validationErrors.push("Seller information is incomplete");
-    }
-
-    // Validate buyer fields
-
-    if (
-      !buyerNTNCNIC ||
-      !buyerBusinessName ||
-      !buyerProvince ||
-      !buyerAddress
-    ) {
-      validationErrors.push("Buyer information is incomplete");
-    }
-
-    // Validate items
-
-    if (!items || items.length === 0) {
-      validationErrors.push("At least one item is required");
-    } else {
-      items.forEach((item, index) => {
-        if (!item.hsCode || !item.rate || !item.uoM) {
-          validationErrors.push(`Item ${index + 1} has incomplete information`);
-        }
-      });
-    }
-
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        success: false,
-
-        message: "Validation failed",
-
-        errors: validationErrors,
-      });
-    }
-
-    // Save as saved - upsert behavior like saveInvoice
-
-    const result = await req.tenantDb.transaction(async (t) => {
-      let invoice = null;
-
-      if (id) {
-        invoice = await Invoice.findByPk(id, { transaction: t });
-
-        if (!invoice) {
-          throw new Error("Invoice not found");
-        }
-
-        if (invoice.status !== "draft" && invoice.status !== "saved") {
-          throw new Error("Only draft or saved invoices can be updated");
-        }
-
-        // Generate appropriate invoice number for SAVED status
-        let updatedInvoiceNumber = invoice.invoice_number;
-
-        // If changing from DRAFT to SAVED, generate new SAVED number
-        if (
-          invoice.invoice_number &&
-          invoice.invoice_number.startsWith("DRAFT_")
-        ) {
-          updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
-        }
-        // If already SAVED, keep the same SAVED number
-        else if (
-          invoice.invoice_number &&
-          invoice.invoice_number.startsWith("SAVED_")
-        ) {
-          updatedInvoiceNumber = invoice.invoice_number; // Keep existing SAVED number
-        }
-        // If no invoice number or other format, generate new SAVED number
-        else {
-          updatedInvoiceNumber = await generateShortInvoiceId(Invoice, "SAVED");
-        }
-
-        await invoice.update(
-          {
-            invoice_number: updatedInvoiceNumber,
-
-            invoiceType,
-
-            invoiceDate,
-
-            sellerNTNCNIC,
-
-            sellerFullNTN,
-
-            sellerBusinessName,
-
-            sellerProvince,
-
-            sellerAddress,
-
-            sellerCity,
-
-            buyerNTNCNIC,
-
-            buyerBusinessName,
-
-            buyerProvince,
-
-            buyerAddress,
-
-            buyerRegistrationType,
-
-            invoiceRefNo,
-
-            companyInvoiceRefNo,
-
-            internal_invoice_no: internalInvoiceNo,
-
-            transctypeId,
-
-            status: "saved",
-
-            fbr_invoice_number: null,
-            created_by_user_id: req.user?.userId || req.user?.id || null,
-            created_by_email: req.user?.email || null,
-            created_by_name:
-              req.user?.firstName || req.user?.lastName
-                ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : req.user?.role === "admin"
-                  ? `Admin (${req.user?.id || "Unknown"})`
-                  : null,
-          },
-
-          { transaction: t },
-        );
-
-        await InvoiceItem.destroy({
-          where: { invoice_id: invoice.id },
-
-          transaction: t,
-        });
-      } else {
-        // Generate system invoice ID
-
-        const systemInvoiceId = await generateSystemInvoiceId(Invoice);
-
-        invoice = await Invoice.create(
-          {
-            invoice_number: tempInvoiceNumber,
-
-            system_invoice_id: systemInvoiceId,
-
-            invoiceType,
-
-            invoiceDate,
-
-            sellerNTNCNIC,
-
-            sellerFullNTN,
-
-            sellerBusinessName,
-
-            sellerProvince,
-
-            sellerAddress,
-
-            sellerCity,
-
-            buyerNTNCNIC,
-
-            buyerBusinessName,
-
-            buyerProvince,
-
-            buyerAddress,
-
-            buyerRegistrationType,
-
-            invoiceRefNo,
-
-            companyInvoiceRefNo,
-
-            internal_invoice_no: internalInvoiceNo,
-
-            transctypeId,
-
-            status: "saved",
-
-            fbr_invoice_number: null,
-            created_by_user_id: req.user?.userId || req.user?.id || null,
-            created_by_email: req.user?.email || null,
-            created_by_name:
-              req.user?.firstName || req.user?.lastName
-                ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : req.user?.role === "admin"
-                  ? `Admin (${req.user?.id || "Unknown"})`
-                  : null,
-          },
-
-          { transaction: t },
-        );
-      }
-
-      if (items && Array.isArray(items) && items.length > 0) {
-        const invoiceItems = items.map((item) => {
-          const cleanValue = (value) => {
-            if (
-              value === "" ||
-              value === "N/A" ||
-              value === null ||
-              value === undefined
-            ) {
-              return null;
-            }
-
-            return value;
-          };
-
-          const cleanNumericValue = (value) => {
-            const cleaned = cleanValue(value);
-
-            if (cleaned === null) return null;
-
-            const num = parseFloat(cleaned);
-
-            return isNaN(num) ? null : num;
-          };
-
-          // Helper function to clean hsCode with length validation
-          const cleanHsCode = (value) => {
-            const cleaned = cleanValue(value);
-            if (cleaned === null) return null;
-
-            const stringValue = String(cleaned);
-
-            // Extract HS code from description if it contains a dash separator
-            // Format: "8432.1010 - NUCLEAR REACTOR, BOILERS, MACHINERY AN"
-            let hsCode = stringValue;
-            if (stringValue.includes(" - ")) {
-              hsCode = stringValue.split(" - ")[0].trim();
-            }
-
-            // Truncate to 50 characters to match database field length
-            return hsCode.substring(0, 50);
-          };
-
-          const mappedItem = {
-            invoice_id: invoice.id,
-
-            hsCode: cleanHsCode(item.hsCode),
-
-            name: cleanValue(item.productName || item.name),
-
-            productDescription: cleanValue(item.productDescription),
-
-            rate: cleanValue(item.rate),
-
-            uoM: cleanValue(item.uoM),
-
-            quantity: cleanNumericValue(item.quantity),
-
-            unitPrice: cleanNumericValue(item.unitPrice),
-
-            totalValues: cleanNumericValue(item.totalValues),
-
-            valueSalesExcludingST: cleanNumericValue(
-              item.valueSalesExcludingST,
-            ),
-
-            fixedNotifiedValueOrRetailPrice: cleanNumericValue(
-              item.fixedNotifiedValueOrRetailPrice,
-            ),
-
-            salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
-
-            salesTaxWithheldAtSource: cleanNumericValue(
-              item.salesTaxWithheldAtSource,
-            ),
-
-            furtherTax: cleanNumericValue(item.furtherTax),
-
-            sroScheduleNo: cleanValue(item.sroScheduleNo),
-
-            fedPayable: cleanNumericValue(item.fedPayable),
-
-            advanceIncomeTax: cleanNumericValue(item.advanceIncomeTax),
-
-            discount: cleanNumericValue(item.discount),
-
-            saleType: cleanValue(item.saleType),
-
-            sroItemSerialNo: cleanValue(item.sroItemSerialNo),
-            invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
-          };
-
-          // Only include extraTax when it's a positive value (> 0)
-
-          const extraTaxValue = cleanNumericValue(item.extraTax);
-
-          if (extraTaxValue !== null && Number(extraTaxValue) > 0) {
-            mappedItem.extraTax = extraTaxValue;
+    if (items && Array.isArray(items) && items.length > 0) {
+      const invoiceItems = items.map((item) => {
+        const cleanValue = (value) => {
+          if (
+            value === "" ||
+            value === "N/A" ||
+            value === null ||
+            value === undefined
+          ) {
+            return null;
           }
 
-          return mappedItem;
-        });
+          return value;
+        };
 
-        await InvoiceItem.bulkCreate(invoiceItems, { transaction: t });
-      }
+        const cleanNumericValue = (value) => {
+          const cleaned = cleanValue(value);
 
-      return invoice;
-    });
+          if (cleaned === null) return null;
 
-    // Create backup for saved invoice
-    try {
-      // Fetch the invoice items for backup
-      const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
-        where: { invoice_id: result.id },
+          const num = parseFloat(cleaned);
+
+          return isNaN(num) ? null : num;
+        };
+
+        // Helper function to clean hsCode with length validation
+        const cleanHsCode = (value) => {
+          const cleaned = cleanValue(value);
+          if (cleaned === null) return null;
+
+          const stringValue = String(cleaned);
+
+          // Extract HS code from description if it contains a dash separator
+          // Format: "8432.1010 - NUCLEAR REACTOR, BOILERS, MACHINERY AN"
+          let hsCode = stringValue;
+          if (stringValue.includes(" - ")) {
+            hsCode = stringValue.split(" - ")[0].trim();
+          }
+
+          // Truncate to 50 characters to match database field length
+          return hsCode.substring(0, 50);
+        };
+
+        const mappedItem = {
+          invoice_id: invoice.id,
+
+          hsCode: cleanHsCode(item.hsCode),
+
+          name: cleanValue(item.productName || item.name),
+
+          productDescription: cleanValue(item.productDescription),
+
+          rate: cleanValue(item.rate),
+
+          uoM: cleanValue(item.uoM),
+
+          quantity: cleanNumericValue(item.quantity),
+
+          unitPrice: cleanNumericValue(item.unitPrice),
+
+          totalValues: cleanNumericValue(item.totalValues),
+
+          valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
+
+          fixedNotifiedValueOrRetailPrice: cleanNumericValue(
+            item.fixedNotifiedValueOrRetailPrice,
+          ),
+
+          salesTaxApplicable: cleanNumericValue(item.salesTaxApplicable),
+
+          salesTaxWithheldAtSource: cleanNumericValue(
+            item.salesTaxWithheldAtSource,
+          ),
+
+          furtherTax: cleanNumericValue(item.furtherTax),
+
+          sroScheduleNo: cleanValue(item.sroScheduleNo),
+
+          fedPayable: cleanNumericValue(item.fedPayable),
+
+          advanceIncomeTax: cleanNumericValue(item.advanceIncomeTax),
+
+          discount: cleanNumericValue(item.discount),
+
+          saleType: cleanValue(item.saleType),
+
+          sroItemSerialNo: cleanValue(item.sroItemSerialNo),
+          invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
+        };
+
+        // Only include extraTax when it's a positive value (> 0)
+
+        const extraTaxValue = cleanNumericValue(item.extraTax);
+
+        if (extraTaxValue !== null && Number(extraTaxValue) > 0) {
+          mappedItem.extraTax = extraTaxValue;
+        }
+
+        return mappedItem;
       });
 
-      await InvoiceBackupService.createSavedBackup({
-        tenantDb: req.tenantDb,
-        tenantModels: req.tenantModels,
-        invoice: result,
-        invoiceItems: invoiceItems,
-        isUpdate: !!id,
-        user: req.user,
-        tenant: req.tenant,
-        request: {
-          ip: req.ip || req.connection?.remoteAddress,
-          userAgent: req.get ? req.get("User-Agent") : null,
-          requestId: req.headers?.["x-request-id"] || null,
-        },
-      });
-    } catch (backupError) {
-      console.error("❌ Error creating saved backup:", backupError);
-      // Don't fail the main operation if backup fails
+      await InvoiceItem.bulkCreate(invoiceItems, { transaction: t });
     }
 
-    // Log audit event for invoice save and validate
-    await logAuditEvent(
-      req,
-      "invoice",
-      result.id,
-      "SAVE_AND_VALIDATE",
-      null, // oldValues (null for new invoice)
-      {
-        // Basic Invoice Information
-        invoice_id: result.id,
-        invoice_number: result.invoice_number,
-        system_invoice_id: result.system_invoice_id,
-        status: result.status,
-        fbr_invoice_number: result.fbr_invoice_number,
-        invoiceType: result.invoiceType,
-        invoiceDate: result.invoiceDate,
-        invoiceRefNo: result.invoiceRefNo,
-        companyInvoiceRefNo: result.companyInvoiceRefNo,
-        internal_invoice_no: result.internal_invoice_no,
-        transctypeId: result.transctypeId,
+    return invoice;
+  });
 
-        // Complete Seller Information
-        sellerNTNCNIC: result.sellerNTNCNIC,
-        sellerFullNTN: result.sellerFullNTN,
-        sellerBusinessName: result.sellerBusinessName,
-        sellerProvince: result.sellerProvince,
-        sellerAddress: result.sellerAddress,
-        sellerCity: result.sellerCity,
+  // Create backup for saved invoice
+  try {
+    // Fetch the invoice items for backup
+    const invoiceItems = await req.tenantModels.InvoiceItem.findAll({
+      where: { invoice_id: result.id },
+    });
 
-        // Complete Buyer Information
-        buyerNTNCNIC: result.buyerNTNCNIC,
-        buyerBusinessName: result.buyerBusinessName,
-        buyerProvince: result.buyerProvince,
-        buyerAddress: result.buyerAddress,
-        buyerRegistrationType: result.buyerRegistrationType,
+    await InvoiceBackupService.createSavedBackup({
+      tenantDb: req.tenantDb,
+      tenantModels: req.tenantModels,
+      invoice: result,
+      invoiceItems: invoiceItems,
+      isUpdate: !!id,
+      user: req.user,
+      tenant: req.tenant,
+      request: {
+        ip: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get ? req.get("User-Agent") : null,
+        requestId: req.headers?.["x-request-id"] || null,
+      },
+    });
+  } catch (backupError) {
+    console.error("❌ Error creating saved backup:", backupError);
+    // Don't fail the main operation if backup fails
+  }
 
-        // Financial Information
-        totalAmount: result.totalAmount,
+  // Log audit event for invoice save and validate
+  await logAuditEvent(
+    req,
+    "invoice",
+    result.id,
+    "SAVE_AND_VALIDATE",
+    null, // oldValues (null for new invoice)
+    {
+      // Basic Invoice Information
+      invoice_id: result.id,
+      invoice_number: result.invoice_number,
+      system_invoice_id: result.system_invoice_id,
+      status: result.status,
+      fbr_invoice_number: result.fbr_invoice_number,
+      invoiceType: result.invoiceType,
+      invoiceDate: result.invoiceDate,
+      invoiceRefNo: result.invoiceRefNo,
+      companyInvoiceRefNo: result.companyInvoiceRefNo,
+      internal_invoice_no: result.internal_invoice_no,
+      transctypeId: result.transctypeId,
 
-        // Complete Invoice Items with All Details
-        invoice_items: items
-          ? items.map((item) => ({
+      // Complete Seller Information
+      sellerNTNCNIC: result.sellerNTNCNIC,
+      sellerFullNTN: result.sellerFullNTN,
+      sellerBusinessName: result.sellerBusinessName,
+      sellerProvince: result.sellerProvince,
+      sellerAddress: result.sellerAddress,
+      sellerCity: result.sellerCity,
+
+      // Complete Buyer Information
+      buyerNTNCNIC: result.buyerNTNCNIC,
+      buyerBusinessName: result.buyerBusinessName,
+      buyerProvince: result.buyerProvince,
+      buyerAddress: result.buyerAddress,
+      buyerRegistrationType: result.buyerRegistrationType,
+
+      // Financial Information
+      totalAmount: result.totalAmount,
+
+      // Complete Invoice Items with All Details
+      invoice_items: items
+        ? items.map((item) => ({
             id: item.id,
             product_name: item.name,
             hsCode: item.hsCode,
@@ -1648,43 +1602,32 @@ export const saveAndValidateInvoice = async (req, res) => {
             sroItemSerialNo: item.sroItemSerialNo,
             billOfLadingUoM: item.billOfLadingUoM,
           }))
-          : [],
-      }, // newValues
-      {
-        entityName: result.invoice_number || result.system_invoice_id,
-        endpoint: req.originalUrl,
-        method: req.method,
-        itemsCount: items ? items.length : 0,
-      },
-    );
+        : [],
+    }, // newValues
+    {
+      entityName: result.invoice_number || result.system_invoice_id,
+      endpoint: req.originalUrl,
+      method: req.method,
+      itemsCount: items ? items.length : 0,
+    },
+  );
 
-    res.status(201).json({
-      success: true,
+  res.status(201).json({
+    success: true,
 
-      message: "Invoice saved successfully",
+    message: "Invoice saved successfully",
 
-      data: {
-        invoice_id: result.id,
+    data: {
+      invoice_id: result.id,
 
-        invoice_number: result.invoice_number,
+      invoice_number: result.invoice_number,
 
-        system_invoice_id: result.system_invoice_id,
+      system_invoice_id: result.system_invoice_id,
 
-        status: result.status,
-      },
-    });
-  } catch (error) {
-    console.error("Error saving and validating invoice:", error);
-
-    res.status(500).json({
-      success: false,
-
-      message: "Error saving and validating invoice",
-
-      error: error.message,
-    });
-  }
-};
+      status: result.status,
+    },
+  });
+});
 
 // Get all invoices
 
@@ -1715,7 +1658,9 @@ export const getAllInvoices = async (req, res) => {
     const whereClause = { isDeleted: false };
 
     // Regular users can see ALL company invoices as requested
-    console.log("Invoice visibility - showing all non-deleted data for the tenant");
+    console.log(
+      "Invoice visibility - showing all non-deleted data for the tenant",
+    );
 
     // Add search functionality
 
@@ -2621,10 +2566,10 @@ export const getAllInvoices = async (req, res) => {
         updated_at: plainInvoice.updated_at,
         ...(req.user?.role === "admin"
           ? {
-            created_by_user_id: plainInvoice.created_by_user_id,
-            created_by_email: plainInvoice.created_by_email,
-            created_by_name: plainInvoice.created_by_name,
-          }
+              created_by_user_id: plainInvoice.created_by_user_id,
+              created_by_email: plainInvoice.created_by_email,
+              created_by_name: plainInvoice.created_by_name,
+            }
           : {}),
       };
     });
@@ -4316,30 +4261,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
           : [],
       }, // oldValues (before submission)
       {
@@ -4378,30 +4323,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
+              id: item.id,
+              product_name: item.name,
+              hsCode: item.hsCode,
+              productDescription: item.productDescription,
+              quantity: item.quantity,
+              rate: item.rate,
+              uoM: item.uoM,
+              unitPrice: item.unitPrice,
+              totalValues: item.totalValues,
+              valueSalesExcludingST: item.valueSalesExcludingST,
+              fixedNotifiedValueOrRetailPrice:
+                item.fixedNotifiedValueOrRetailPrice,
+              salesTaxApplicable: item.salesTaxApplicable,
+              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+              extraTax: item.extraTax,
+              furtherTax: item.furtherTax,
+              sroScheduleNo: item.sroScheduleNo,
+              fedPayable: item.fedPayable,
+              advanceIncomeTax: item.advanceIncomeTax,
+              discount: item.discount,
+              saleType: item.saleType,
+              sroItemSerialNo: item.sroItemSerialNo,
+              billOfLadingUoM: item.billOfLadingUoM,
+            }))
           : [],
       }, // newValues (after submission)
       {
@@ -4491,13 +4436,13 @@ export const bulkCreateInvoices = async (req, res) => {
       totalInvoices: invoices.length,
       sampleInvoice: invoices[0]
         ? {
-          invoiceType: invoices[0].invoiceType,
-          invoiceDate: invoices[0].invoiceDate,
-          companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
-          internalInvoiceNo: invoices[0].internalInvoiceNo,
-          buyerBusinessName: invoices[0].buyerBusinessName,
-          itemsCount: invoices[0].items?.length || 0,
-        }
+            invoiceType: invoices[0].invoiceType,
+            invoiceDate: invoices[0].invoiceDate,
+            companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
+            internalInvoiceNo: invoices[0].internalInvoiceNo,
+            buyerBusinessName: invoices[0].buyerBusinessName,
+            itemsCount: invoices[0].items?.length || 0,
+          }
         : null,
       sampleInternalInvoiceNo: invoices[0]?.internalInvoiceNo,
       hasInternalInvoiceNo: !!invoices[0]?.internalInvoiceNo,
@@ -4521,15 +4466,15 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingBuyers =
       uniqueBuyerNTNs.length > 0
         ? await Buyer.findAll({
-          where: { buyerNTNCNIC: uniqueBuyerNTNs },
-          attributes: [
-            "buyerNTNCNIC",
-            "buyerBusinessName",
-            "buyerProvince",
-            "buyerAddress",
-            "buyerRegistrationType",
-          ],
-        })
+            where: { buyerNTNCNIC: uniqueBuyerNTNs },
+            attributes: [
+              "buyerNTNCNIC",
+              "buyerBusinessName",
+              "buyerProvince",
+              "buyerAddress",
+              "buyerRegistrationType",
+            ],
+          })
         : [];
 
     // DEBUG: Also check total buyers in database
@@ -4581,13 +4526,13 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingProducts =
       uniqueProductNames.length > 0
         ? await Product.findAll({
-          where: {
-            name: {
-              [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
+            where: {
+              name: {
+                [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
+              },
             },
-          },
-          attributes: ["id", "name", "description", "hsCode", "uom"],
-        })
+            attributes: ["id", "name", "description", "hsCode", "uom"],
+          })
         : [];
 
     // Create lookup maps for O(1) access - case insensitive
@@ -5463,9 +5408,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // SIMPLIFIED: Process all invoices in a single transaction like regular uploads
     // SIMPLIFIED & OPTIMIZED: Process in chunks within a single transaction
-    console.log(
-      `🚀 Processing ${invoiceBatches.length} invoices in chunks...`,
-    );
+    console.log(`🚀 Processing ${invoiceBatches.length} invoices in chunks...`);
 
     const allCreatedInvoices = await sequelize.transaction(async (t) => {
       // No buyer creation - only use existing buyers
@@ -5476,7 +5419,9 @@ export const bulkCreateInvoices = async (req, res) => {
       // Process invoices in chunks
       for (let i = 0; i < invoiceChunks.length; i++) {
         const chunk = invoiceChunks[i];
-        console.log(`🔄 Processing chunk ${i + 1}/${invoiceChunks.length} with ${chunk.length} invoices...`);
+        console.log(
+          `🔄 Processing chunk ${i + 1}/${invoiceChunks.length} with ${chunk.length} invoices...`,
+        );
 
         // Ensure timestamps are set
         const now = new Date();
@@ -5507,33 +5452,45 @@ export const bulkCreateInvoices = async (req, res) => {
           const minIndex = offset;
           const maxIndex = offset + chunk.length;
 
-          const chunkItemBatches = invoiceItemBatches.filter(item =>
-            item._invoiceIndex >= minIndex && item._invoiceIndex < maxIndex
+          const chunkItemBatches = invoiceItemBatches.filter(
+            (item) =>
+              item._invoiceIndex >= minIndex && item._invoiceIndex < maxIndex,
           );
 
           if (chunkItemBatches.length > 0) {
-            console.log(`  Items for chunk ${i + 1}: ${chunkItemBatches.length}`);
+            console.log(
+              `  Items for chunk ${i + 1}: ${chunkItemBatches.length}`,
+            );
 
-            const itemsWithInvoiceIds = chunkItemBatches.map(item => {
-              // The createdChunk array corresponds to indices 0 to chunk.length-1 relative to this loop
-              // item._invoiceIndex - minIndex gives us the index in createdChunk
-              const localIndex = item._invoiceIndex - minIndex;
-              const invoice = createdChunk[localIndex];
+            const itemsWithInvoiceIds = chunkItemBatches
+              .map((item) => {
+                // The createdChunk array corresponds to indices 0 to chunk.length-1 relative to this loop
+                // item._invoiceIndex - minIndex gives us the index in createdChunk
+                const localIndex = item._invoiceIndex - minIndex;
+                const invoice = createdChunk[localIndex];
 
-              if (!invoice) return null;
+                if (!invoice) return null;
 
-              const itemRecord = {
-                ...item,
-                invoice_id: invoice.id
-              };
-              delete itemRecord._invoiceIndex;
-              return itemRecord;
-            }).filter(item => item !== null);
+                const itemRecord = {
+                  ...item,
+                  invoice_id: invoice.id,
+                };
+                delete itemRecord._invoiceIndex;
+                return itemRecord;
+              })
+              .filter((item) => item !== null);
 
             // Bulk create items for this chunk (further chunking items if too many)
             const itemSubChunkSize = 2000;
-            for (let j = 0; j < itemsWithInvoiceIds.length; j += itemSubChunkSize) {
-              const itemSubChunk = itemsWithInvoiceIds.slice(j, j + itemSubChunkSize);
+            for (
+              let j = 0;
+              j < itemsWithInvoiceIds.length;
+              j += itemSubChunkSize
+            ) {
+              const itemSubChunk = itemsWithInvoiceIds.slice(
+                j,
+                j + itemSubChunkSize,
+              );
               await InvoiceItem.bulkCreate(itemSubChunk, {
                 transaction: t,
                 validate: false,
@@ -5549,8 +5506,13 @@ export const bulkCreateInvoices = async (req, res) => {
 
             if (userId) {
               // We can cache this lookup outside the loop if we want, but doing it per chunk is acceptable overhead
-              const { default: User } = await import("../../model/mysql/User.js");
-              const userExists = await User.findByPk(userId, { attributes: ['id'], raw: true });
+              const { default: User } = await import(
+                "../../model/mysql/User.js"
+              );
+              const userExists = await User.findByPk(userId, {
+                attributes: ["id"],
+                raw: true,
+              });
               if (userExists) validatedUserId = userId;
             }
 
@@ -5560,29 +5522,32 @@ export const bulkCreateInvoices = async (req, res) => {
               operation: "CREATE",
               userId: validatedUserId,
               userEmail: req.user?.email || null,
-              userName: req.user?.firstName || req.user?.lastName
-                ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
-                : req.user?.userName || req.user?.email || "Unknown",
+              userName:
+                req.user?.firstName || req.user?.lastName
+                  ? `${req.user?.firstName ?? ""}${req.user?.lastName ? ` ${req.user.lastName}` : ""}`.trim()
+                  : req.user?.userName || req.user?.email || "Unknown",
               userRole: req.user?.role || null,
               tenantId: req.tenant?.id || req.tenant?.tenantId || null,
-              tenantName: req.tenant?.seller_business_name || req.tenant?.name || null,
+              tenantName:
+                req.tenant?.seller_business_name || req.tenant?.name || null,
               oldValues: null,
               newValues: JSON.stringify(invoice),
               ipAddress: req.ip || req.connection?.remoteAddress,
               userAgent: req.get ? req.get("User-Agent") : null,
-              requestId: req.headers?.["x-request-id"] || `bulk_${Date.now()}_chunk_${i}`,
+              requestId:
+                req.headers?.["x-request-id"] ||
+                `bulk_${Date.now()}_chunk_${i}`,
               created_at: new Date(),
               additionalInfo: JSON.stringify({
                 source: "bulk_upload",
                 processId,
                 bulkBatchId: processId,
-                chunk: i + 1
+                chunk: i + 1,
               }),
             }));
 
             await AuditLog.bulkCreate(auditEntries);
           }
-
         } catch (chunkError) {
           console.error(`❌ Error in chunk ${i + 1}:`, chunkError);
           throw chunkError;
@@ -5652,14 +5617,16 @@ export const bulkCreateInvoices = async (req, res) => {
           // Check if user exists in database
           const { default: User } = await import("../../model/mysql/User.js");
           const userExists = await User.findByPk(userId, {
-            attributes: ['id'],
+            attributes: ["id"],
             raw: true,
           });
 
           if (userExists) {
             validatedUserId = userId;
           } else {
-            console.warn(`⚠️ User ID ${userId} does not exist in database, setting to null`);
+            console.warn(
+              `⚠️ User ID ${userId} does not exist in database, setting to null`,
+            );
           }
         }
 
@@ -5871,7 +5838,9 @@ export const getDashboardSummary = async (req, res) => {
     }
 
     // Regular users can see ALL company dashboard data as requested
-    console.log("Dashboard visibility - showing all non-deleted metrics for the tenant");
+    console.log(
+      "Dashboard visibility - showing all non-deleted metrics for the tenant",
+    );
 
     // Key metrics
 
@@ -6264,21 +6233,50 @@ export const getProvincesController = async (req, res) => {
 
 // Validate invoice data with FBR
 
-export const validateInvoiceDataController = async (req, res) => {
-  try {
+export const validateInvoiceDataController = catchAsync(
+  async (req, res, next) => {
     const { environment = "production" } = req.query;
-
     const invoiceData = req.body;
+
+    // Basic Input Validation
+    const validationErrors = [];
+    if (!invoiceData.sellerNTNCNIC || !invoiceData.sellerBusinessName) {
+      validationErrors.push(
+        "Seller Information (NTN/CNIC, Business Name) is missing",
+      );
+    }
+    if (!invoiceData.buyerNTNCNIC) {
+      validationErrors.push("Buyer NTN/CNIC is missing");
+    }
+    if (
+      !invoiceData.items ||
+      !Array.isArray(invoiceData.items) ||
+      invoiceData.items.length === 0
+    ) {
+      validationErrors.push("At least one item is required");
+    } else {
+      // Validate individual items
+      invoiceData.items.forEach((item, index) => {
+        if (!item.hsCode)
+          validationErrors.push(`Item ${index + 1}: HS Code is missing`);
+        if (!item.rate)
+          validationErrors.push(`Item ${index + 1}: Rate is missing`);
+        if (!item.uoM)
+          validationErrors.push(`Item ${index + 1}: UoM is missing`);
+      });
+    }
+
+    if (validationErrors.length > 0) {
+      return next(
+        new AppError(`Validation failed: ${validationErrors.join("; ")}`, 400),
+      );
+    }
 
     // Get tenant from middleware (set by identifyTenant)
     const tenant = req.tenant;
 
     if (!tenant) {
-      return res.status(404).json({
-        success: false,
-
-        message: "Tenant not found",
-      });
+      return next(new AppError("Tenant not found", 404));
     }
 
     console.log(
@@ -6292,82 +6290,73 @@ export const validateInvoiceDataController = async (req, res) => {
         : tenant.sandboxTestToken || tenant.sandboxProductionToken;
 
     if (!fbrToken) {
-      return res.status(400).json({
-        success: false,
-
-        message: "FBR credentials not found for this tenant",
-      });
+      return next(
+        new AppError("FBR credentials not found for this tenant", 400),
+      );
     }
 
     // Call FBR service to validate invoice data
+    try {
+      const validationResult = await validateInvoiceData(
+        invoiceData,
+        environment,
+        fbrToken,
+      );
 
-    const validationResult = await validateInvoiceData(
-      invoiceData,
-
-      environment,
-
-      fbrToken,
-    );
-
-    res.json({
-      success: true,
-
-      message: "Invoice data validated successfully",
-
-      data: validationResult,
-    });
-  } catch (error) {
-    console.error("Error validating invoice data:", error);
-
-    // Handle specific error cases
-
-    if (error.response?.status === 401) {
-      return res.status(401).json({
-        success: false,
-
-        message: "FBR authentication failed. Please check your credentials.",
+      res.status(200).json({
+        success: true,
+        message: "Invoice data validated successfully",
+        data: validationResult,
       });
-    } else if (error.response?.status === 400) {
-      return res.status(400).json({
-        success: false,
-
-        message: "Invalid invoice data provided.",
-
-        data: error.response?.data,
-      });
-    } else if (error.response?.status === 500) {
-      return res.status(503).json({
-        success: false,
-
-        message:
+    } catch (error) {
+      console.error("Error validating invoice data:", error);
+      // Handle specific error cases from FBR Service
+      if (error.response?.status === 401) {
+        return next(
+          new AppError(
+            "FBR authentication failed. Please check your credentials.",
+            401,
+          ),
+        );
+      } else if (error.response?.status === 400) {
+        // Pass through FBR validation errors
+        const fbrError =
           error.response?.data?.error ||
           error.response?.data?.message ||
-          "FBR system is temporarily unavailable. Please try again later.",
-
-        data: error.response?.data,
-      });
-    } else if (error.code === "ECONNABORTED") {
-      return res.status(408).json({
-        success: false,
-
-        message: "Request timeout. FBR system may be slow. Please try again.",
-      });
-    } else if (error.code === "ERR_NETWORK") {
-      return res.status(503).json({
-        success: false,
-
-        message: "Network error. Please check your connection and try again.",
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-
-        message:
-          error.message || "Unable to validate invoice data with FBR API.",
-      });
+          "Invalid invoice data provided.";
+        const appError = new AppError(fbrError, 400);
+        // Attach data if available for frontend to parse
+        if (error.response?.data) {
+          appError.data = error.response.data;
+        }
+        return next(appError);
+      } else if (error.response?.status === 500) {
+        return next(
+          new AppError(
+            "FBR system is temporarily unavailable. Please try again later.",
+            503,
+          ),
+        );
+      } else if (error.code === "ECONNABORTED") {
+        return next(
+          new AppError(
+            "Request timeout. FBR system may be slow. Please try again.",
+            408,
+          ),
+        );
+      } else if (error.code === "ERR_NETWORK") {
+        return next(
+          new AppError(
+            "Network error. Please check your connection and try again.",
+            503,
+          ),
+        );
+      } else {
+        return next(error);
+      }
     }
-  }
-};
+  },
+);
 
 // Submit invoice data to FBR
 
@@ -6422,18 +6411,24 @@ export const submitInvoiceDataController = async (req, res) => {
       let invoiceBackup = null;
       if (req.tenantModels && req.tenantModels.Invoice) {
         const { Invoice } = req.tenantModels;
-        const invoiceNum = invoiceData.invoiceNumber || invoiceData.invoice_number;
+        const invoiceNum =
+          invoiceData.invoiceNumber || invoiceData.invoice_number;
         if (invoiceNum) {
-          invoiceBackup = await Invoice.findOne({ where: { invoice_number: invoiceNum } });
+          invoiceBackup = await Invoice.findOne({
+            where: { invoice_number: invoiceNum },
+          });
         }
       }
 
       const mockInvoice = {
         id: invoiceBackup ? invoiceBackup.id : null, // Use null if no invoice found
-        invoice_number: invoiceData.invoiceNumber || invoiceData.invoice_number || "UNKNOWN",
-        system_invoice_id: invoiceBackup ? invoiceBackup.system_invoice_id : null,
+        invoice_number:
+          invoiceData.invoiceNumber || invoiceData.invoice_number || "UNKNOWN",
+        system_invoice_id: invoiceBackup
+          ? invoiceBackup.system_invoice_id
+          : null,
         status: invoiceBackup ? invoiceBackup.status : "unknown",
-        ...invoiceData
+        ...invoiceData,
       };
 
       if (invoiceBackup) {
@@ -6457,7 +6452,10 @@ export const submitInvoiceDataController = async (req, res) => {
         },
       });
     } catch (backupError) {
-      console.error("❌ Error creating FBR backup in submitInvoiceDataController:", backupError);
+      console.error(
+        "❌ Error creating FBR backup in submitInvoiceDataController:",
+        backupError,
+      );
     }
 
     res.json({
@@ -6579,16 +6577,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
         provinceMap = Array.isArray(provinces)
           ? provinces.reduce((acc, p) => {
-            const desc =
-              p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
+              const desc =
+                p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
 
-            const code =
-              p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
+              const code =
+                p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
 
-            if (desc && code) acc[desc.toUpperCase()] = code;
+              if (desc && code) acc[desc.toUpperCase()] = code;
 
-            return acc;
-          }, {})
+              return acc;
+            }, {})
           : {};
 
         const tenantProvince = (
@@ -6812,10 +6810,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                    id: rateId ? String(rateId) : null,
+                      id: rateId ? String(rateId) : null,
 
-                    desc: String(rateDesc).trim(),
-                  }
+                      desc: String(rateDesc).trim(),
+                    }
                   : null;
               })
 
@@ -6881,10 +6879,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                    id: rateId ? String(rateId) : null,
+                      id: rateId ? String(rateId) : null,
 
-                    desc: String(rateDesc).trim(),
-                  }
+                      desc: String(rateDesc).trim(),
+                    }
                   : null;
               })
 
@@ -7871,17 +7869,17 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
       // item_sroItemSerialNo dropdown
       template.getCell(r, headerIndex("item_sroItemSerialNo")).dataValidation =
-      {
-        type: "list",
-        allowBlank: true,
-        formulae: [
-          `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
-        ],
-        showErrorMessage: true,
-        errorStyle: "warning",
-        errorTitle: "Invalid SRO Item",
-        error: "Select a valid SRO Item from the dropdown list.",
-      };
+        {
+          type: "list",
+          allowBlank: true,
+          formulae: [
+            `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
+          ],
+          showErrorMessage: true,
+          errorStyle: "warning",
+          errorTitle: "Invalid SRO Item",
+          error: "Select a valid SRO Item from the dropdown list.",
+        };
 
       // item_uoM dropdown
       template.getCell(r, headerIndex("item_uoM")).dataValidation = {
@@ -7945,16 +7943,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       };
 
       template.getCell(r, headerIndex("item_advanceIncomeTax")).dataValidation =
-      {
-        type: "decimal",
-        operator: "greaterThanOrEqual",
-        formulae: [0],
-        allowBlank: true,
-        showErrorMessage: true,
-        errorStyle: "warning",
-        errorTitle: "Invalid Advance Income Tax",
-        error: "Advance Income Tax must be a positive number.",
-      };
+        {
+          type: "decimal",
+          operator: "greaterThanOrEqual",
+          formulae: [0],
+          allowBlank: true,
+          showErrorMessage: true,
+          errorStyle: "warning",
+          errorTitle: "Invalid Advance Income Tax",
+          error: "Advance Income Tax must be a positive number.",
+        };
 
       // Auto-populate Sales Type based on Transaction Type selection
       const transctypeColLetter = getColLetter(headerIndex("transctypeId"));

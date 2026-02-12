@@ -143,6 +143,31 @@ api.interceptors.request.use(
   },
 );
 
+// Add response interceptor for global error handling
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error("API Error:", error);
+
+    // Extract user-friendly error message from backend response
+    if (error.response && error.response.data) {
+      const backendMessage = error.response.data.message;
+
+      // If we have a backend message, use it overrides the default axios message
+      if (backendMessage) {
+        error.message = backendMessage;
+      }
+    } else if (error.request) {
+      // Network error
+      error.message = "Network error. Please check your internet connection.";
+    }
+
+    return Promise.reject(error);
+  },
+);
+
 // Utility function to get current token state for debugging
 export const getCurrentTokenState = () => {
   const selectedTenant = localStorage.getItem("selectedTenant");
