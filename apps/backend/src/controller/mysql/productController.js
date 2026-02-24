@@ -790,7 +790,7 @@ export const bulkCreateProducts = async (req, res) => {
     const insertTime = Number(process.hrtime.bigint() - insertStart) / 1000000;
 
     // Combine all errors
-    results.errors = [...validationErrors, ...duplicateErrors];
+    results.errors = [...validationErrors];
 
     const totalTime = Number(process.hrtime.bigint() - startTime) / 1000000;
 

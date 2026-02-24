@@ -351,59 +351,12 @@ const Products = () => {
       }
     } catch (error) {
       console.error("Error uploading products:", error);
-
-      // Fallback to individual uploads if bulk endpoint fails
-      console.log("Bulk upload failed, falling back to individual uploads...");
-
-      const createdProducts = [];
-      const errors = [];
-
-      for (const product of productsData) {
-        try {
-          const response = await api.post(
-            `/tenant/${selectedTenant.tenant_id}/products`,
-            {
-              name: product.productName || product.name,
-              description: product.productDescription || product.description,
-              hsCode: product.hsCode,
-              uom: product.uom,
-            }
-          );
-
-          if (response.data.success) {
-            createdProducts.push(response.data.data);
-          } else {
-            errors.push({
-              product: product.productName || product.name,
-              error: response.data.message || "Failed to create product",
-            });
-          }
-        } catch (individualError) {
-          errors.push({
-            product: product.productName || product.name,
-            error:
-              individualError.response?.data?.message ||
-              individualError.message ||
-              "Error creating product",
-          });
-        }
-      }
-
-      if (createdProducts.length > 0) {
-        setProducts((prev) => [...prev, ...createdProducts]);
-      }
-
+      toast.error(error.message || "An error occurred during bulk upload. Please check your data and try again.", {
+        autoClose: 5000,
+      });
       return {
-        data: {
-          data: {
-            summary: {
-              successful: createdProducts.length,
-              failed: errors.length,
-            },
-            errors: errors,
-            createdProducts: createdProducts,
-          },
-        },
+        error: true,
+        message: error.message
       };
     } finally {
       setLoading(false);
