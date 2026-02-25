@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://plasticprocessing.inplsoftwares.com",
+        target: "https://amggarments.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
