@@ -356,7 +356,7 @@ class AutoSchemaSync {
         defaultValue: 0,
       },
       {
-        table: "invoice_items",
+        table: "Invoice",
         column: "isDeleted",
         type: "TINYINT(1)",
         allowNull: false,
@@ -364,6 +364,27 @@ class AutoSchemaSync {
       },
       {
         table: "invoice_items",
+        column: "isDeleted",
+        type: "TINYINT(1)",
+        allowNull: false,
+        defaultValue: 0,
+      },
+      {
+        table: "InvoiceItem",
+        column: "isDeleted",
+        type: "TINYINT(1)",
+        allowNull: false,
+        defaultValue: 0,
+      },
+      {
+        table: "invoice_items",
+        column: "invoiceItemNo",
+        type: "varchar(255)",
+        allowNull: true,
+        defaultValue: "",
+      },
+      {
+        table: "InvoiceItems",
         column: "invoiceItemNo",
         type: "varchar(255)",
         allowNull: true,
@@ -459,6 +480,12 @@ class AutoSchemaSync {
       // Foreign key relationships
       {
         table: "invoices",
+        column: "buyer_id",
+        type: "INT",
+        allowNull: true,
+      },
+      {
+        table: "Invoice",
         column: "buyer_id",
         type: "INT",
         allowNull: true,
