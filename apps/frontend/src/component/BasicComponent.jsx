@@ -236,7 +236,7 @@ export default function BasicTable() {
       params.append("sort_order", sortOrder);
 
       const response = await api.get(
-        `/tenant/${selectedTenant.tenant_id}/invoices?${params.toString()}`
+        `/tenant/${selectedTenant.tenant_id}/invoices?${params.toString()}`,
       );
 
       if (response.data.success) {
@@ -282,7 +282,15 @@ export default function BasicTable() {
       // Trigger API call for any changes
       getMyInvoices(true);
     }
-  }, [debouncedSearch, page, rowsPerPage, saleType, statusFilter, fromDate, toDate]);
+  }, [
+    debouncedSearch,
+    page,
+    rowsPerPage,
+    saleType,
+    statusFilter,
+    fromDate,
+    toDate,
+  ]);
 
   const handleButtonClick = async (invoice) => {
     try {
@@ -328,7 +336,7 @@ export default function BasicTable() {
       }
 
       const response = await api.get(
-        `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`
+        `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`,
       );
 
       if (response.data.success) {
@@ -360,7 +368,7 @@ export default function BasicTable() {
       }
 
       const response = await api.get(
-        `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`
+        `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`,
       );
 
       if (response.data.success) {
@@ -370,7 +378,7 @@ export default function BasicTable() {
           // For saved and draft invoices, navigate to create form with data
           localStorage.setItem(
             "editInvoiceData",
-            JSON.stringify(response.data.data)
+            JSON.stringify(response.data.data),
           );
           navigate("/create-invoice");
         }
@@ -392,9 +400,9 @@ export default function BasicTable() {
 
   const handleBulkUpload = async (invoicesData, options = {}) => {
     const {
-      onProgress = () => { },
-      onChunkComplete = () => { },
-      onError = () => { },
+      onProgress = () => {},
+      onChunkComplete = () => {},
+      onError = () => {},
       chunkSize = 1000,
     } = options;
 
@@ -413,7 +421,7 @@ export default function BasicTable() {
             onProgress,
             onChunkComplete,
             onError,
-          }
+          },
         );
 
         if (result.success) {
@@ -427,13 +435,13 @@ export default function BasicTable() {
                 autoClose: 8000,
                 closeOnClick: false,
                 pauseOnHover: true,
-              }
+              },
             );
             console.error("Upload errors:", errors);
           } else {
             getMyInvoices();
             toast.success(
-              `Successfully uploaded ${successfulInvoices} invoices as drafts!`
+              `Successfully uploaded ${successfulInvoices} invoices as drafts!`,
             );
           }
 
@@ -447,7 +455,7 @@ export default function BasicTable() {
         // For small uploads, use regular API
         const response = await api.post(
           `/tenant/${selectedTenant.tenant_id}/invoices/bulk`,
-          { invoices: invoicesData, chunkSize }
+          { invoices: invoicesData, chunkSize },
         );
 
         if (response.data.success) {
@@ -460,13 +468,13 @@ export default function BasicTable() {
                 autoClose: 8000,
                 closeOnClick: false,
                 pauseOnHover: true,
-              }
+              },
             );
             console.error("Upload errors:", errors);
           } else {
             getMyInvoices();
             toast.success(
-              `Successfully uploaded ${summary.successful} invoices as drafts!`
+              `Successfully uploaded ${summary.successful} invoices as drafts!`,
             );
           }
 
@@ -509,14 +517,14 @@ export default function BasicTable() {
         }
 
         const response = await api.delete(
-          `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`
+          `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`,
         );
 
         if (response.data.success) {
           Swal.fire(
             "Deleted!",
             "Invoice has been deleted successfully.",
-            "success"
+            "success",
           );
           // Refresh the invoice list
           getMyInvoices();
@@ -542,7 +550,8 @@ export default function BasicTable() {
       if (!selectedTenant) {
         await showError({
           title: "Error",
-          message: "Please select a Company before saving and validating invoices.",
+          message:
+            "Please select a Company before saving and validating invoices.",
           type: "error",
         });
         setSaveValidateLoading(false);
@@ -561,7 +570,7 @@ export default function BasicTable() {
 
       // Get selected invoice details
       const selectedInvoiceDetails = filteredInvoices.filter((invoice) =>
-        selectedInvoices.has(invoice._id || invoice.id)
+        selectedInvoices.has(invoice._id || invoice.id),
       );
 
       // Process each selected invoice
@@ -570,7 +579,7 @@ export default function BasicTable() {
         try {
           // Get full invoice details
           const response = await api.get(
-            `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`
+            `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`,
           );
 
           if (response.data.success) {
@@ -602,19 +611,19 @@ export default function BasicTable() {
                 const baseItem = {
                   ...rest,
                   fixedNotifiedValueOrRetailPrice: Number(
-                    Number(retailPrice || 0).toFixed(2)
+                    Number(retailPrice || 0).toFixed(2),
                   ),
                   quantity:
                     rest.quantity === "" ? 0 : parseFloat(rest.quantity || 0),
                   unitPrice: Number(Number(rest.unitPrice || 0).toFixed(2)),
                   valueSalesExcludingST: Number(
-                    Number(rest.valueSalesExcludingST || 0).toFixed(2)
+                    Number(rest.valueSalesExcludingST || 0).toFixed(2),
                   ),
                   salesTaxApplicable:
                     Math.round(Number(rest.salesTaxApplicable || 0) * 100) /
                     100,
                   salesTaxWithheldAtSource: Number(
-                    Number(rest.salesTaxWithheldAtSource || 0).toFixed(2)
+                    Number(rest.salesTaxWithheldAtSource || 0).toFixed(2),
                   ),
                   totalValues: Number(Number(rest.totalValues || 0).toFixed(2)),
                   sroScheduleNo: rest.sroScheduleNo?.trim() || null,
@@ -632,7 +641,7 @@ export default function BasicTable() {
                 // Only include extraTax if saleType is NOT "Goods at Reduced Rate"
                 if (rest.saleType?.trim() !== "Goods at Reduced Rate") {
                   baseItem.extraTax = Number(
-                    Number(rest.extraTax || 0).toFixed(2)
+                    Number(rest.extraTax || 0).toFixed(2),
                   );
                 } else {
                   // For "Goods at Reduced Rate", send empty string instead of null
@@ -640,7 +649,7 @@ export default function BasicTable() {
                 }
 
                 return baseItem;
-              }
+              },
             );
 
             const cleanedData = {
@@ -650,14 +659,14 @@ export default function BasicTable() {
                 : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+              // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
               items: cleanedItems,
             };
 
             // STEP 1: Hit FBR API through backend - validateinvoicedata
             const fbrValidateResponse = await api.post(
               `/tenant/${selectedTenant.tenant_id}/validate-invoice?environment=production`,
-              cleanedData
+              cleanedData,
             );
 
             // Handle different FBR response structures
@@ -732,7 +741,7 @@ export default function BasicTable() {
             // Only proceed if FBR validation was successful
             const saveResponse = await api.post(
               `/tenant/${selectedTenant.tenant_id}/invoices/save-validate`,
-              invoiceData
+              invoiceData,
             );
 
             if (saveResponse.status === 201) {
@@ -758,7 +767,7 @@ export default function BasicTable() {
         } catch (error) {
           console.error(
             `Error processing invoice ${invoice.invoiceNumber}:`,
-            error
+            error,
           );
           results.push({
             invoiceNumber: invoice.invoiceNumber,
@@ -788,8 +797,9 @@ export default function BasicTable() {
       } else if (successful.length === 0) {
         // Flatten all errors including item-level errors
         const errorDetails = [];
-        let generalMessage = "All selected invoices failed validation or saving.";
-        
+        let generalMessage =
+          "All selected invoices failed validation or saving.";
+
         failed.forEach((f) => {
           if (f.itemErrors && f.itemErrors.length > 0) {
             // If there are item-level errors, show each item error separately
@@ -800,7 +810,10 @@ export default function BasicTable() {
               });
             });
             // Include general error message if available
-            if (f.message && f.message !== "Invoice validation with FBR failed.") {
+            if (
+              f.message &&
+              f.message !== "Invoice validation with FBR failed."
+            ) {
               generalMessage = f.message;
             }
           } else {
@@ -869,15 +882,15 @@ export default function BasicTable() {
 
       // Get selected invoice details
       const selectedInvoiceDetails = filteredInvoices.filter((invoice) =>
-        selectedInvoices.has(invoice._id || invoice.id)
+        selectedInvoices.has(invoice._id || invoice.id),
       );
 
       console.log(
-        `🖨️ Bulk Print: Generating single PDF with ${selectedInvoiceDetails.length} invoices`
+        `🖨️ Bulk Print: Generating single PDF with ${selectedInvoiceDetails.length} invoices`,
       );
       console.log(
         "Selected invoices:",
-        selectedInvoiceDetails.map((inv) => inv.invoiceNumber)
+        selectedInvoiceDetails.map((inv) => inv.invoiceNumber),
       );
 
       // Show loading message
@@ -885,7 +898,7 @@ export default function BasicTable() {
         `Generating PDF with ${selectedInvoiceDetails.length} invoice(s)...`,
         {
           autoClose: 3000,
-        }
+        },
       );
 
       // Call bulk print API
@@ -893,7 +906,7 @@ export default function BasicTable() {
         "/bulk-print-invoices",
         {
           invoiceNumbers: selectedInvoiceDetails.map(
-            (inv) => inv.invoiceNumber
+            (inv) => inv.invoiceNumber,
           ),
           tenantId: selectedTenant?.tenant_id,
         },
@@ -903,7 +916,7 @@ export default function BasicTable() {
             "Content-Type": "application/json",
           },
           responseType: "blob", // Important for PDF download
-        }
+        },
       );
 
       // Create blob and download
@@ -918,7 +931,7 @@ export default function BasicTable() {
       window.URL.revokeObjectURL(url);
 
       toast.success(
-        `PDF generated with ${selectedInvoiceDetails.length} invoice(s)`
+        `PDF generated with ${selectedInvoiceDetails.length} invoice(s)`,
       );
 
       // Clear selection after printing
@@ -956,7 +969,7 @@ export default function BasicTable() {
 
       // Get selected invoice details
       const selectedInvoiceDetails = filteredInvoices.filter((invoice) =>
-        selectedInvoices.has(invoice._id || invoice.id)
+        selectedInvoices.has(invoice._id || invoice.id),
       );
 
       // Process each selected invoice
@@ -965,7 +978,7 @@ export default function BasicTable() {
         try {
           // Get full invoice details
           const response = await api.get(
-            `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`
+            `/tenant/${selectedTenant.tenant_id}/invoices/${invoice.id}`,
           );
 
           if (response.data.success) {
@@ -997,19 +1010,19 @@ export default function BasicTable() {
                 const baseItem = {
                   ...rest,
                   fixedNotifiedValueOrRetailPrice: Number(
-                    Number(retailPrice || 0).toFixed(2)
+                    Number(retailPrice || 0).toFixed(2),
                   ),
                   quantity:
                     rest.quantity === "" ? 0 : parseFloat(rest.quantity || 0),
                   unitPrice: Number(Number(rest.unitPrice || 0).toFixed(2)),
                   valueSalesExcludingST: Number(
-                    Number(rest.valueSalesExcludingST || 0).toFixed(2)
+                    Number(rest.valueSalesExcludingST || 0).toFixed(2),
                   ),
                   salesTaxApplicable:
                     Math.round(Number(rest.salesTaxApplicable || 0) * 100) /
                     100,
                   salesTaxWithheldAtSource: Number(
-                    Number(rest.salesTaxWithheldAtSource || 0).toFixed(2)
+                    Number(rest.salesTaxWithheldAtSource || 0).toFixed(2),
                   ),
                   totalValues: Number(Number(rest.totalValues || 0).toFixed(2)),
                   sroScheduleNo: rest.sroScheduleNo?.trim() || null,
@@ -1027,7 +1040,7 @@ export default function BasicTable() {
                 // Only include extraTax if saleType is NOT "Goods at Reduced Rate"
                 if (rest.saleType?.trim() !== "Goods at Reduced Rate") {
                   baseItem.extraTax = Number(
-                    Number(rest.extraTax || 0).toFixed(2)
+                    Number(rest.extraTax || 0).toFixed(2),
                   );
                 } else {
                   // For "Goods at Reduced Rate", send empty string instead of null
@@ -1035,7 +1048,7 @@ export default function BasicTable() {
                 }
 
                 return baseItem;
-              }
+              },
             );
 
             const cleanedData = {
@@ -1045,7 +1058,7 @@ export default function BasicTable() {
                 : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              scenarioId: "SN001",
+              // scenarioId: "SN001",
               items: cleanedItems,
             };
 
@@ -1071,7 +1084,7 @@ export default function BasicTable() {
                     const value = Number(item[field]);
                     if (isNaN(value) || value < 0) {
                       throw new Error(
-                        `Item ${i + 1}: Invalid ${field} value. Must be a non-negative number.`
+                        `Item ${i + 1}: Invalid ${field} value. Must be a non-negative number.`,
                       );
                     }
                   }
@@ -1086,7 +1099,7 @@ export default function BasicTable() {
                   const extraTaxValue = Number(item.extraTax);
                   if (isNaN(extraTaxValue) || extraTaxValue < 0) {
                     throw new Error(
-                      `Item ${i + 1}: Invalid extraTax value. Must be a non-negative number.`
+                      `Item ${i + 1}: Invalid extraTax value. Must be a non-negative number.`,
                     );
                   }
                 }
@@ -1102,7 +1115,7 @@ export default function BasicTable() {
             // STEP 1: Hit FBR API through backend
             const fbrResponse = await api.post(
               `/tenant/${selectedTenant.tenant_id}/submit-invoice?environment=production`,
-              cleanedData
+              cleanedData,
             );
 
             // Handle different FBR response structures
@@ -1202,7 +1215,7 @@ export default function BasicTable() {
             // Ensure we have a valid FBR invoice number
             if (!fbrInvoiceNumber || fbrInvoiceNumber.trim() === "") {
               throw new Error(
-                "FBR submission failed: No invoice number received from FBR"
+                "FBR submission failed: No invoice number received from FBR",
               );
             }
 
@@ -1221,12 +1234,12 @@ export default function BasicTable() {
             // Call backend API to save invoice
             const backendResponse = await api.post(
               `/tenant/${selectedTenant.tenant_id}/invoices`,
-              backendData
+              backendData,
             );
 
             if (backendResponse.status !== 200) {
               throw new Error(
-                `Failed to save invoice to backend database. Status: ${backendResponse.status}`
+                `Failed to save invoice to backend database. Status: ${backendResponse.status}`,
               );
             }
 
@@ -1245,7 +1258,7 @@ export default function BasicTable() {
         } catch (error) {
           console.error(
             `Error processing invoice ${invoice.invoiceNumber}:`,
-            error
+            error,
           );
           results.push({
             invoiceNumber: invoice.invoiceNumber,
@@ -1277,7 +1290,7 @@ export default function BasicTable() {
         // Flatten all errors including item-level errors
         const errorDetails = [];
         let generalMessage = "All selected invoices failed to submit.";
-        
+
         failed.forEach((f) => {
           if (f.itemErrors && f.itemErrors.length > 0) {
             // If there are item-level errors, show each item error separately
@@ -1348,7 +1361,7 @@ export default function BasicTable() {
     } else {
       // Select all
       const allIds = filteredInvoices.map(
-        (invoice) => invoice._id || invoice.id
+        (invoice) => invoice._id || invoice.id,
       );
       setSelectedInvoices(new Set(allIds));
     }
@@ -1387,11 +1400,11 @@ export default function BasicTable() {
       }
 
       const selectedInvoiceDetails = filteredInvoices.filter((invoice) =>
-        selectedInvoices.has(invoice._id || invoice.id)
+        selectedInvoices.has(invoice._id || invoice.id),
       );
 
       const nonDeletable = selectedInvoiceDetails.filter(
-        (inv) => inv.status !== "draft" && inv.status !== "saved"
+        (inv) => inv.status !== "draft" && inv.status !== "saved",
       );
 
       if (nonDeletable.length > 0) {
@@ -1424,7 +1437,7 @@ export default function BasicTable() {
       for (const inv of selectedInvoiceDetails) {
         try {
           const response = await api.delete(
-            `/tenant/${selectedTenant.tenant_id}/invoices/${inv.id}`
+            `/tenant/${selectedTenant.tenant_id}/invoices/${inv.id}`,
           );
           if (response.data.success) {
             results.push({
@@ -1667,7 +1680,7 @@ export default function BasicTable() {
                     {(() => {
                       const hasPostedInvoices = filteredInvoices
                         .filter((invoice) =>
-                          selectedInvoices.has(invoice._id || invoice.id)
+                          selectedInvoices.has(invoice._id || invoice.id),
                         )
                         .some((invoice) => invoice.status === "posted");
 
@@ -2122,7 +2135,7 @@ export default function BasicTable() {
                           <Checkbox
                             checked={
                               selectedInvoices.size ===
-                              filteredInvoices.length &&
+                                filteredInvoices.length &&
                               filteredInvoices.length > 0
                             }
                             indeterminate={
@@ -2151,10 +2164,10 @@ export default function BasicTable() {
                           key={heading}
                           align={
                             heading === "S.No" ||
-                              heading === "System ID" ||
-                              heading === "Invoice Number" ||
-                              heading === "Company Invoice #" ||
-                              heading === "Invoice Date"
+                            heading === "System ID" ||
+                            heading === "Invoice Number" ||
+                            heading === "Company Invoice #" ||
+                            heading === "Invoice Date"
                               ? "left"
                               : "center"
                           }
@@ -2164,15 +2177,15 @@ export default function BasicTable() {
                             letterSpacing: 0.3,
                             cursor:
                               heading === "Company Invoice #" ||
-                                heading === "Invoice Date"
+                              heading === "Invoice Date"
                                 ? "pointer"
                                 : "default",
                             "&:hover":
                               heading === "Company Invoice #" ||
-                                heading === "Invoice Date"
+                              heading === "Invoice Date"
                                 ? {
-                                  backgroundColor: "#f5f5f5",
-                                }
+                                    backgroundColor: "#f5f5f5",
+                                  }
                                 : {},
                           }}
                           onClick={
@@ -2300,7 +2313,7 @@ export default function BasicTable() {
                                 size="small"
                                 onClick={() => {
                                   navigator.clipboard.writeText(
-                                    row.invoiceNumber
+                                    row.invoiceNumber,
                                   );
                                   toast.success(
                                     `Invoice Number "${row.invoiceNumber}" copied to clipboard.`,
@@ -2308,7 +2321,7 @@ export default function BasicTable() {
                                       autoClose: 3000,
                                       closeOnClick: false,
                                       pauseOnHover: true,
-                                    }
+                                    },
                                   );
                                 }}
                                 sx={{
@@ -2381,8 +2394,8 @@ export default function BasicTable() {
                         <TableCell align="center">
                           {row.items && row.items.length > 0
                             ? row.items
-                              .map((item) => item.productDescription || "N/A")
-                              .join(", ")
+                                .map((item) => item.productDescription || "N/A")
+                                .join(", ")
                             : "N/A"}
                         </TableCell>
                         {isAdmin && (
@@ -2458,57 +2471,57 @@ export default function BasicTable() {
                             </Tooltip>
                             {(row.status === "draft" ||
                               row.status === "saved") && (
-                                <>
-                                  <PermissionGate permission="invoice.update">
-                                    <Tooltip
-                                      title={`Edit ${row.status === "draft" ? "Draft" : "Saved"} Invoice`}
+                              <>
+                                <PermissionGate permission="invoice.update">
+                                  <Tooltip
+                                    title={`Edit ${row.status === "draft" ? "Draft" : "Saved"} Invoice`}
+                                  >
+                                    <Button
+                                      variant="outlined"
+                                      color="warning"
+                                      size="small"
+                                      onClick={() => handleEditInvoice(row)}
+                                      sx={{
+                                        minWidth: "32px",
+                                        width: "32px",
+                                        height: "32px",
+                                        p: 0,
+                                        "&:hover": {
+                                          backgroundColor: "warning.main",
+                                          color: "warning.contrastText",
+                                          borderColor: "warning.main",
+                                        },
+                                      }}
                                     >
-                                      <Button
-                                        variant="outlined"
-                                        color="warning"
-                                        size="small"
-                                        onClick={() => handleEditInvoice(row)}
-                                        sx={{
-                                          minWidth: "32px",
-                                          width: "32px",
-                                          height: "32px",
-                                          p: 0,
-                                          "&:hover": {
-                                            backgroundColor: "warning.main",
-                                            color: "warning.contrastText",
-                                            borderColor: "warning.main",
-                                          },
-                                        }}
-                                      >
-                                        <EditIcon fontSize="small" />
-                                      </Button>
-                                    </Tooltip>
-                                  </PermissionGate>
-                                  <PermissionGate permission="invoice.delete">
-                                    <Tooltip title="Delete Invoice">
-                                      <Button
-                                        variant="outlined"
-                                        color="error"
-                                        size="small"
-                                        onClick={() => handleDeleteClick(row)}
-                                        sx={{
-                                          minWidth: "32px",
-                                          width: "32px",
-                                          height: "32px",
-                                          p: 0,
-                                          "&:hover": {
-                                            backgroundColor: "error.main",
-                                            color: "error.contrastText",
-                                            borderColor: "error.main",
-                                          },
-                                        }}
-                                      >
-                                        <DeleteIcon fontSize="small" />
-                                      </Button>
-                                    </Tooltip>
-                                  </PermissionGate>
-                                </>
-                              )}
+                                      <EditIcon fontSize="small" />
+                                    </Button>
+                                  </Tooltip>
+                                </PermissionGate>
+                                <PermissionGate permission="invoice.delete">
+                                  <Tooltip title="Delete Invoice">
+                                    <Button
+                                      variant="outlined"
+                                      color="error"
+                                      size="small"
+                                      onClick={() => handleDeleteClick(row)}
+                                      sx={{
+                                        minWidth: "32px",
+                                        width: "32px",
+                                        height: "32px",
+                                        p: 0,
+                                        "&:hover": {
+                                          backgroundColor: "error.main",
+                                          color: "error.contrastText",
+                                          borderColor: "error.main",
+                                        },
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </Button>
+                                  </Tooltip>
+                                </PermissionGate>
+                              </>
+                            )}
                           </Box>
                         </TableCell>
                       </TableRow>

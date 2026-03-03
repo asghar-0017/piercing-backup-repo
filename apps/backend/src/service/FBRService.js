@@ -3,11 +3,10 @@ import axios from "axios";
 // FBR API base URL
 const FBR_BASE_URL = "https://gw.fbr.gov.pk";
 
-
 export const fetchData = async (
   endpoint,
   environment = "sandbox",
-  token = null
+  token = null,
 ) => {
   if (!token) {
     throw new Error(`No ${environment} token provided for FBR API calls`);
@@ -43,7 +42,7 @@ export const fetchData = async (
 // New function to fetch document types from FBR
 export const getDocumentTypes = async (
   environment = "sandbox",
-  token = null
+  token = null,
 ) => {
   if (!token) {
     throw new Error(`No ${environment} token provided for FBR API calls`);
@@ -58,7 +57,7 @@ export const getDocumentTypes = async (
   try {
     const response = await axios.get(
       `${FBR_BASE_URL}/pdi/v1/doctypecode`,
-      config
+      config,
     );
 
     console.log("FBR Document Types API Response:", {
@@ -94,7 +93,7 @@ export const getProvinces = async (environment = "sandbox", token = null) => {
   try {
     const response = await axios.get(
       `${FBR_BASE_URL}/pdi/v1/provinces`,
-      config
+      config,
     );
 
     console.log("FBR Provinces API Response:", {
@@ -119,7 +118,7 @@ export const getProvinces = async (environment = "sandbox", token = null) => {
 export const validateInvoiceData = async (
   invoiceData,
   environment = "production",
-  token = null
+  token = null,
 ) => {
   if (!token) {
     throw new Error(`No ${environment} token provided for FBR API calls`);
@@ -134,9 +133,9 @@ export const validateInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata_sb`,
+      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata`,
       invoiceData,
-      config
+      config,
     );
 
     console.log("FBR Invoice Validation API Response:", {
@@ -161,7 +160,7 @@ export const validateInvoiceData = async (
 export const submitInvoiceData = async (
   invoiceData,
   environment = "production",
-  token = null
+  token = null,
 ) => {
   if (!token) {
     throw new Error(`No ${environment} token provided for FBR API calls`);
@@ -176,9 +175,9 @@ export const submitInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata_sb`,
+      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata`,
       invoiceData,
-      config
+      config,
     );
 
     console.log("FBR Invoice Submission API Response:", {
@@ -205,7 +204,7 @@ export const getSROSchedule = async (
   date = new Date().toISOString().split("T")[0],
   originationSupplierCsv,
   environment = "sandbox",
-  token = null
+  token = null,
 ) => {
   if (!token) {
     throw new Error(`No ${environment} token provided for FBR API calls`);
@@ -220,7 +219,7 @@ export const getSROSchedule = async (
   try {
     const response = await axios.get(
       `${FBR_BASE_URL}/pdi/v1/SroSchedule?rate_id=${encodeURIComponent(rateId)}&date=${encodeURIComponent(date)}&origination_supplier_csv=${encodeURIComponent(originationSupplierCsv)}`,
-      config
+      config,
     );
 
     console.log("FBR SRO Schedule API Response:", {
@@ -252,7 +251,7 @@ export const getSROItems = async (
   sroId,
   date = new Date().toISOString().split("T")[0],
   environment = "sandbox",
-  token = null
+  token = null,
 ) => {
   if (!token) {
     throw new Error(`No ${environment} token provided for FBR API calls`);
@@ -267,7 +266,7 @@ export const getSROItems = async (
   try {
     const response = await axios.get(
       `${FBR_BASE_URL}/pdi/v2/SROItem?date=${encodeURIComponent(date)}&sro_id=${encodeURIComponent(sroId)}`,
-      config
+      config,
     );
 
     console.log("FBR SRO Items API Response:", {
