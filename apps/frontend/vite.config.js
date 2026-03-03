@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://amggarments.inplsoftwares.com",
+        target: "https://sheheryarent.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
