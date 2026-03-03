@@ -650,7 +650,7 @@ export default function BasicTable() {
                 : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+              scenarioId: "SN001", // Hardcoded SN001 for FBR validation
               items: cleanedItems,
             };
 
@@ -1045,7 +1045,7 @@ export default function BasicTable() {
                 : invoiceData.buyerAddress,
               invoiceDate: dayjs(invoiceData.invoiceDate).format("YYYY-MM-DD"),
               transctypeId: invoiceData.transctypeId,
-              // scenarioId: "SN001",
+              scenarioId: "SN001",
               items: cleanedItems,
             };
 
@@ -1215,6 +1215,7 @@ export default function BasicTable() {
               items: cleanedItems, // Use cleaned items for consistency
               fbr_invoice_number: fbrInvoiceNumber,
               status: "posted", // Set status as posted since it's been submitted to FBR
+              idToDelete: invoiceData.id || null, // Pass the draft ID to be deleted by the backend
             };
 
             // Call backend API to save invoice
@@ -1227,21 +1228,6 @@ export default function BasicTable() {
               throw new Error(
                 `Failed to save invoice to backend database. Status: ${backendResponse.status}`
               );
-            }
-
-            // STEP 3: Delete the saved invoice if it exists
-            if (invoiceData.id) {
-              try {
-                const deleteResponse = await api.delete(
-                  `/tenant/${selectedTenant.tenant_id}/invoices/${invoiceData.id}`
-                );
-
-                if (deleteResponse.status !== 200) {
-                  // Failed to delete saved invoice, but submission was successful
-                }
-              } catch (deleteError) {
-                // Error deleting saved invoice, but main submission was successful
-              }
             }
 
             results.push({

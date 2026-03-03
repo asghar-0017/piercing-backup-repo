@@ -179,6 +179,7 @@ export const createInvoice = catchAsync(async (req, res, next) => {
     status = "posted",
 
     fbr_invoice_number = null,
+    idToDelete = null,
   } = req.body;
 
   // Debug: Log internal invoice number
@@ -325,6 +326,32 @@ export const createInvoice = catchAsync(async (req, res, next) => {
   // Create invoice with transaction
 
   const result = await req.tenantDb.transaction(async (t) => {
+    // If idToDelete is provided, delete that invoice (e.g., a draft being converted to posted)
+    if (idToDelete) {
+      console.log(
+        `🗑️ Deleting reference invoice #${idToDelete} during new invoice creation`,
+      );
+
+      const invoiceToDelete = await Invoice.findByPk(idToDelete, {
+        transaction: t,
+      });
+      if (invoiceToDelete) {
+        // Soft delete items
+        await InvoiceItem.update(
+          { isDeleted: true },
+          {
+            where: { invoice_id: idToDelete },
+            transaction: t,
+          },
+        );
+
+        // Soft delete invoice
+        await invoiceToDelete.update({ isDeleted: true }, { transaction: t });
+
+        console.log(`✅ Successfully soft-deleted invoice #${idToDelete}`);
+      }
+    }
+
     // Generate system invoice ID
 
     const systemInvoiceId = await generateSystemInvoiceId(Invoice);
