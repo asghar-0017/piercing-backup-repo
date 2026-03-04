@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name sheheryarent || /usr/bin/pm2 restart sheheryarent
+          /usr/bin/pm2 start index.js --name excelchemicals || /usr/bin/pm2 restart excelchemicals
