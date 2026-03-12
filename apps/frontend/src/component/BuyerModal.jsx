@@ -411,7 +411,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-      const response = await fetch("https://excelchemicals.inplsoftwares.com/api/buyer-check", {
+      const response = await fetch("https://blissindustries.inplsoftwares.com/api/buyer-check", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1148,7 +1148,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                       checkingBuyerRegistration
                         ? "Checking FBR..."
                         : formData.buyerRegistrationType ||
-                          "Will be auto-filled from FBR"
+                        "Will be auto-filled from FBR"
                     }
                     disabled
                     size="small"
@@ -1229,8 +1229,8 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                       }}
                     >
                       {buyerRegistrationHint &&
-                      (buyerRegistrationHint.includes("unavailable") ||
-                        buyerRegistrationHint.includes("FBR API issue"))
+                        (buyerRegistrationHint.includes("unavailable") ||
+                          buyerRegistrationHint.includes("FBR API issue"))
                         ? "Retry FBR Check"
                         : "Check FBR Registration"}
                     </Button>
@@ -1243,50 +1243,50 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
                 {(isSubmitting ||
                   !isFormValid() ||
                   (!checkingBuyerRegistration && !fbrFailed)) && (
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    fullWidth
-                    disabled={isSubmitting || !isFormValid()}
-                    size="small"
-                    sx={{
-                      backgroundColor: "#007AFF",
-                      color: "white",
-                      fontWeight: 600,
-                      fontSize: { xs: "13px", sm: "14px" },
-                      py: { xs: 0.8, sm: 1 },
-                      borderRadius: 2,
-                      textTransform: "none",
-                      boxShadow: "0 4px 20px rgba(0, 122, 255, 0.3)",
-                      "&:hover": {
-                        backgroundColor: "#0056CC",
-                        transform: "translateY(-1px)",
-                        boxShadow: "0 6px 25px rgba(0, 122, 255, 0.4)",
-                      },
-                      "&:disabled": {
-                        backgroundColor: isSubmitting
-                          ? "rgba(0, 122, 255, 0.6)"
-                          : "rgba(0, 0, 0, 0.12)",
-                        color: isSubmitting ? "white" : "rgba(0, 0, 0, 0.26)",
-                      },
-                      transition: "all 0.2s ease-in-out",
-                    }}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <CircularProgress
-                          size={18}
-                          sx={{ mr: 1, color: "white" }}
-                        />
-                        Saving...
-                      </>
-                    ) : !isFormValid() ? (
-                      "Fill Required Fields"
-                    ) : (
-                      "Save"
-                    )}
-                  </Button>
-                )}
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      fullWidth
+                      disabled={isSubmitting || !isFormValid()}
+                      size="small"
+                      sx={{
+                        backgroundColor: "#007AFF",
+                        color: "white",
+                        fontWeight: 600,
+                        fontSize: { xs: "13px", sm: "14px" },
+                        py: { xs: 0.8, sm: 1 },
+                        borderRadius: 2,
+                        textTransform: "none",
+                        boxShadow: "0 4px 20px rgba(0, 122, 255, 0.3)",
+                        "&:hover": {
+                          backgroundColor: "#0056CC",
+                          transform: "translateY(-1px)",
+                          boxShadow: "0 6px 25px rgba(0, 122, 255, 0.4)",
+                        },
+                        "&:disabled": {
+                          backgroundColor: isSubmitting
+                            ? "rgba(0, 122, 255, 0.6)"
+                            : "rgba(0, 0, 0, 0.12)",
+                          color: isSubmitting ? "white" : "rgba(0, 0, 0, 0.26)",
+                        },
+                        transition: "all 0.2s ease-in-out",
+                      }}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <CircularProgress
+                            size={18}
+                            sx={{ mr: 1, color: "white" }}
+                          />
+                          Saving...
+                        </>
+                      ) : !isFormValid() ? (
+                        "Fill Required Fields"
+                      ) : (
+                        "Save"
+                      )}
+                    </Button>
+                  )}
               </Stack>
             </Stack>
           </Box>
