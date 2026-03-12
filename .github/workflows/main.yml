@@ -34,4 +34,4 @@ jobs:
 
           cd ${{ github.workspace }}/apps/backend
 
-          /usr/bin/pm2 start index.js --name blissindustries || /usr/bin/pm2 restart blissindustries
+          /usr/bin/pm2 start index.js --name amarantpharma || /usr/bin/pm2 restart amarantpharma

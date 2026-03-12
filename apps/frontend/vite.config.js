@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://blissindustries.inplsoftwares.com",
+        target: "https://amarantpharma.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
