@@ -3258,7 +3258,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+        // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
         items: itemsToSave.map(
           (
             {
@@ -3359,7 +3359,7 @@ export default function CreateInvoice() {
           sellerAddress: sanitizeAddress(formData.sellerAddress),
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
           transctypeId: formData.transctypeId,
-          scenarioId: "SN001", // Hardcoded SN001 for save and validate
+          // scenarioId: "SN001", // Hardcoded SN001 for save and validate
           items: backendItems, // Use backend items that include all fields
         };
 
@@ -3684,7 +3684,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        scenarioId: "SN001", // Hardcoded SN001 for submit
+        // scenarioId: "SN001", // Hardcoded SN001 for submit
         items: cleanedItems,
       };
 
@@ -3824,7 +3824,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        scenarioId: "SN001", // Hardcoded SN001 for submit
+        // scenarioId: "SN001", // Hardcoded SN001 for submit
         items: backendItems, // Use backend items that include all fields
         fbr_invoice_number: fbrInvoiceNumber,
         status: "posted", // Set status as posted since it's been submitted to FBR
