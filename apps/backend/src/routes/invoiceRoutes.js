@@ -23,6 +23,11 @@ router.post(
 // Standard routes (fallback)
 router.post("/invoices/bulk", requirePermission("invoice_uploader"), invoiceController.bulkCreateInvoices);
 router.post(
+  "/invoices/check-company-ref",
+  requirePermission("invoice.view"),
+  invoiceController.checkCompanyRef
+);
+router.post(
   "/invoices/check-existing",
   requirePermission("invoice.view"),
   invoiceController.checkExistingInvoices

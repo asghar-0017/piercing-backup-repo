@@ -3048,11 +3048,20 @@ export default function CreateInvoice() {
       }
     } catch (error) {
       console.error("Save Error:", error);
-      await showError({
-        title: "Error",
-        message: `Failed to save invoice: ${error.response?.data?.message || error.message}`,
-        type: "error",
-      });
+      if (error.response?.status === 409) {
+        Swal.fire({
+          icon: "error",
+          title: "Duplicate Reference Number",
+          html: `Company Invoice Reference Number <strong>${formData.companyInvoiceRefNo || ""}</strong> already exists in the system.`,
+          confirmButtonColor: "#d33",
+        });
+      } else {
+        await showError({
+          title: "Error",
+          message: `Failed to save invoice: ${error.response?.data?.message || error.message}`,
+          type: "error",
+        });
+      }
     } finally {
       setSaveLoading(false);
     }
@@ -3182,6 +3191,32 @@ export default function CreateInvoice() {
         }
       }
 
+      // ── Pre-check: companyInvoiceRefNo uniqueness BEFORE hitting FBR ──
+      if (formData.companyInvoiceRefNo && formData.companyInvoiceRefNo.trim()) {
+        try {
+          const refCheckRes = await api.post(
+            `/tenant/${selectedTenant.tenant_id}/invoices/check-company-ref`,
+            {
+              companyInvoiceRefNo: formData.companyInvoiceRefNo.trim(),
+              excludeId: editingId || null,
+            },
+          );
+          if (refCheckRes.data?.exists) {
+            Swal.fire({
+              icon: "error",
+              title: "Duplicate Reference Number",
+              html: `Company Invoice Reference Number <strong>${formData.companyInvoiceRefNo.trim()}</strong> already exists in the system.`,
+              confirmButtonColor: "#d33",
+            });
+            setSaveValidateLoading(false);
+            return;
+          }
+        } catch (refCheckErr) {
+          // If the check itself fails (network etc.), don't block — backend will still validate
+          console.warn("Company ref pre-check failed:", refCheckErr.message);
+        }
+      }
+
       // Use addedItems for saving if available, otherwise use formData.items
       const itemsToSave = addedItems.length > 0 ? addedItems : formData.items;
 
@@ -3223,7 +3258,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+        scenarioId: "SN001", // Hardcoded SN001 for FBR validation
         items: itemsToSave.map(
           (
             {
@@ -3324,7 +3359,7 @@ export default function CreateInvoice() {
           sellerAddress: sanitizeAddress(formData.sellerAddress),
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
           transctypeId: formData.transctypeId,
-          // scenarioId: "SN001", // Hardcoded SN001 for save and validate
+          scenarioId: "SN001", // Hardcoded SN001 for save and validate
           items: backendItems, // Use backend items that include all fields
         };
 
@@ -3420,8 +3455,17 @@ export default function CreateInvoice() {
       }
     } catch (error) {
       console.error("Save and Validate Error:", error);
-      // Use the error handler utility to show structured error
-      await showErrorFromResponse(error, { width: "700px" });
+      if (error.response?.status === 409) {
+        Swal.fire({
+          icon: "error",
+          title: "Duplicate Reference Number",
+          html: `Company Invoice Reference Number <strong>${formData.companyInvoiceRefNo || ""}</strong> already exists in the system.`,
+          confirmButtonColor: "#d33",
+        });
+      } else {
+        // Use the error handler utility to show structured error
+        await showErrorFromResponse(error, { width: "700px" });
+      }
     } finally {
       setSaveValidateLoading(false);
     }
@@ -3640,7 +3684,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for submit
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: cleanedItems,
       };
 
@@ -3780,7 +3824,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for submit
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: backendItems, // Use backend items that include all fields
         fbr_invoice_number: fbrInvoiceNumber,
         status: "posted", // Set status as posted since it's been submitted to FBR

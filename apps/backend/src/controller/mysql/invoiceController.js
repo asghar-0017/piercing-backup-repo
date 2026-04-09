@@ -134,6 +134,20 @@ const generateShortInvoiceId = async (Invoice, prefix) => {
   }
 };
 
+// Helper to check if companyInvoiceRefNo already exists (supports excluding current record on update)
+const checkCompanyInvoiceRefNoUniqueness = async (Invoice, companyInvoiceRefNo, excludeId = null) => {
+  if (!companyInvoiceRefNo || !String(companyInvoiceRefNo).trim()) return null;
+  const where = {
+    companyInvoiceRefNo: String(companyInvoiceRefNo).trim(),
+    isDeleted: { [Invoice.sequelize.Sequelize.Op.not]: true },
+  };
+  if (excludeId) {
+    where.id = { [Invoice.sequelize.Sequelize.Op.ne]: excludeId };
+  }
+  const existing = await Invoice.findOne({ where, attributes: ["id", "companyInvoiceRefNo"] });
+  return existing || null;
+};
+
 export const createInvoice = catchAsync(async (req, res, next) => {
   const { Invoice, InvoiceItem, Buyer } = req.tenantModels;
 
@@ -785,6 +799,20 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
     items,
   } = req.body;
 
+  // Check companyInvoiceRefNo uniqueness before saving draft
+  if (companyInvoiceRefNo && String(companyInvoiceRefNo).trim()) {
+    const duplicateRef = await checkCompanyInvoiceRefNoUniqueness(
+      Invoice,
+      companyInvoiceRefNo,
+      id || null, // exclude current record when updating
+    );
+    if (duplicateRef) {
+      return next(
+        new AppError("This Company Invoice Reference Number already exists.", 409),
+      );
+    }
+  }
+
   // Create or update draft invoice in a transaction
 
   const result = await req.tenantDb.transaction(async (t) => {
@@ -1269,6 +1297,20 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
     return next(
       new AppError(`Validation failed: ${validationErrors.join(", ")}`, 400),
     );
+  }
+
+  // Check companyInvoiceRefNo uniqueness before save-and-validate
+  if (companyInvoiceRefNo && String(companyInvoiceRefNo).trim()) {
+    const duplicateRef = await checkCompanyInvoiceRefNoUniqueness(
+      Invoice,
+      companyInvoiceRefNo,
+      id || null,
+    );
+    if (duplicateRef) {
+      return next(
+        new AppError("This Company Invoice Reference Number already exists.", 409),
+      );
+    }
   }
 
   // Save as saved - upsert behavior like saveInvoice
@@ -4633,6 +4675,27 @@ export const bulkCreateInvoices = async (req, res) => {
     console.log(
       `🔍 FIRST PASS: Validating all ${invoices.length} invoices before processing any`,
     );
+
+    // Batch-fetch existing companyInvoiceRefNo values from DB for fast lookup
+    const csvRefNos = invoices
+      .map((inv) => String(inv.companyInvoiceRefNo || "").trim())
+      .filter(Boolean);
+    const existingRefNoSet = new Set();
+    if (csvRefNos.length > 0) {
+      const existingRefs = await Invoice.findAll({
+        where: {
+          companyInvoiceRefNo: { [Invoice.sequelize.Sequelize.Op.in]: csvRefNos },
+          isDeleted: { [Invoice.sequelize.Sequelize.Op.not]: true },
+        },
+        attributes: ["companyInvoiceRefNo"],
+      });
+      existingRefs.forEach((r) => existingRefNoSet.add(String(r.companyInvoiceRefNo).trim()));
+      console.log(`🔍 Found ${existingRefNoSet.size} duplicate companyInvoiceRefNo(s) already in DB`);
+    }
+
+    // Track within-CSV duplicates
+    const seenRefNosInCsv = new Map(); // refNo -> first invoice index
+
     const validationErrors = [];
 
     for (let i = 0; i < invoices.length; i++) {
@@ -4647,6 +4710,28 @@ export const bulkCreateInvoices = async (req, res) => {
       }
 
       try {
+        // Check companyInvoiceRefNo uniqueness (DB + within-CSV)
+        const refNo = String(invoiceData.companyInvoiceRefNo || "").trim();
+        if (refNo) {
+          if (existingRefNoSet.has(refNo)) {
+            validationErrors.push({
+              index: i,
+              row: i + 1,
+              error: `Duplicate Company Invoice Reference Number found in system: "${refNo}"`,
+            });
+            continue;
+          }
+          if (seenRefNosInCsv.has(refNo)) {
+            validationErrors.push({
+              index: i,
+              row: i + 1,
+              error: `Duplicate Company Invoice Reference Number found in this file (first seen at row ${seenRefNosInCsv.get(refNo) + 1}): "${refNo}"`,
+            });
+            continue;
+          }
+          seenRefNosInCsv.set(refNo, i);
+        }
+
         // Quick validation for invoice-level data
         if (
           !String(invoiceData.invoiceType || "").trim() ||
@@ -5745,6 +5830,24 @@ export const bulkCreateInvoices = async (req, res) => {
 };
 
 // Check existing invoices for preview
+
+// Lightweight endpoint: check if a single companyInvoiceRefNo already exists
+export const checkCompanyRef = catchAsync(async (req, res, next) => {
+  const { Invoice } = req.tenantModels;
+  const { companyInvoiceRefNo, excludeId } = req.body;
+
+  if (!companyInvoiceRefNo || !String(companyInvoiceRefNo).trim()) {
+    return res.status(200).json({ exists: false });
+  }
+
+  const existing = await checkCompanyInvoiceRefNoUniqueness(
+    Invoice,
+    String(companyInvoiceRefNo).trim(),
+    excludeId || null,
+  );
+
+  return res.status(200).json({ exists: !!existing });
+});
 
 export const checkExistingInvoices = async (req, res) => {
   try {

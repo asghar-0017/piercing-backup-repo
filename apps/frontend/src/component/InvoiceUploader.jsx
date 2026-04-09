@@ -1318,6 +1318,38 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       return;
     }
 
+    // --- Pre-flight: Detect within-CSV duplicate companyInvoiceRefNo ---
+    {
+      const seenRefs = new Map(); // refNo -> row index (1-based)
+      const withinCsvDuplicates = [];
+      previewData.forEach((invoice, idx) => {
+        const refNo = String(invoice.companyInvoiceRefNo || "").trim();
+        if (!refNo) return;
+        if (seenRefs.has(refNo)) {
+          withinCsvDuplicates.push({
+            row: idx + 1,
+            refNo,
+            firstRow: seenRefs.get(refNo),
+          });
+        } else {
+          seenRefs.set(refNo, idx + 1);
+        }
+      });
+      if (withinCsvDuplicates.length > 0) {
+        const details = withinCsvDuplicates
+          .map(
+            (d) =>
+              `Row ${d.row}: "${d.refNo}" (first seen at row ${d.firstRow})`,
+          )
+          .join("\n");
+        toast.error(
+          `Duplicate Company Invoice Reference Numbers found in the file:\n${details}`,
+          { autoClose: 8000 },
+        );
+        return;
+      }
+    }
+
     setUploading(true);
     setUploadResults(null);
     setShowResults(false);
@@ -1759,6 +1791,53 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         } else {
           // Handle streaming upload failure - check if it's a validation error
           if (
+            result &&
+            result.error &&
+            result.error.response &&
+            result.error.response.status === 409
+          ) {
+            const errorData = result.error.response.data;
+            const duplicateErrors = errorData?.data?.errors || [];
+            const detailedResults = {
+              summary: {
+                successful: 0,
+                failed: duplicateErrors.length || 1,
+                total: duplicateErrors.length || 1,
+              },
+              errors: duplicateErrors,
+              performance: null,
+              successfulInvoices: [],
+              failedInvoices:
+                duplicateErrors.length > 0
+                  ? duplicateErrors.map((e, idx) => ({
+                      row: e.row || idx + 1,
+                      invoiceNumber: `Invoice ${e.row || idx + 1}`,
+                      buyerName: "N/A",
+                      error:
+                        e.error ||
+                        "Duplicate Company Invoice Reference Number found in system.",
+                      status: "failed",
+                    }))
+                  : [
+                      {
+                        row: 1,
+                        invoiceNumber: "Invoice",
+                        buyerName: "N/A",
+                        error:
+                          errorData?.message ||
+                          "Duplicate Company Invoice Reference Number found in system.",
+                        status: "failed",
+                      },
+                    ],
+            };
+            setUploadResults(detailedResults);
+            setShowResults(true);
+            toast.error(
+              errorData?.message ||
+                "Upload rejected: Duplicate Company Invoice Reference Number found in system.",
+              { autoClose: 8000 },
+            );
+          } else if (
             result &&
             result.error &&
             result.error.response &&
