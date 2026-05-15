@@ -230,7 +230,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       const uomColIdx = visualHeaders.indexOf("Unit Of Measurement") + 1;
       const hsColIdx = visualHeaders.indexOf("HS Code") + 1;
       // No row limit - allow unlimited rows of data
-      const maxRows = 100000; // allow up to 100,000 rows of data for template generation
+      const maxRows = 10000000; // allow up to 10,000,000 rows of data for template generation
 
       const uomRange = `'Lists'!$A$1:$A$${Math.max(1, uomOptions.length)}`;
       const hsRange = `'Lists'!$B$1:$B$${Math.max(1, hsCodeValues.length)}`;

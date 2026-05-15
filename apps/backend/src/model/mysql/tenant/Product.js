@@ -5,7 +5,7 @@ export const createProductModel = (sequelize) => {
     "Product",
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         autoIncrement: true,
         primaryKey: true,
       },
@@ -27,7 +27,7 @@ export const createProductModel = (sequelize) => {
       },
       // Creator tracking
       created_by_user_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
       },
       created_by_email: {

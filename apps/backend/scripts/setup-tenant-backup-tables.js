@@ -22,15 +22,15 @@ const masterDbConfig = {
 
 async function setupTenantBackupTables() {
   let masterConnection;
-  
+
   try {
     console.log('🚀 Setting up backup tables for all tenant databases...');
-    
+
     // Connect to master database
     console.log('📡 Connecting to master database...');
     masterConnection = await createConnection(masterDbConfig);
     console.log('✅ Connected to master database successfully');
-    
+
     // Get all tenant databases
     console.log('🔍 Fetching tenant databases...');
     const [tenants] = await masterConnection.execute(`
@@ -39,28 +39,28 @@ async function setupTenantBackupTables() {
       WHERE database_name IS NOT NULL 
       ORDER BY id
     `);
-    
+
     console.log(`📊 Found ${tenants.length} tenant databases to process`);
-    
+
     if (tenants.length === 0) {
       console.log('⚠️  No tenant databases found. Exiting.');
       return;
     }
-    
+
     // Process each tenant database
     for (const tenant of tenants) {
       console.log(`\n🏢 Processing tenant: ${tenant.seller_business_name} (${tenant.database_name})`);
-      
+
       try {
         // Connect to tenant database
         const tenantDbConfig = {
           ...masterDbConfig,
           database: tenant.database_name
         };
-        
+
         const tenantConnection = await createConnection(tenantDbConfig);
         console.log(`   📡 Connected to tenant database: ${tenant.database_name}`);
-        
+
         // Check if backup tables already exist
         const [existingTables] = await tenantConnection.execute(`
           SELECT TABLE_NAME 
@@ -68,13 +68,13 @@ async function setupTenantBackupTables() {
           WHERE TABLE_SCHEMA = ? 
           AND TABLE_NAME IN ('invoice_backups', 'invoice_backup_summary')
         `, [tenant.database_name]);
-        
+
         if (existingTables.length >= 2) {
           console.log(`   ✅ Backup tables already exist in ${tenant.database_name}`);
           await tenantConnection.end();
           continue;
         }
-        
+
         // Create invoice_backups table
         console.log(`   📄 Creating invoice_backups table in ${tenant.database_name}...`);
         await tenantConnection.execute(`
@@ -117,7 +117,7 @@ async function setupTenantBackupTables() {
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Invoice backup system for tracking all invoice data changes'
         `);
         console.log(`   ✅ invoice_backups table created in ${tenant.database_name}`);
-        
+
         // Create invoice_backup_summary table
         console.log(`   📄 Creating invoice_backup_summary table in ${tenant.database_name}...`);
         await tenantConnection.execute(`
@@ -149,7 +149,7 @@ async function setupTenantBackupTables() {
           ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Summary of invoice backups for quick reference'
         `);
         console.log(`   ✅ invoice_backup_summary table created in ${tenant.database_name}`);
-        
+
         // Verify tables were created
         const [tables] = await tenantConnection.execute(`
           SELECT TABLE_NAME 
@@ -157,18 +157,18 @@ async function setupTenantBackupTables() {
           WHERE TABLE_SCHEMA = ? 
           AND TABLE_NAME IN ('invoice_backups', 'invoice_backup_summary')
         `, [tenant.database_name]);
-        
+
         console.log(`   📊 Created ${tables.length} backup tables in ${tenant.database_name}`);
-        
+
         // Close tenant connection
         await tenantConnection.end();
         console.log(`   📡 Disconnected from ${tenant.database_name}`);
-        
+
       } catch (error) {
         console.log(`   ❌ Error processing tenant ${tenant.database_name}: ${error.message}`);
       }
     }
-    
+
     console.log('\n🎉 Tenant backup tables setup completed!');
     console.log('');
     console.log('📋 Summary:');
@@ -180,7 +180,7 @@ async function setupTenantBackupTables() {
     console.log('   1. Restart your backend server');
     console.log('   2. Test creating/updating invoices');
     console.log('   3. Check that backups are being created successfully');
-    
+
   } catch (error) {
     console.error('❌ Setup failed:', error);
     process.exit(1);

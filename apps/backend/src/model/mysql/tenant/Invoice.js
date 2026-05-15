@@ -6,7 +6,7 @@ export const createInvoiceModel = (sequelize) => {
     "Invoice",
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         primaryKey: true,
         autoIncrement: true,
       },
@@ -67,7 +67,7 @@ export const createInvoiceModel = (sequelize) => {
         allowNull: true,
       },
       buyer_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         references: {
           model: "buyers",
@@ -113,13 +113,13 @@ export const createInvoiceModel = (sequelize) => {
         allowNull: true,
       },
       system_invoice_id: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(255),
         allowNull: true,
         unique: true,
       },
       // Track which user created the invoice (from user management)
       created_by_user_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
       },
       created_by_email: {

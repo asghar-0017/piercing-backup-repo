@@ -6,17 +6,17 @@ export const createInvoiceBackupModel = (sequelize) => {
     "InvoiceBackup",
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         primaryKey: true,
         autoIncrement: true,
       },
       original_invoice_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'ID of the original invoice',
       },
       system_invoice_id: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(255),
         allowNull: true,
         comment: 'System invoice ID for reference',
       },
@@ -78,7 +78,7 @@ export const createInvoiceBackupModel = (sequelize) => {
         comment: 'FBR invoice number if available',
       },
       user_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'ID of user who performed the operation',
       },
@@ -98,7 +98,7 @@ export const createInvoiceBackupModel = (sequelize) => {
         comment: 'Role of user who performed the operation',
       },
       tenant_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'Tenant/Company ID where operation was performed',
       },

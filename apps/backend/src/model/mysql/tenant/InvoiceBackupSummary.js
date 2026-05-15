@@ -6,18 +6,18 @@ export const createInvoiceBackupSummaryModel = (sequelize) => {
     "InvoiceBackupSummary",
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         primaryKey: true,
         autoIncrement: true,
       },
       original_invoice_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         unique: false,
         comment: 'ID of the original invoice',
       },
       latest_backup_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'ID of the latest backup entry',
       },
@@ -43,7 +43,7 @@ export const createInvoiceBackupSummaryModel = (sequelize) => {
         comment: 'Timestamp of last backup',
       },
       created_by_user_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'ID of user who created the first backup',
       },
@@ -58,7 +58,7 @@ export const createInvoiceBackupSummaryModel = (sequelize) => {
         comment: 'Full name of user who created the first backup',
       },
       last_modified_by_user_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'ID of user who performed the last backup',
       },
@@ -78,7 +78,7 @@ export const createInvoiceBackupSummaryModel = (sequelize) => {
         comment: 'Invoice number of the original invoice',
       },
       system_invoice_id: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(255),
         allowNull: true,
         comment: 'System invoice ID of the original invoice',
       },
@@ -88,7 +88,7 @@ export const createInvoiceBackupSummaryModel = (sequelize) => {
         comment: 'FBR invoice number of the original invoice',
       },
       tenant_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         comment: 'Tenant/Company ID',
       },

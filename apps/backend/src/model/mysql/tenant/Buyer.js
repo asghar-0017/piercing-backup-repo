@@ -4,7 +4,7 @@ import { DataTypes } from 'sequelize';
 export const createBuyerModel = (sequelize) => {
   const Buyer = sequelize.define('Buyer', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       primaryKey: true,
       autoIncrement: true
     },
@@ -52,7 +52,7 @@ export const createBuyerModel = (sequelize) => {
     },
     // Creator tracking
     created_by_user_id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       allowNull: true,
     },
     created_by_email: {

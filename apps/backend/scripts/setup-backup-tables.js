@@ -22,15 +22,15 @@ const dbConfig = {
 
 async function setupBackupTables() {
   let connection;
-  
+
   try {
     console.log('🚀 Starting Invoice Backup Tables Setup...');
-    
+
     // Connect to database
     console.log('📡 Connecting to database...');
     connection = await createConnection(dbConfig);
     console.log('✅ Connected to database successfully');
-    
+
     // Create invoice_backups table
     console.log('📄 Creating invoice_backups table...');
     const createInvoiceBackupsTable = `
@@ -72,10 +72,10 @@ async function setupBackupTables() {
         KEY \`idx_backup_fbr_invoice\` (\`fbr_invoice_number\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Invoice backup system for tracking all invoice data changes'
     `;
-    
+
     await connection.execute(createInvoiceBackupsTable);
     console.log('✅ invoice_backups table created successfully');
-    
+
     // Create invoice_backup_summary table
     console.log('📄 Creating invoice_backup_summary table...');
     const createInvoiceBackupSummaryTable = `
@@ -111,18 +111,18 @@ async function setupBackupTables() {
         KEY \`idx_backup_summary_last_backup\` (\`last_backup_at\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Summary of invoice backups for quick reference'
     `;
-    
+
     await connection.execute(createInvoiceBackupSummaryTable);
     console.log('✅ invoice_backup_summary table created successfully');
-    
+
     // Verify tables were created
     console.log('🔍 Verifying backup tables...');
-    
+
     const tables = [
       'invoice_backups',
       'invoice_backup_summary'
     ];
-    
+
     for (const table of tables) {
       try {
         const [rows] = await connection.execute(`SHOW TABLES LIKE '${table}'`);
@@ -135,7 +135,7 @@ async function setupBackupTables() {
         console.error(`   ❌ Error checking table '${table}':`, error.message);
       }
     }
-    
+
     console.log('🎉 Invoice Backup Tables setup completed successfully!');
     console.log('');
     console.log('📋 Summary:');
@@ -146,7 +146,7 @@ async function setupBackupTables() {
     console.log('   1. Restart your backend server to load the new models');
     console.log('   2. The backup system will automatically start working');
     console.log('   3. Check logs for backup creation messages');
-    
+
   } catch (error) {
     console.error('❌ Setup failed:', error);
     process.exit(1);

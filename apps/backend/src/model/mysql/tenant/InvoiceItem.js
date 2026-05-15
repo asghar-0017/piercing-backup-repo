@@ -6,12 +6,12 @@ export const createInvoiceItemModel = (sequelize) => {
     "InvoiceItem",
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         primaryKey: true,
         autoIncrement: true,
       },
       invoice_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: false,
         references: {
           model: "invoices",
@@ -24,7 +24,7 @@ export const createInvoiceItemModel = (sequelize) => {
         defaultValue: "",
       },
       product_id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         allowNull: true,
         references: {
           model: "products",

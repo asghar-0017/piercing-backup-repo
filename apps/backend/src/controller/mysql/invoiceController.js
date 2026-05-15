@@ -73,7 +73,7 @@ const generateSystemInvoiceId = async (Invoice) => {
 
     // Fallback to timestamp-based ID if there's an error
 
-    return `INV-${Date.now().toString().slice(-4)}`;
+    return `INV-${Date.now().toString()}`;
   }
 };
 
@@ -129,7 +129,7 @@ const generateShortInvoiceId = async (Invoice, prefix) => {
     console.error(`Error generating short ${prefix} invoice ID:`, error);
 
     // Fallback to timestamp-based ID if database query fails
-    const timestamp = Date.now().toString().slice(-6);
+    const timestamp = Date.now().toString();
     return `${prefix}_${timestamp}`;
   }
 };
