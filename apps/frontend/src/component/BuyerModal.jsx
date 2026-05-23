@@ -411,7 +411,7 @@ const BuyerModal = ({ isOpen, onClose, onSave, buyer }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
-      const response = await fetch("https://amarantpharma.inplsoftwares.com/api/buyer-check", {
+      const response = await fetch("http://localhost:5150/api/buyer-check", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

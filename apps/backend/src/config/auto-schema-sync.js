@@ -350,6 +350,12 @@ class AutoSchemaSync {
       },
       {
         table: "invoices",
+        column: "sourceInvoiceNo",
+        type: "VARCHAR(15) UNIQUE",
+        allowNull: true,
+      },
+      {
+        table: "invoices",
         column: "isDeleted",
         type: "TINYINT(1)",
         allowNull: false,

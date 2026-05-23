@@ -205,6 +205,7 @@ export default function CreateInvoice() {
     buyerRegistrationType: "",
     invoiceRefNo: "",
     companyInvoiceRefNo: "",
+    sourceInvoiceNo: "",
     transctypeId: "",
     items: [
       {
@@ -273,6 +274,9 @@ export default function CreateInvoice() {
   const [productInputValue, setProductInputValue] = useState("");
   const isManualBuyerClearRef = useRef(false);
   const isManualProductClearRef = useRef(false);
+  // Prevents the formData effect from clearing isSubmitVisible right after a
+  // successful save-validate (where we update both formData and isSubmitVisible together)
+  const suppressSubmitResetRef = useRef(false);
 
   const normalizeHsCode = (hsCode) => {
     if (!hsCode) return "";
@@ -657,9 +661,9 @@ export default function CreateInvoice() {
       const matchingProduct = products.find(
         (product) =>
           normalizeHsCode(product.hsCode).toLowerCase() ===
-            normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
+          normalizeHsCode(formData.items[0].hsCode).toLowerCase() &&
           (product.name || "").trim().toLowerCase() ===
-            (formData.items[0].name || "").trim().toLowerCase(),
+          (formData.items[0].name || "").trim().toLowerCase(),
       );
 
       if (matchingProduct) {
@@ -739,7 +743,7 @@ export default function CreateInvoice() {
       } catch (error) {
         setTransactionTypesError(
           error.message ||
-            "Failed to fetch transaction types from API. Please check your connection and try again.",
+          "Failed to fetch transaction types from API. Please check your connection and try again.",
         );
       } finally {
         setTransactionTypesLoading(false);
@@ -876,7 +880,7 @@ export default function CreateInvoice() {
         } catch (error) {
           setTransactionTypesError(
             error.message ||
-              "Failed to fetch transaction types from API. Please check your connection and try again.",
+            "Failed to fetch transaction types from API. Please check your connection and try again.",
           );
         } finally {
           setTransactionTypesLoading(false);
@@ -911,8 +915,14 @@ export default function CreateInvoice() {
     }
   }, [tokensLoaded, selectedTenant, retryTokenFetch]);
 
-  // Hide Submit button whenever form data changes after a successful validation
+  // Hide Submit button whenever form data changes after a successful validation.
+  // Skipped once (via suppressSubmitResetRef) when we intentionally update formData
+  // as part of the save-validate success flow so the Submit button stays visible.
   React.useEffect(() => {
+    if (suppressSubmitResetRef.current) {
+      suppressSubmitResetRef.current = false;
+      return;
+    }
     if (isSubmitVisible) {
       setIsSubmitVisible(false);
     }
@@ -1030,6 +1040,7 @@ export default function CreateInvoice() {
           buyerRegistrationType: invoiceData.buyerRegistrationType || "",
           invoiceRefNo: invoiceData.invoiceRefNo || "",
           companyInvoiceRefNo: invoiceData.companyInvoiceRefNo || "",
+          sourceInvoiceNo: invoiceData.sourceInvoiceNo || "",
           transctypeId: "",
           items: [
             {
@@ -1184,9 +1195,9 @@ export default function CreateInvoice() {
         setIsEditMode(true);
         setEditInvoiceNumber(
           invoiceData.invoiceNumber ||
-            invoiceData.companyInvoiceRefNo ||
-            invoiceData.invoiceRefNo ||
-            "",
+          invoiceData.companyInvoiceRefNo ||
+          invoiceData.invoiceRefNo ||
+          "",
         );
         localStorage.removeItem("editInvoiceData");
 
@@ -1410,9 +1421,9 @@ export default function CreateInvoice() {
             matchingProduct = products.find(
               (product) =>
                 (product.name || "").trim().toLowerCase() ===
-                  (itemData.name || "").trim().toLowerCase() &&
+                (itemData.name || "").trim().toLowerCase() &&
                 normalizeHsCode(product.hsCode).toLowerCase() ===
-                  normalizeHsCode(itemData.hsCode).toLowerCase(),
+                normalizeHsCode(itemData.hsCode).toLowerCase(),
             );
           }
 
@@ -2508,9 +2519,9 @@ export default function CreateInvoice() {
         targetProduct = products.find(
           (p) =>
             normalizeHsCode(p.hsCode).toLowerCase() ===
-              normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+            normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
             (p.name || "").trim().toLowerCase() ===
-              (itemToEdit.name || "").trim().toLowerCase(),
+            (itemToEdit.name || "").trim().toLowerCase(),
         );
       }
 
@@ -2554,9 +2565,9 @@ export default function CreateInvoice() {
               targetProduct = fetchedList.find(
                 (p) =>
                   normalizeHsCode(p.hsCode).toLowerCase() ===
-                    normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
+                  normalizeHsCode(itemToEdit.hsCode).toLowerCase() &&
                   (p.name || "").trim().toLowerCase() ===
-                    (itemToEdit.name || "").trim().toLowerCase(),
+                  (itemToEdit.name || "").trim().toLowerCase(),
               );
             }
 
@@ -2773,44 +2784,44 @@ export default function CreateInvoice() {
       const items =
         prev.items.length > 0
           ? prev.items.map((item) => ({
-              ...item,
-              // Don't update product description - keep existing or clear if no HS code
-              productDescription: item.hsCode ? item.productDescription : "",
-              saleType: saleType,
-              rate: isEditing ? item.rate : "", // Preserve rate when editing
-            }))
+            ...item,
+            // Don't update product description - keep existing or clear if no HS code
+            productDescription: item.hsCode ? item.productDescription : "",
+            saleType: saleType,
+            rate: isEditing ? item.rate : "", // Preserve rate when editing
+          }))
           : [
-              {
-                hsCode: "",
-                productDescription: "", // Don't set scenario description automatically
-                rate: "",
-                quantity: "1",
-                unitPrice: "0.00",
-                retailPrice: "0",
-                totalValues: "0",
-                valueSalesExcludingST: "0",
-                salesTaxApplicable: "0",
-                salesTaxWithheldAtSource: "0",
-                sroScheduleNo: "",
-                sroItemSerialNo: "",
-                billOfLadingUoM: "",
-                uoM: "",
-                extraTax: "",
-                furtherTax: "0",
-                fedPayable: "0",
-                discount: "0",
-                advanceIncomeTax: "0",
-                saleType,
-                isSROScheduleEnabled: false,
-                isSROItemEnabled: false,
-                isValueSalesManual: false,
-                isTotalValuesManual: false,
-                isSalesTaxManual: false,
-                isSalesTaxWithheldManual: false,
-                isFurtherTaxManual: false,
-                isFedPayableManual: false,
-              },
-            ];
+            {
+              hsCode: "",
+              productDescription: "", // Don't set scenario description automatically
+              rate: "",
+              quantity: "1",
+              unitPrice: "0.00",
+              retailPrice: "0",
+              totalValues: "0",
+              valueSalesExcludingST: "0",
+              salesTaxApplicable: "0",
+              salesTaxWithheldAtSource: "0",
+              sroScheduleNo: "",
+              sroItemSerialNo: "",
+              billOfLadingUoM: "",
+              uoM: "",
+              extraTax: "",
+              furtherTax: "0",
+              fedPayable: "0",
+              discount: "0",
+              advanceIncomeTax: "0",
+              saleType,
+              isSROScheduleEnabled: false,
+              isSROItemEnabled: false,
+              isValueSalesManual: false,
+              isTotalValuesManual: false,
+              isSalesTaxManual: false,
+              isSalesTaxWithheldManual: false,
+              isFurtherTaxManual: false,
+              isFedPayableManual: false,
+            },
+          ];
       return {
         ...prev,
         transctypeId: transctypeId,
@@ -3042,8 +3053,17 @@ export default function CreateInvoice() {
 
         if (result.isConfirmed) {
           window.location.reload();
-        } else if (!editingId && response.data?.data?.invoice_id) {
-          setEditingId(response.data.data.invoice_id);
+        } else {
+          const newId = response.data?.data?.id || response.data?.data?.invoice_id;
+          if (!editingId && newId) {
+            setEditingId(newId);
+          }
+          if (response.data?.data?.sourceInvoiceNo) {
+            setFormData((prev) => ({
+              ...prev,
+              sourceInvoiceNo: response.data.data.sourceInvoiceNo,
+            }));
+          }
         }
       }
     } catch (error) {
@@ -3258,7 +3278,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for FBR validation
+        scenarioId: "SN001", // Hardcoded SN001 for FBR validation
         items: itemsToSave.map(
           (
             {
@@ -3359,7 +3379,7 @@ export default function CreateInvoice() {
           sellerAddress: sanitizeAddress(formData.sellerAddress),
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
           transctypeId: formData.transctypeId,
-          // scenarioId: "SN001", // Hardcoded SN001 for save and validate
+          scenarioId: "SN001", // Hardcoded SN001 for save and validate
           items: backendItems, // Use backend items that include all fields
         };
 
@@ -3389,8 +3409,17 @@ export default function CreateInvoice() {
             text: `Invoice validated with FBR and saved with number: ${response.data.data.invoice_number}`,
             confirmButtonColor: "#28a745",
           });
-          if (!editingId && response.data?.data?.invoice_id) {
-            setEditingId(response.data.data.invoice_id);
+          const newId = response.data?.data?.id || response.data?.data?.invoice_id;
+          if (!editingId && newId) {
+            setEditingId(newId);
+          }
+          // Suppress the formData effect from hiding the Submit button for this update
+          suppressSubmitResetRef.current = true;
+          if (response.data?.data?.sourceInvoiceNo) {
+            setFormData((prev) => ({
+              ...prev,
+              sourceInvoiceNo: response.data.data.sourceInvoiceNo,
+            }));
           }
           // Allow submission only after a successful save & validate
           setIsSubmitVisible(true);
@@ -3569,29 +3598,26 @@ export default function CreateInvoice() {
           // },
           {
             field: "valueSalesExcludingST",
-            message: `Value Sales Excluding ST is required for item ${
-              index + 1
-            }`,
+            message: `Value Sales Excluding ST is required for item ${index + 1
+              }`,
           },
           ...(item.rate && item.rate.toLowerCase() === "exempt"
             ? [
-                {
-                  field: "sroScheduleNo",
-                  message: `SRO Schedule Number is required for exempt item ${
-                    index + 1
+              {
+                field: "sroScheduleNo",
+                message: `SRO Schedule Number is required for exempt item ${index + 1
                   }`,
-                },
-                {
-                  field: "sroItemSerialNo",
-                  message: `SRO Item Serial Number is required for exempt item ${
-                    index + 1
+              },
+              {
+                field: "sroItemSerialNo",
+                message: `SRO Item Serial Number is required for exempt item ${index + 1
                   }`,
-                },
-              ]
+              },
+            ]
             : []),
           ...(item.rate &&
-          item.rate.includes("/bill") &&
-          formData.scenarioId === "SN018"
+            item.rate.includes("/bill") &&
+            formData.scenarioId === "SN018"
             ? []
             : []),
         ];
@@ -3684,7 +3710,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for submit
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: cleanedItems,
       };
 
@@ -3824,7 +3850,7 @@ export default function CreateInvoice() {
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
-        // scenarioId: "SN001", // Hardcoded SN001 for submit
+        scenarioId: "SN001", // Hardcoded SN001 for submit
         items: backendItems, // Use backend items that include all fields
         fbr_invoice_number: fbrInvoiceNumber,
         status: "posted", // Set status as posted since it's been submitted to FBR
@@ -4642,7 +4668,7 @@ export default function CreateInvoice() {
                         } catch (error) {
                           setTransactionTypesError(
                             error.message ||
-                              "Failed to fetch transaction types from API. Please check your connection and try again.",
+                            "Failed to fetch transaction types from API. Please check your connection and try again.",
                           );
                         } finally {
                           setTransactionTypesLoading(false);
@@ -5010,13 +5036,13 @@ export default function CreateInvoice() {
                           ) ||
                           (currentId || itemName
                             ? {
-                                id: currentId || `temp-${itemName}`,
-                                name: itemName || "Selected Product",
-                                hsCode: formData.items[index]?.hsCode || "",
-                                description:
-                                  formData.items[index]?.productDescription ||
-                                  "",
-                              }
+                              id: currentId || `temp-${itemName}`,
+                              name: itemName || "Selected Product",
+                              hsCode: formData.items[index]?.hsCode || "",
+                              description:
+                                formData.items[index]?.productDescription ||
+                                "",
+                            }
                             : null);
 
                         const opts = [{ id: "__add__", name: "Add Product" }];
@@ -5320,7 +5346,7 @@ export default function CreateInvoice() {
                   sellerProvince={formData.sellerProvince}
                 />
                 {item.sroScheduleNo &&
-                item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
+                  item.sroScheduleNo.trim().toLowerCase() !== "n/a" ? (
                   <SROItem
                     key={`SROItem-${index}`}
                     index={index}
@@ -5378,11 +5404,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.valueSalesExcludingST === "0.00" ||
-                      item.valueSalesExcludingST === "0"
+                        item.valueSalesExcludingST === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                            item.valueSalesExcludingST,
-                          )
+                          item.valueSalesExcludingST,
+                        )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5500,11 +5526,11 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.salesTaxWithheldAtSource === "0.00" ||
-                      item.salesTaxWithheldAtSource === "0"
+                        item.salesTaxWithheldAtSource === "0"
                         ? ""
                         : formatWithCommasWhileTyping(
-                            item.salesTaxWithheldAtSource,
-                          )
+                          item.salesTaxWithheldAtSource,
+                        )
                     }
                     onChange={(e) => {
                       const newValue = handleFloatingNumberInput(
@@ -5663,7 +5689,7 @@ export default function CreateInvoice() {
                     type="text"
                     value={
                       item.advanceIncomeTax === "0.00" ||
-                      item.advanceIncomeTax === "0"
+                        item.advanceIncomeTax === "0"
                         ? ""
                         : formatWithCommasWhileTyping(item.advanceIncomeTax)
                     }
@@ -5945,7 +5971,7 @@ export default function CreateInvoice() {
                                     "&:hover": {
                                       background:
                                         editingItemIndex &&
-                                        editingItemIndex !== item.id
+                                          editingItemIndex !== item.id
                                           ? "rgba(0, 0, 0, 0.04)"
                                           : "rgba(99, 102, 241, 0.1)",
                                     },
@@ -6091,23 +6117,23 @@ export default function CreateInvoice() {
         </Box>
         {(allLoading ||
           (selectedTenant && !tokensLoaded && !loadingTimeout)) && (
-          <Box
-            sx={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              bgcolor: "rgba(255,255,255,0.7)",
-              zIndex: 9999,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <CircularProgress size={50} color="primary" />
-          </Box>
-        )}
+            <Box
+              sx={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100vw",
+                height: "100vh",
+                bgcolor: "rgba(255,255,255,0.7)",
+                zIndex: 9999,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <CircularProgress size={50} color="primary" />
+            </Box>
+          )}
 
         {/* Buyer Modal */}
         <BuyerModal

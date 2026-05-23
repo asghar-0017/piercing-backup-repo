@@ -32,6 +32,7 @@ import AuditLog from "../../model/mysql/AuditLog.js";
 import auditRoutes from "../../routes/auditRoutes.js";
 import AppError from "../../utils/AppError.js";
 import catchAsync from "../../utils/catchAsync.js";
+import { generateUniqueSourceInvoiceNo } from "../../utils/invoiceHelper.js";
 
 const { toWords } = numberToWords;
 
@@ -194,6 +195,7 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
     fbr_invoice_number = null,
     idToDelete = null,
+    sourceInvoiceNo,
   } = req.body;
 
   // Debug: Log internal invoice number
@@ -338,6 +340,7 @@ export const createInvoice = catchAsync(async (req, res, next) => {
   }
 
   // Create invoice with transaction
+  let preservedSourceInvoiceNo = null;
 
   const result = await req.tenantDb.transaction(async (t) => {
     // If idToDelete is provided, delete that invoice (e.g., a draft being converted to posted)
@@ -350,6 +353,9 @@ export const createInvoice = catchAsync(async (req, res, next) => {
         transaction: t,
       });
       if (invoiceToDelete) {
+        // Preserve the sourceInvoiceNo before deleting
+        preservedSourceInvoiceNo = invoiceToDelete.sourceInvoiceNo;
+
         // Soft delete items
         await InvoiceItem.update(
           { isDeleted: true },
@@ -359,10 +365,13 @@ export const createInvoice = catchAsync(async (req, res, next) => {
           },
         );
 
-        // Soft delete invoice
-        await invoiceToDelete.update({ isDeleted: true }, { transaction: t });
+        // Soft delete invoice and clear sourceInvoiceNo to release unique constraint
+        await invoiceToDelete.update(
+          { isDeleted: true, sourceInvoiceNo: null },
+          { transaction: t }
+        );
 
-        console.log(`✅ Successfully soft-deleted invoice #${idToDelete}`);
+        console.log(`✅ Successfully soft-deleted invoice #${idToDelete} and cleared sourceInvoiceNo`);
       }
     }
 
@@ -417,6 +426,7 @@ export const createInvoice = catchAsync(async (req, res, next) => {
         status: "posted", // Always set as posted when using createInvoice
 
         fbr_invoice_number,
+        sourceInvoiceNo: preservedSourceInvoiceNo || sourceInvoiceNo || await generateUniqueSourceInvoiceNo(Invoice),
         created_by_user_id: req.user?.userId || req.user?.id || null,
         created_by_email: req.user?.email || null,
         created_by_name:
@@ -797,6 +807,7 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
     transctypeId,
 
     items,
+    sourceInvoiceNo,
   } = req.body;
 
   // Check companyInvoiceRefNo uniqueness before saving draft
@@ -894,6 +905,7 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
           status: "draft",
 
           fbr_invoice_number: null,
+          sourceInvoiceNo: sourceInvoiceNo || invoice.sourceInvoiceNo || await generateUniqueSourceInvoiceNo(Invoice),
         },
 
         { transaction: t },
@@ -962,6 +974,7 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
           status: "draft",
 
           fbr_invoice_number: null,
+          sourceInvoiceNo: sourceInvoiceNo || await generateUniqueSourceInvoiceNo(Invoice),
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -1193,6 +1206,7 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
     message: "Invoice saved as draft successfully",
 
     data: {
+      id: result.id,
       invoice_id: result.id,
 
       invoice_number: result.invoice_number,
@@ -1200,6 +1214,8 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
       system_invoice_id: result.system_invoice_id,
 
       status: result.status,
+
+      sourceInvoiceNo: result.sourceInvoiceNo,
     },
   });
 });
@@ -1247,6 +1263,7 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
     transctypeId,
 
     items,
+    sourceInvoiceNo,
   } = req.body;
 
   // Generate appropriate invoice number based on whether it's a new invoice or update
@@ -1392,6 +1409,7 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
           status: "saved",
 
           fbr_invoice_number: null,
+          sourceInvoiceNo: sourceInvoiceNo || invoice.sourceInvoiceNo || await generateUniqueSourceInvoiceNo(Invoice),
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -1458,6 +1476,7 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
           status: "saved",
 
           fbr_invoice_number: null,
+          sourceInvoiceNo: sourceInvoiceNo || await generateUniqueSourceInvoiceNo(Invoice),
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -1687,6 +1706,7 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
     message: "Invoice saved successfully",
 
     data: {
+      id: result.id,
       invoice_id: result.id,
 
       invoice_number: result.invoice_number,
@@ -1694,6 +1714,8 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
       system_invoice_id: result.system_invoice_id,
 
       status: result.status,
+
+      sourceInvoiceNo: result.sourceInvoiceNo,
     },
   });
 });
@@ -3171,6 +3193,11 @@ export const updateInvoice = async (req, res) => {
         billOfLadingUoM: item.billOfLadingUoM,
       })),
     };
+
+    // Ensure invoice has a sourceInvoiceNo, if not already present
+    if (!invoice.sourceInvoiceNo && !updateData.sourceInvoiceNo) {
+      updateData.sourceInvoiceNo = await generateUniqueSourceInvoiceNo(Invoice);
+    }
 
     // Update the invoice
     await invoice.update(updateData);
@@ -5053,6 +5080,7 @@ export const bulkCreateInvoices = async (req, res) => {
     console.log(
       `🔍 SECOND PASS: Processing ${invoices.length} validated invoices`,
     );
+    const excludeSourceInvoiceNoSet = new Set();
     for (let i = 0; i < invoices.length; i++) {
       const invoiceData = invoices[i];
       console.log(
@@ -5137,6 +5165,9 @@ export const bulkCreateInvoices = async (req, res) => {
           },
         );
 
+        // Generate a unique sourceInvoiceNo for this record, ensuring unique batch generation
+        const sourceInvoiceNo = await generateUniqueSourceInvoiceNo(Invoice, excludeSourceInvoiceNoSet);
+
         // Prepare invoice data for batch insert
         const invoiceRecord = {
           invoice_number: `DRAFT_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 5)}`,
@@ -5163,6 +5194,7 @@ export const bulkCreateInvoices = async (req, res) => {
           transctypeId: null, // Will be set from items
           status: "draft",
           fbr_invoice_number: null,
+          sourceInvoiceNo: sourceInvoiceNo,
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
