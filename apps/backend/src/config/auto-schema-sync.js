@@ -351,7 +351,7 @@ class AutoSchemaSync {
       {
         table: "invoices",
         column: "sourceInvoiceNo",
-        type: "VARCHAR(15) UNIQUE",
+        type: "VARCHAR(100) UNIQUE",
         allowNull: true,
       },
       {

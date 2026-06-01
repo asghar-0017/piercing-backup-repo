@@ -35,6 +35,7 @@ import {
   Close,
 } from "@mui/icons-material";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import { api } from "../API/Api";
 import * as XLSX from "xlsx";
 import { useFileProcessor } from "../hooks/useFileProcessor";
@@ -42,6 +43,23 @@ import { useStreamingUpload } from "../hooks/useStreamingUpload";
 
 const FUTURE_DATE_ERROR_MESSAGE =
   "Invoice date exceeds the current date. Please select today or a past date.";
+
+const COMPANY_INVOICE_REF_NO_REQUIRED_MESSAGE =
+  "companyInvoiceRefNo must be required";
+
+const isCompanyInvoiceRefNoMissing = (refNo) => {
+  const trimmed = String(refNo ?? "").trim();
+  if (!trimmed) return true;
+  return /^row_\d+$/i.test(trimmed);
+};
+
+const showCompanyInvoiceRefNoRequired = () =>
+  Swal.fire({
+    icon: "error",
+    title: "Required Field",
+    text: COMPANY_INVOICE_REF_NO_REQUIRED_MESSAGE,
+    confirmButtonColor: "#d33",
+  });
 
 const convertExcelDateToYYYYMMDD = (excelDate) => {
   if (!excelDate || excelDate === "") return "";
@@ -1192,7 +1210,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
       invoiceMandatory.forEach((key) => {
         const val = invoice[key];
-        if (val === undefined || val === null || String(val).trim() === "") {
+        if (key === "companyInvoiceRefNo") {
+          if (isCompanyInvoiceRefNoMissing(val)) {
+            errorMessages.push(COMPANY_INVOICE_REF_NO_REQUIRED_MESSAGE);
+          }
+        } else if (
+          val === undefined ||
+          val === null ||
+          String(val).trim() === ""
+        ) {
           const fieldLabel =
             mandatoryFields.find((f) => f.key === key)?.label || key;
           errorMessages.push(`This field is required: ${fieldLabel}`);
@@ -1318,6 +1344,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       return;
     }
 
+    if (
+      previewData.some((invoice) =>
+        isCompanyInvoiceRefNoMissing(invoice?.companyInvoiceRefNo),
+      )
+    ) {
+      await showCompanyInvoiceRefNoRequired();
+      return;
+    }
+
     // --- Pre-flight: Detect within-CSV duplicate companyInvoiceRefNo ---
     {
       const seenRefs = new Map(); // refNo -> row index (1-based)
@@ -1368,6 +1403,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         console.log("🔍 Using already-grouped invoices from worker");
         invoicesToUpload = previewData.map((invoice) => ({
           ...invoice,
+          sourceInvoiceNo: invoice.companyInvoiceRefNo,
           // Ensure seller details are populated from selected tenant
           sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
           sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
@@ -1488,9 +1524,19 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             cleanedItem.sroItemSerialNo = cleanedItem.item_sroItemSerialNo;
           }
 
-          // Get the companyInvoiceRefNo for grouping (changed from internalInvoiceNo)
-          const companyInvoiceRefNo =
-            cleanedItem.companyInvoiceRefNo?.trim() || `row_${index + 1}`;
+          const refFromFile = String(
+            cleanedItem.companyInvoiceRefNo || "",
+          ).trim();
+          if (isCompanyInvoiceRefNoMissing(refFromFile)) {
+            groupingErrors.push({
+              row: index + 1,
+              companyInvoiceRefNo: refFromFile || "(empty)",
+              errors: [COMPANY_INVOICE_REF_NO_REQUIRED_MESSAGE],
+              message: `Row ${index + 1}: ${COMPANY_INVOICE_REF_NO_REQUIRED_MESSAGE}`,
+            });
+            return;
+          }
+          const companyInvoiceRefNo = refFromFile;
 
           // Add row number for tracking
           cleanedItem._row = index + 1;
@@ -1568,6 +1614,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         invoicesToUpload = Array.from(groupedInvoices.values()).map(
           (invoice) => ({
             ...invoice,
+            sourceInvoiceNo: invoice.companyInvoiceRefNo,
             sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
             sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
             sellerBusinessName: getSellerDetail(
@@ -2944,6 +2991,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             checkingExisting ||
             previewData.some(
               (invoice) => invoice && isFutureDate(invoice.invoiceDate),
+            ) ||
+            previewData.some((invoice) =>
+              isCompanyInvoiceRefNoMissing(invoice?.companyInvoiceRefNo),
             )
           }
           startIcon={

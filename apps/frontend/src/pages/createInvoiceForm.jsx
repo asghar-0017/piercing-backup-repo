@@ -242,6 +242,7 @@ export default function CreateInvoice() {
     ],
   });
   const [isEditMode, setIsEditMode] = React.useState(false);
+  const originalSourceInvoiceNoRef = React.useRef("");
   const [editInvoiceNumber, setEditInvoiceNumber] = React.useState("");
   const [invoiceDateError, setInvoiceDateError] = React.useState("");
 
@@ -940,10 +941,16 @@ export default function CreateInvoice() {
         setInvoiceDateError("");
       }
     }
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        [name]: value,
+      };
+      if (name === "companyInvoiceRefNo") {
+        next.sourceInvoiceNo = value;
+      }
+      return next;
+    });
   };
 
   // Update form data when selected tenant changes
@@ -976,6 +983,9 @@ export default function CreateInvoice() {
     if (editInvoiceData) {
       try {
         const invoiceData = JSON.parse(editInvoiceData);
+        if (invoiceData.sourceInvoiceNo) {
+          originalSourceInvoiceNoRef.current = invoiceData.sourceInvoiceNo;
+        }
         // Track editing draft id
         if (invoiceData.id) {
           setEditingId(invoiceData.id);
@@ -2830,6 +2840,14 @@ export default function CreateInvoice() {
     });
   };
 
+  const showCompanyInvoiceRefNoRequired = () =>
+    Swal.fire({
+      icon: "error",
+      title: "Required Field",
+      text: "companyInvoiceRefNo must be required",
+      confirmButtonColor: "#d33",
+    });
+
   const isFormEmptyForDraft = (data) => {
     const isNonEmptyString = (value) =>
       typeof value === "string" && value.trim() !== "";
@@ -2906,6 +2924,15 @@ export default function CreateInvoice() {
         return;
       }
 
+      if (
+        !formData.companyInvoiceRefNo ||
+        formData.companyInvoiceRefNo.trim() === ""
+      ) {
+        await showCompanyInvoiceRefNoRequired();
+        setSaveLoading(false);
+        return;
+      }
+
       // Prevent saving an empty form as draft
       if (isFormEmptyForDraft(formData)) {
         Swal.fire({
@@ -2921,7 +2948,6 @@ export default function CreateInvoice() {
       // Use addedItems for saving if available, otherwise use formData.items
       const itemsToSave = addedItems.length > 0 ? addedItems : formData.items;
 
-      // For draft save, no validation required - just save whatever data is present
       // Only check if there's at least some data to save
       if (itemsToSave.length === 0) {
         Swal.fire({
@@ -3016,6 +3042,7 @@ export default function CreateInvoice() {
 
       const backendData = {
         ...formData,
+        sourceInvoiceNo: formData.sourceInvoiceNo || originalSourceInvoiceNoRef.current || formData.companyInvoiceRefNo,
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
         transctypeId: formData.transctypeId,
         items: backendItems, // Use backend items that include all fields
@@ -3211,8 +3238,17 @@ export default function CreateInvoice() {
         }
       }
 
+      if (
+        !formData.companyInvoiceRefNo ||
+        formData.companyInvoiceRefNo.trim() === ""
+      ) {
+        await showCompanyInvoiceRefNoRequired();
+        setSaveValidateLoading(false);
+        return;
+      }
+
       // ── Pre-check: companyInvoiceRefNo uniqueness BEFORE hitting FBR ──
-      if (formData.companyInvoiceRefNo && formData.companyInvoiceRefNo.trim()) {
+      if (formData.companyInvoiceRefNo.trim()) {
         try {
           const refCheckRes = await api.post(
             `/tenant/${selectedTenant.tenant_id}/invoices/check-company-ref`,
@@ -3375,6 +3411,7 @@ export default function CreateInvoice() {
 
         const backendData = {
           ...formData,
+          sourceInvoiceNo: formData.sourceInvoiceNo || originalSourceInvoiceNoRef.current || formData.companyInvoiceRefNo,
           buyerAddress: sanitizeAddress(formData.buyerAddress),
           sellerAddress: sanitizeAddress(formData.sellerAddress),
           invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
@@ -3558,6 +3595,15 @@ export default function CreateInvoice() {
           setLoading(false);
           return;
         }
+      }
+
+      if (
+        !formData.companyInvoiceRefNo ||
+        formData.companyInvoiceRefNo.trim() === ""
+      ) {
+        await showCompanyInvoiceRefNoRequired();
+        setLoading(false);
+        return;
       }
 
       // Check if there are any items to validate
@@ -3846,6 +3892,7 @@ export default function CreateInvoice() {
 
       const backendData = {
         ...formData, // Use original form data to preserve all fields
+        sourceInvoiceNo: formData.sourceInvoiceNo || originalSourceInvoiceNoRef.current || formData.companyInvoiceRefNo,
         buyerAddress: sanitizeAddress(formData.buyerAddress),
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
@@ -4332,6 +4379,7 @@ export default function CreateInvoice() {
             <TextField
               fullWidth
               size="small"
+              required
               label="Company Invoice Ref No:"
               value={formData.companyInvoiceRefNo}
               onChange={(e) =>

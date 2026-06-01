@@ -118,7 +118,7 @@ export const createInvoiceModel = (sequelize) => {
         unique: true,
       },
       sourceInvoiceNo: {
-        type: DataTypes.STRING(15),
+        type: DataTypes.STRING(100),
         allowNull: true,
         unique: true,
       },

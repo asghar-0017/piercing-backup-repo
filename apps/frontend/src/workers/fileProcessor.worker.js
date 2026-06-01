@@ -621,19 +621,20 @@ class FileProcessor {
       try {
         // Use any available identifier or create a unique one
         // Try different possible column names for invoice reference
-        const companyInvoiceRefNo =
+        const refFromFile =
           item.companyInvoiceRefNo?.trim() ||
           item.company_invoice_ref_no?.trim() ||
-          item.invoice_ref_no?.trim() ||
           item.dn_invoice_ref_no?.trim() ||
           item.internalInvoiceNo?.trim() ||
           item.internal_invoice_no?.trim() ||
           item.invoiceNumber?.trim() ||
           item.invoice_number?.trim() ||
-          `row_${index + 1}`;
+          "";
 
-        if (groupedInvoices.has(companyInvoiceRefNo)) {
-          const existingInvoice = groupedInvoices.get(companyInvoiceRefNo);
+        const groupingKey = refFromFile || `row_${index + 1}`;
+
+        if (groupedInvoices.has(groupingKey)) {
+          const existingInvoice = groupedInvoices.get(groupingKey);
 
           // Add item to existing invoice
           existingInvoice.items.push(this.cleanItemData(item, index));
@@ -648,7 +649,7 @@ class FileProcessor {
           // Debug logging for buyer business name
           if (index < 3) {
             console.log(`🔍 Worker Debug: Creating invoice ${index + 1}:`, {
-              companyInvoiceRefNo,
+              companyInvoiceRefNo: refFromFile,
               buyerBusinessName,
               buyerNTNCNIC: item.buyerNTNCNIC || item.buyer_ntn_cnic || "",
               availableFields: Object.keys(item).filter((key) =>
@@ -657,13 +658,13 @@ class FileProcessor {
             });
           }
 
-          groupedInvoices.set(companyInvoiceRefNo, {
+          groupedInvoices.set(groupingKey, {
             invoiceType: item.invoiceType || item.invoice_type || "Standard",
             invoiceDate:
               this.convertExcelDateToYYYYMMDD(
                 item.invoiceDate || item.invoice_date,
               ) || new Date().toISOString().split("T")[0],
-            companyInvoiceRefNo: companyInvoiceRefNo,
+            companyInvoiceRefNo: refFromFile,
             internalInvoiceNo:
               item.internalInvoiceNo ||
               item.internal_invoice_no ||
