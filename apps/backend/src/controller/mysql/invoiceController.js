@@ -49,7 +49,9 @@ const generateSystemInvoiceId = async (Invoice) => {
         },
       },
 
-      order: [["system_invoice_id", "DESC"]],
+      order: [
+        [Invoice.sequelize.Sequelize.literal("CAST(SUBSTRING(system_invoice_id, 5) AS UNSIGNED)"), "DESC"]
+      ],
 
       attributes: ["system_invoice_id"],
     });
@@ -4663,7 +4665,9 @@ export const bulkCreateInvoices = async (req, res) => {
             [Invoice.sequelize.Sequelize.Op.like]: "INV-%",
           },
         },
-        order: [["system_invoice_id", "DESC"]],
+          order: [
+        [Invoice.sequelize.Sequelize.literal("CAST(SUBSTRING(system_invoice_id, 5) AS UNSIGNED)"), "DESC"]
+      ],
         attributes: ["system_invoice_id"],
       });
 
