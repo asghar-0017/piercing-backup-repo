@@ -4905,6 +4905,8 @@ export const bulkCreateInvoices = async (req, res) => {
           firstItem: invoiceData.items?.[0],
         });
 
+        let hasErrorInThisInvoice = false;
+
         // Handle buyer validation - only check if buyer exists by NTN
         if (String(invoiceData.buyerNTNCNIC || "").trim()) {
           const ntnTrimmed = String(invoiceData.buyerNTNCNIC || "").trim();
@@ -4932,23 +4934,23 @@ export const bulkCreateInvoices = async (req, res) => {
             validationErrors.push({
               index: i,
               row: i + 1,
-              error: `Buyer with NTN "${ntnTrimmed}" does not exist in our system (Row ${i + 1})`,
+              error: `Incorrect NTN (Buyer NTN "${ntnTrimmed}" does not exist)`,
             });
-            continue;
+            hasErrorInThisInvoice = true;
+          } else {
+            console.log(`✅ Buyer with NTN "${ntnTrimmed}" found in system:`, {
+              businessName: existingBuyer.buyerBusinessName,
+              province: existingBuyer.buyerProvince,
+              address: existingBuyer.buyerAddress,
+            });
+
+            // Use existing buyer data instead of CSV data
+            invoiceData.buyerBusinessName = existingBuyer.buyerBusinessName;
+            invoiceData.buyerProvince = existingBuyer.buyerProvince;
+            invoiceData.buyerAddress = existingBuyer.buyerAddress;
+            invoiceData.buyerRegistrationType =
+              existingBuyer.buyerRegistrationType;
           }
-
-          console.log(`✅ Buyer with NTN "${ntnTrimmed}" found in system:`, {
-            businessName: existingBuyer.buyerBusinessName,
-            province: existingBuyer.buyerProvince,
-            address: existingBuyer.buyerAddress,
-          });
-
-          // Use existing buyer data instead of CSV data
-          invoiceData.buyerBusinessName = existingBuyer.buyerBusinessName;
-          invoiceData.buyerProvince = existingBuyer.buyerProvince;
-          invoiceData.buyerAddress = existingBuyer.buyerAddress;
-          invoiceData.buyerRegistrationType =
-            existingBuyer.buyerRegistrationType;
         } else {
           // NTN is required for invoice processing
           console.log(
@@ -4959,7 +4961,7 @@ export const bulkCreateInvoices = async (req, res) => {
             row: i + 1,
             error: "Buyer NTN is required for invoice processing",
           });
-          continue;
+          hasErrorInThisInvoice = true;
         }
 
         // Pre-validate all products for this invoice before creating invoice record
@@ -5001,8 +5003,9 @@ export const bulkCreateInvoices = async (req, res) => {
             validationErrors.push({
               index: i,
               row: i + 1,
-              error: `Product "${productName}" does not exist in the system (Row ${j + 1})`,
+              error: `Incorrect Product Name (Product "${productName}" does not exist)`,
             });
+            hasErrorInThisInvoice = true;
             continue;
           }
 
@@ -5020,11 +5023,11 @@ export const bulkCreateInvoices = async (req, res) => {
             row: i + 1,
             error: `Product Name is required for invoice (Row ${i + 1})`,
           });
-          continue;
+          hasErrorInThisInvoice = true;
         }
 
         // If no valid products found, add validation error
-        if (validItemsCount === 0) {
+        if (validItemsCount === 0 && hasAnyProductName) {
           console.log(
             `⚠️ Validation error for invoice ${i + 1}: No valid products found`,
           );
@@ -5033,6 +5036,10 @@ export const bulkCreateInvoices = async (req, res) => {
             row: i + 1,
             error: `No valid products found for invoice (Row ${i + 1})`,
           });
+          hasErrorInThisInvoice = true;
+        }
+
+        if (hasErrorInThisInvoice) {
           continue;
         }
 
