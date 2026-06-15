@@ -133,7 +133,7 @@ export const validateInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata_sb`,
+      `${FBR_BASE_URL}/di_data/v1/di/validateinvoicedata`,
       invoiceData,
       config,
     );
@@ -175,7 +175,7 @@ export const submitInvoiceData = async (
 
   try {
     const response = await axios.post(
-      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata_sb`,
+      `${FBR_BASE_URL}/di_data/v1/di/postinvoicedata`,
       invoiceData,
       config,
     );
