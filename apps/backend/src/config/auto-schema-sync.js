@@ -101,10 +101,8 @@ class AutoSchemaSync {
     }
   }
 
-  async syncMasterDatabase() {
-    this.log("Synchronizing master database schema...");
-
-    const models = [
+  getMasterModels(sequelize = masterSequelize) {
+    return [
       { name: "Tenant", model: Tenant },
       { name: "User", model: User },
       { name: "Role", model: Role },
@@ -117,195 +115,199 @@ class AutoSchemaSync {
       { name: "AdminUser", model: AdminUser },
       { name: "AdminSession", model: AdminSession },
       { name: "ResetCode", model: ResetCode },
-      { name: "Buyer", model: createBuyerModel(masterSequelize) },
-      { name: "Product", model: createProductModel(masterSequelize) },
-      { name: "Invoice", model: createInvoiceModel(masterSequelize) },
-      { name: "InvoiceItem", model: createInvoiceItemModel(masterSequelize) },
+      { name: "Buyer", model: createBuyerModel(sequelize) },
+      { name: "Product", model: createProductModel(sequelize) },
+      { name: "Invoice", model: createInvoiceModel(sequelize) },
+      { name: "InvoiceItem", model: createInvoiceItemModel(sequelize) },
       {
         name: "InvoiceBackup",
-        model: createInvoiceBackupModel(masterSequelize),
+        model: createInvoiceBackupModel(sequelize),
       },
       {
         name: "InvoiceBackupSummary",
-        model: createInvoiceBackupSummaryModel(masterSequelize),
+        model: createInvoiceBackupSummaryModel(sequelize),
       },
     ];
+  }
 
+  getTenantModels(sequelize) {
+    return [
+      { name: "Buyer", model: createBuyerModel(sequelize) },
+      { name: "Product", model: createProductModel(sequelize) },
+      { name: "Invoice", model: createInvoiceModel(sequelize) },
+      { name: "InvoiceItem", model: createInvoiceItemModel(sequelize) },
+      {
+        name: "InvoiceBackup",
+        model: createInvoiceBackupModel(sequelize),
+      },
+      {
+        name: "InvoiceBackupSummary",
+        model: createInvoiceBackupSummaryModel(sequelize),
+      },
+    ];
+  }
+
+  getMySQLColumnType(attribute) {
+    const { type, allowNull, defaultValue } = attribute;
+    const typeName = type?.constructor?.name || type?.key || "";
+
+    let sqlType;
+    switch (typeName) {
+      case "STRING":
+        sqlType = `VARCHAR(${type.options?.length || 255})`;
+        break;
+      case "TEXT":
+        sqlType = "TEXT";
+        break;
+      case "INTEGER":
+        sqlType = "INT";
+        break;
+      case "BIGINT":
+        sqlType = "BIGINT";
+        break;
+      case "BOOLEAN":
+        sqlType = "TINYINT(1)";
+        break;
+      case "DATE":
+        sqlType = "DATETIME";
+        break;
+      case "DECIMAL":
+        sqlType = `DECIMAL(${type.options?.precision || 10}, ${type.options?.scale || 2})`;
+        break;
+      case "JSON":
+        sqlType = "JSON";
+        break;
+      case "ENUM":
+        sqlType = `ENUM('${(type.options?.values || []).join("','")}')`;
+        break;
+      default:
+        sqlType = type?.key === "BIGINT" ? "BIGINT" : "TEXT";
+    }
+
+    let resolvedDefault = defaultValue;
+    if (
+      resolvedDefault !== undefined &&
+      resolvedDefault !== null &&
+      typeof resolvedDefault === "object"
+    ) {
+      resolvedDefault = null;
+    }
+    if (typeof resolvedDefault === "boolean") {
+      resolvedDefault = resolvedDefault ? 1 : 0;
+    }
+
+    return {
+      sqlType,
+      allowNull: allowNull !== false,
+      defaultValue: resolvedDefault ?? null,
+    };
+  }
+
+  async syncModels(sequelize, models, databaseType) {
     for (const { name, model } of models) {
       try {
         await this.retryOperation(
           () => model.sync({ force: false, alter: true }),
-          `Sync master table ${name}`,
+          `Sync ${databaseType} table ${name}`,
         );
         this.results.tablesCreated++;
-        this.log(`Master table synchronized: ${model.getTableName()}`);
+        this.log(`${databaseType} table synchronized: ${model.getTableName()}`);
       } catch (error) {
         this.log(
-          `Failed to sync master table ${name}: ${error.message}`,
+          `Failed to sync ${databaseType} table ${name}: ${error.message}`,
           "error",
         );
       }
     }
-
-    // Check for common missing columns
-    await this.checkCommonMissingColumns(masterSequelize, "master");
   }
 
-  async checkCommonMissingColumns(sequelize, databaseType) {
-    const commonColumns = [
-      // Auth-related columns
-      { table: "users", column: "role_id", type: "INT", allowNull: true },
-      {
-        table: "users",
-        column: "password",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "users",
-        column: "is_active",
-        type: "TINYINT(1)",
-        allowNull: true,
-        defaultValue: 1,
-      },
-      {
-        table: "users",
-        column: "is_verified",
-        type: "TINYINT(1)",
-        allowNull: true,
-        defaultValue: 0,
-      },
-      {
-        table: "users",
-        column: "email_verified_at",
-        type: "DATETIME",
-        allowNull: true,
-      },
-      {
-        table: "users",
-        column: "last_login_at",
-        type: "DATETIME",
-        allowNull: true,
-      },
-      {
-        table: "users",
-        column: "password_reset_token",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "users",
-        column: "password_reset_expires",
-        type: "DATETIME",
-        allowNull: true,
-      },
-      {
-        table: "users",
-        column: "email_verification_token",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "users",
-        column: "email_verification_expires",
-        type: "DATETIME",
-        allowNull: true,
-      },
+  async ensureModelColumns(sequelize, models, databaseType) {
+    for (const { model } of models) {
+      const tableName = model.getTableName();
+      const tableExists = await this.tableExists(sequelize, tableName);
+      if (!tableExists) continue;
 
-      // Admin-related columns
-      {
-        table: "admin_users",
-        column: "is_active",
-        type: "TINYINT(1)",
-        allowNull: true,
-        defaultValue: 1,
-      },
-      {
-        table: "admin_users",
-        column: "last_login_at",
-        type: "DATETIME",
-        allowNull: true,
-      },
-      {
-        table: "admin_users",
-        column: "password_reset_token",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "admin_users",
-        column: "password_reset_expires",
-        type: "DATETIME",
-        allowNull: true,
-      },
+      for (const [fieldName, attribute] of Object.entries(
+        model.rawAttributes,
+      )) {
+        if (attribute.primaryKey) continue;
 
-      // Session-related columns
-      {
-        table: "admin_sessions",
-        column: "expires_at",
-        type: "DATETIME",
-        allowNull: true,
-      },
-      {
-        table: "admin_sessions",
-        column: "is_active",
-        type: "TINYINT(1)",
-        allowNull: true,
-        defaultValue: 1,
-      },
+        const columnName = attribute.field || fieldName;
+        try {
+          const columnExists = await this.columnExists(
+            sequelize,
+            tableName,
+            columnName,
+          );
+          if (columnExists) continue;
 
-      // Reset code columns
-      {
-        table: "reset_codes",
-        column: "expires_at",
-        type: "DATETIME",
-        allowNull: true,
-      },
-      {
-        table: "reset_codes",
-        column: "is_used",
-        type: "TINYINT(1)",
-        allowNull: true,
-        defaultValue: 0,
-      },
-      {
-        table: "reset_codes",
-        column: "used_at",
-        type: "DATETIME",
-        allowNull: true,
-      },
+          const { sqlType, allowNull, defaultValue } =
+            this.getMySQLColumnType(attribute);
+          await this.addMissingColumn(
+            sequelize,
+            tableName,
+            columnName,
+            sqlType,
+            allowNull,
+            defaultValue,
+          );
+          this.results.columnsAdded++;
+          this.log(`Added column: ${tableName}.${columnName} (${databaseType})`);
+        } catch (error) {
+          if (!error.message.includes("Duplicate column name")) {
+            this.log(
+              `Error adding column ${tableName}.${columnName}: ${error.message}`,
+              "warn",
+            );
+          }
+        }
+      }
 
-      // Business-related columns
-      {
-        table: "invoices",
-        column: "internal_invoice_no",
-        type: "VARCHAR(100)",
-        allowNull: true,
-      },
-      {
-        table: "buyers",
-        column: "created_by_user_id",
-        type: "INT",
-        allowNull: true,
-      },
-      {
-        table: "buyers",
-        column: "created_by_email",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "buyers",
-        column: "created_by_name",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "buyers",
-        column: "buyerPhoneNumber",
-        type: "VARCHAR(20)",
-        allowNull: true,
-      },
+      const options = model.options;
+      if (options.timestamps) {
+        const timestampColumns = [];
+        const createdAt = options.createdAt;
+        const updatedAt = options.updatedAt;
+
+        if (createdAt && createdAt !== true && createdAt !== false) {
+          timestampColumns.push(createdAt);
+        }
+        if (updatedAt && updatedAt !== true && updatedAt !== false) {
+          timestampColumns.push(updatedAt);
+        }
+
+        for (const columnName of timestampColumns) {
+          if (model.rawAttributes[columnName]) continue;
+          try {
+            const columnExists = await this.columnExists(
+              sequelize,
+              tableName,
+              columnName,
+            );
+            if (columnExists) continue;
+
+            await sequelize.query(
+              `ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+            );
+            this.results.columnsAdded++;
+            this.log(
+              `Added timestamp column: ${tableName}.${columnName} (${databaseType})`,
+            );
+          } catch (error) {
+            if (!error.message.includes("Duplicate column name")) {
+              this.log(
+                `Error adding timestamp ${tableName}.${columnName}: ${error.message}`,
+                "warn",
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  async applySchemaPatches(sequelize, databaseType) {
+    const patches = [
       {
         table: "buyers",
         column: "buyerCity",
@@ -313,193 +315,81 @@ class AutoSchemaSync {
         allowNull: true,
       },
       {
-        table: "products",
-        column: "created_by_user_id",
-        type: "INT",
-        allowNull: true,
-      },
-      {
-        table: "products",
-        column: "created_by_email",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "products",
-        column: "created_by_name",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "invoices",
-        column: "created_by_user_id",
-        type: "INT",
-        allowNull: true,
-      },
-      {
-        table: "invoices",
-        column: "created_by_email",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "invoices",
-        column: "created_by_name",
-        type: "VARCHAR(255)",
-        allowNull: true,
-      },
-      {
-        table: "invoices",
-        column: "sourceInvoiceNo",
-        type: "VARCHAR(100) UNIQUE",
-        allowNull: true,
-      },
-      {
-        table: "invoices",
-        column: "isDeleted",
-        type: "TINYINT(1)",
-        allowNull: false,
-        defaultValue: 0,
-      },
-      {
-        table: "Invoice",
-        column: "isDeleted",
-        type: "TINYINT(1)",
-        allowNull: false,
-        defaultValue: 0,
-      },
-      {
-        table: "invoice_items",
-        column: "isDeleted",
-        type: "TINYINT(1)",
-        allowNull: false,
-        defaultValue: 0,
-      },
-      {
-        table: "InvoiceItem",
-        column: "isDeleted",
-        type: "TINYINT(1)",
-        allowNull: false,
-        defaultValue: 0,
-      },
-      {
-        table: "invoice_items",
-        column: "invoiceItemNo",
-        type: "varchar(255)",
-        allowNull: true,
-        defaultValue: "",
-      },
-      {
-        table: "InvoiceItems",
-        column: "invoiceItemNo",
-        type: "varchar(255)",
-        allowNull: true,
-        defaultValue: "",
-      },
-
-      // Invoice items DECIMAL field updates (increase precision for large amounts)
-      {
         table: "invoice_items",
         column: "quantity",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "unitPrice",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "totalValues",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "valueSalesExcludingST",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "fixedNotifiedValueOrRetailPrice",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "salesTaxApplicable",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "salesTaxWithheldAtSource",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "extraTax",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "furtherTax",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "fedPayable",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "advanceIncomeTax",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "discount",
         type: "DECIMAL(20,2)",
-        allowNull: true,
         isUpdate: true,
       },
-
-      // Foreign key relationships
       {
-        table: "invoices",
-        column: "buyer_id",
-        type: "INT",
-        allowNull: true,
-      },
-      {
-        table: "Invoice",
-        column: "buyer_id",
-        type: "INT",
-        allowNull: true,
-      },
-      {
-        table: "invoice_items",
-        column: "product_id",
-        type: "INT",
+        table: "invoice_backups",
+        column: "user_role",
+        type: "VARCHAR(50)",
         allowNull: true,
       },
     ];
@@ -508,47 +398,50 @@ class AutoSchemaSync {
       table,
       column,
       type,
-      allowNull,
+      allowNull = true,
       isUpdate = false,
       defaultValue = null,
-    } of commonColumns) {
+    } of patches) {
       try {
         const tableExists = await this.tableExists(sequelize, table);
-        if (tableExists) {
-          const columnExists = await this.columnExists(
+        if (!tableExists) continue;
+
+        const columnExists = await this.columnExists(sequelize, table, column);
+        if (!columnExists) {
+          await this.addMissingColumn(
             sequelize,
             table,
             column,
+            type,
+            allowNull,
+            defaultValue,
           );
-          if (!columnExists) {
-            await this.addMissingColumn(
-              sequelize,
-              table,
-              column,
-              type,
-              allowNull,
-              defaultValue,
-            );
-            this.results.columnsAdded++;
-            this.log(`Added column: ${table}.${column} (${databaseType})`);
-          } else if (isUpdate) {
-            // Update existing column type for DECIMAL fields
-            await this.updateColumnType(sequelize, table, column, type);
-            this.log(
-              `Updated column type: ${table}.${column} to ${type} (${databaseType})`,
-            );
-          }
+          this.results.columnsAdded++;
+          this.log(`Added patch column: ${table}.${column} (${databaseType})`);
+        } else if (isUpdate) {
+          await this.updateColumnType(sequelize, table, column, type);
+          this.log(
+            `Updated column type: ${table}.${column} to ${type} (${databaseType})`,
+          );
         }
       } catch (error) {
-        // Ignore duplicate column errors
         if (!error.message.includes("Duplicate column name")) {
           this.log(
-            `Error checking column ${table}.${column}: ${error.message}`,
+            `Error applying patch ${table}.${column}: ${error.message}`,
             "warn",
           );
         }
       }
     }
+  }
+
+  async syncMasterDatabase() {
+    this.log("Synchronizing master database schema...");
+
+    const models = this.getMasterModels();
+    await this.syncModels(masterSequelize, models, "master");
+    await this.ensureModelColumns(masterSequelize, models, "master");
+    await this.applySchemaPatches(masterSequelize, "master");
   }
 
   async tableExists(sequelize, tableName) {
@@ -669,28 +562,30 @@ class AutoSchemaSync {
             `Connect to tenant ${tenant.database_name}`,
           );
 
-          // Check for common missing columns in tenant databases
-          await this.checkCommonMissingColumns(
+          const tenantLabel = `tenant: ${tenant.seller_business_name}`;
+          const tenantModels = this.getTenantModels(tenantSequelize);
+
+          await this.syncModels(tenantSequelize, tenantModels, tenantLabel);
+          await this.ensureModelColumns(
             tenantSequelize,
-            `tenant: ${tenant.seller_business_name}`,
+            tenantModels,
+            tenantLabel,
           );
+          await this.applySchemaPatches(tenantSequelize, tenantLabel);
 
           // Ensure backup tables exist in tenant databases
-          await this.ensureBackupTablesExist(
-            tenantSequelize,
-            `tenant: ${tenant.seller_business_name}`,
-          );
+          await this.ensureBackupTablesExist(tenantSequelize, tenantLabel);
 
           // Fix invoice_backups nullable constraint if needed
           await this.fixInvoiceBackupNullableConstraint(
             tenantSequelize,
-            `tenant: ${tenant.seller_business_name}`,
+            tenantLabel,
           );
 
           // Fix invoice_backup_summary nullable constraint if needed
           await this.fixInvoiceBackupSummaryNullableConstraint(
             tenantSequelize,
-            `tenant: ${tenant.seller_business_name}`,
+            tenantLabel,
           );
 
           await tenantSequelize.close();
@@ -721,7 +616,7 @@ class AutoSchemaSync {
           CREATE TABLE IF NOT EXISTS \`invoice_backups\` (
             \`id\` int(11) NOT NULL AUTO_INCREMENT,
             \`original_invoice_id\` int(11) DEFAULT NULL COMMENT 'ID of the original invoice',
-            \`system_invoice_id\` varchar(20) DEFAULT NULL COMMENT 'System invoice ID for reference',
+            \`system_invoice_id\` varchar(255) DEFAULT NULL COMMENT 'System invoice ID for reference',
             \`invoice_number\` varchar(100) DEFAULT NULL COMMENT 'Invoice number at time of backup',
             \`backup_type\` enum('DRAFT','SAVED','EDIT','POST','FBR_REQUEST','FBR_RESPONSE') NOT NULL COMMENT 'Type of backup operation',
             \`backup_reason\` varchar(255) DEFAULT NULL COMMENT 'Reason for backup',
@@ -735,6 +630,7 @@ class AutoSchemaSync {
             \`user_id\` int(11) DEFAULT NULL COMMENT 'ID of user who performed the operation',
             \`user_email\` varchar(255) DEFAULT NULL COMMENT 'Email of user who performed the operation',
             \`user_name\` varchar(255) DEFAULT NULL COMMENT 'Full name of user who performed the operation',
+            \`user_role\` varchar(50) DEFAULT NULL COMMENT 'Role of user who performed the operation',
             \`tenant_id\` int(11) DEFAULT NULL COMMENT 'Tenant/Company ID',
             \`tenant_name\` varchar(255) DEFAULT NULL COMMENT 'Tenant/Company name',
             \`ip_address\` varchar(45) DEFAULT NULL COMMENT 'IP address of the user',

@@ -55,7 +55,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://gw.fbr.gov.pk",
-          "https://crescentchem.inplsoftwares.com",
+          "https://bjkids.inplsoftwares.com",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
@@ -69,8 +69,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:5174",
-      "https://crescentchem.inplsoftwares.com",
-      "https://crescentchem.inplsoftwares.com",
+      "https://bjkids.inplsoftwares.com",
+      "https://bjkids.inplsoftwares.com",
       "https://fbrtestcase.inplsoftwares.online",
       "*",
     ],
