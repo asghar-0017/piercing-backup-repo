@@ -60,14 +60,14 @@ const mysqlConnector = async (dbConfig, logger) => {
 const initializeAdminUser = async () => {
   try {
     const adminExists = await AdminUser.findOne({
-      where: { email: "mrkids@inpl.com" },
+      where: { email: "piercingsystem@inpl.com" },
     });
 
     if (!adminExists) {
       const bcrypt = await import("bcryptjs");
-      const hashedPassword = await bcrypt.hash("r_mrkidspasJK76^h", 10);
+      const hashedPassword = await bcrypt.hash("r_piercingsystempasJK76^h", 10);
       await AdminUser.create({
-        email: "mrkids@inpl.com",
+        email: "piercingsystem@inpl.com",
         password: hashedPassword,
         is_verify: true,
         role: "admin",

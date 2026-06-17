@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       "/api": {
-        target: "https://mrkids.inplsoftwares.com",
+        target: "https://piercingsystem.inplsoftwares.com",
         changeOrigin: true,
         secure: false,
       },
