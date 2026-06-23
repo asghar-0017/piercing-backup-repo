@@ -63,6 +63,10 @@ router.get("/companies", async (req, res) => {
           created_at: assignment.Tenant.created_at,
           sandboxTestToken: assignment.Tenant.sandboxTestToken,
           sandboxProductionToken: assignment.Tenant.sandboxProductionToken,
+          telNo: assignment.Tenant.telNo,
+          mobNo: assignment.Tenant.mobNo,
+          strn: assignment.Tenant.strn,
+          email: assignment.Tenant.email,
         })
       );
       console.log("assignedCompanies", assignedCompanies);
@@ -145,6 +149,10 @@ router.get("/tenants/:tenantId", async (req, res) => {
         created_at: assignedTenant.Tenant.created_at,
         sandboxTestToken: assignedTenant.Tenant.sandboxTestToken,
         sandboxProductionToken: assignedTenant.Tenant.sandboxProductionToken,
+        telNo: assignedTenant.Tenant.telNo,
+        mobNo: assignedTenant.Tenant.mobNo,
+        strn: assignedTenant.Tenant.strn,
+        email: assignedTenant.Tenant.email,
       };
 
       return res

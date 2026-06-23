@@ -62,6 +62,18 @@ export const createInvoiceItemModel = (sequelize) => {
         type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
+      itemCode: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
+      units: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      courierCharges: {
+        type: DataTypes.DECIMAL(20, 2),
+        allowNull: true,
+      },
       totalValues: {
         type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
@@ -116,6 +128,28 @@ export const createInvoiceItemModel = (sequelize) => {
       },
       billOfLadingUoM: {
         type: DataTypes.STRING(50),
+        allowNull: true,
+      },
+      vat18: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      vat25: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      vatAmount: {
+        type: DataTypes.DECIMAL(20, 2),
+        allowNull: true,
+      },
+      vat18Amount: {
+        type: DataTypes.DECIMAL(20, 2),
+        allowNull: true,
+      },
+      vat25Amount: {
+        type: DataTypes.DECIMAL(20, 2),
         allowNull: true,
       },
       isDeleted: {

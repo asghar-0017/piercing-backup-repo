@@ -1,309 +1,672 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
-  <title>Sales Tax Invoice</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tax Invoice - Piercing Systems Pakistan</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      font-size: 12px;
-      margin: 20px;
+      font-size: 11px;
       color: #000;
+      margin: 0;
+      padding: 20px;
+      background-color: #fff;
     }
 
-    .header {
-      text-align: center;
-      margin-bottom: 10px;
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      padding: 10mm;
+      box-sizing: border-box;
+      background: white;
       position: relative;
     }
 
-    .logo {
-      float: right;
-      width: 130px;
-      margin-top: -50px;
-    }
-
-    .flex-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-
-    .section p {
-      margin: 4px 0;
-      font-size: 12px;
+    .page-break {
+      page-break-after: always;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 20px;
-    } 
+      margin-bottom: 0;
+    }
 
     th,
     td {
-      border: 1px solid #157492;
-      padding: 6px 8px;
-      font-size: 8px;
+      padding: 4px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .border-all {
+      border: 1px solid #000;
+    }
+
+    .border-bottom {
+      border-bottom: 1px solid #000;
+    }
+
+    .text-center {
       text-align: center;
     }
 
-    th {
-      background-color: #2c7c93;
-      color: white;
-      font-weight: bold;
-
-    }
-
-    .summary-box {
-      margin-top: 20px;
-      width: 300px;
-      float: right;
-      background-color: #eee;
-      padding: 12px;
-      border: 1px solid #ccc;
+    .text-right {
       text-align: right;
-      margin-left: 40px;
     }
 
-    .summary-box p {
-      margin: 4px 0;
-      font-size: 12px;
-    }
-
-    .total-in-words {
-      margin-top: 40px;
+    .bold {
       font-weight: bold;
-      font-size: 12px;
-      clear: both;
-      white-space: pre-wrap;
-      /* Enable wrapping for long text */
     }
 
-    .qr-box {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 40px;
+    .bg-gray {
+      background-color: #e6e6e6;
     }
 
-    .fbr-logo {
-      width: 140px;
+    .header-title {
+      font-size: 18px;
+      font-weight: bold;
     }
 
-    .qr-box img {
-      height: 100px;
-      object-fit: contain;
+    .invoice-title {
+      font-size: 16px;
+      font-weight: bold;
+      text-decoration: underline;
+      text-align: center;
+      margin: 15px 0 5px 0;
     }
 
-    .qr-image {
-      width: 1in;
-      height: 1in;
-      object-fit: contain;
+    .connected-table {
+      border: 1px solid #000;
+      margin-bottom: -1px;
     }
 
-    .clear {
-      clear: both;
+    .connected-table td {
+      border: 1px solid #000;
+    }
+
+    /* MAIN ITEMS TABLE BORDERLESS CONTAINER */
+    .items-table {
+      border: none;
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    .items-table th {
+      font-weight: bold;
+      font-size: 10px;
+      border: 1px solid #000;
+      padding: 5px 6px;
+    }
+
+    /* Inner vertical grids for data items */
+    .items-table tbody tr td {
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
+      border-top: none;
+      border-bottom: none;
+      font-size: 10px;
+      padding: 3px 6px;
+    }
+
+    /* This closes the item box perfectly at Row 12 */
+    .items-table tr.last-row td {
+      border-bottom: 1px solid #000 !important;
+    }
+
+    /* Total row configuration: No left, right or bottom lines */
+    .items-table tr.total-row td {
+      border: none !important;
+      padding-top: 6px;
+      font-size: 11px;
+    }
+
+    .footer-meta {
+      position: absolute;
+      bottom: 20px;
+      width: calc(100% - 20mm);
+      font-size: 10px;
+    }
+
+    ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    ol li {
+      margin-bottom: 8px;
+      text-align: justify;
+      line-height: 1.4;
     }
   </style>
 </head>
 
 <body>
-  <%
-    // Helper function to format numbers with commas
-    function formatNumber(num) {
-      if (num === null || num === undefined || isNaN(num)) return '0.00';
-      return parseFloat(num).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
+  <% const addressParts=(()=> {
+    const address = invoice.sellerAddress || '';
+    if (!address) return ['', '', ''];
+    let parts = address.split(/\r?\n/).map(p => p.trim()).filter(Boolean);
+    if (parts.length === 1 && address.includes(',')) {
+    parts = address.split(',').map(p => p.trim()).filter(Boolean);
     }
-  %>
-  
-  <div class="header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; position: relative;">
-    <div style="flex: 1;"></div>
-    <h2 style="position: absolute; left: 50%; transform: translateX(-50%);">Sales Tax Invoice</h2>
-    <!-- <img 
-      src="data:image/png;base64,<%= pakistanGumLogoBase64 %>" 
-      alt="Pakprogressive" 
-      style="width: 120px; height: auto;" 
-    /> -->
-  </div>
-
-  <div class="flex-row">
-    <div class="invoice-info">
-      <p><strong>Invoice #:</strong>
-        <%= invoice.invoice_number %>
-      </p>
-      <% if (invoice.fbr_invoice_number && invoice.fbr_invoice_number !== invoice.invoice_number) { %>
-        <p style="font-size: 10px; color: #666; font-style: italic;"><strong>FBR #:</strong>
-          <%= invoice.fbr_invoice_number %>
-        </p>
-      <% } %>
-      <% if (invoice.companyInvoiceRefNo) { %>
-        <p style="font-size: 10px; color: #666; font-style: italic;"><strong>Company Invoice Ref No:</strong>
-          <%= invoice.companyInvoiceRefNo %>
-        </p>
-      <% } %>
-    </div>
-    <div class="invoice-info" style="text-align: right;">
-      <p><strong>Date:</strong>
-        <%= invoice.invoiceDate %>
-      </p>
-    </div>
-  </div>
-
-  <div class="flex-row">
-    <div class="buyer-info">
-      <p><strong>Buyer:</strong></p>
-      <p>
-        <%= invoice.buyerBusinessName %>
-      </p>
-      <p>
-        <%= invoice.buyerAddress %>
-      </p>
-      <p>REGION: <%= invoice.buyerProvince %>
-      </p>
-      <p>CNIC/NTN: <%= invoice.buyerNTNCNIC %>
-      </p>
-      <p>TYPE: <%= invoice.buyerRegistrationType %>
-      </p>
-    </div>
-    <div class="seller-info" style="text-align: right;">
-      <p><strong>Seller:</strong></p>
-      <p>
-        <%= invoice.sellerBusinessName %>
-      </p>
-      <p style="max-width: 250px; margin-left: auto;">
-        <%= invoice.sellerAddress %><br/>
-        <%= invoice.sellerCity %>
-      </p>
-      <p>CNIC/NTN: <%= invoice.seller_full_ntn || invoice.sellerFullNTN || invoice.sellerNTNCNIC %>
-      </p>
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>SR No.</th>
-        <th>HS Code</th>
-        <th>Product Description</th>
-        <th>Quantity</th>
-        <th>Unit Price</th>
-        <th>Amount</th>
-        <th>Rate</th>
-        <th>Sales Tax</th>
-        <th>Extra Tax</th>
-        <th>Further Tax</th>
-        <th>FED</th>
-        <th>Advance Income Tax</th>
-        <th>Discount (%)</th>
-        <th>Sales Tax Withheld</th>
-        <th>Total (incl. Tax)</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% invoice.items.forEach((item, idx)=> { %>
-        <tr>
-          <td>
-            <%= idx + 1 %>
-          </td>
-          <td>
-            <%= item.hsCode %>
-          </td>
-          <td>
-            <%= item.productDescription || 'N/A' %>
-          </td>
-          <td>
-            <%= item.quantity %>
-          </td>
-          <td>
-            <%= formatNumber(item.unitPrice) %>
-          </td>
-          <td>
-            <%= formatNumber(item.valueSalesExcludingST) %>
-          </td>
-          <td>
-            <%= item.rate %>
-          </td>
-          <td>
-            <%= formatNumber(item.salesTaxApplicable) %>
-          </td>
-          <td>
-            <%= formatNumber(item.extraTax) %>
-          </td>
-          <td>
-            <%= formatNumber(item.furtherTax) %>
-          </td>
-          <td>
-            <%= formatNumber(item.fedPayable) %>
-          </td>
-          <td>
-            <%= formatNumber(item.advanceIncomeTax) %>
-          </td>
-          <td>
-            <%= formatNumber(item.discount) %>
-          </td>
-          <td>
-            <%= formatNumber(item.salesTaxWithheldAtSource) %>
-          </td>
-          <td>
-            <%= formatNumber(item.totalValues) %>
-          </td>
-
-        </tr>
-        <% }); %>
-    </tbody>
-  </table>
-
-  <% const subTotal=invoice.items.reduce((sum, i)=> sum + parseFloat(i.valueSalesExcludingST || 0), 0);
-    const gst = invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxApplicable || 0), 0);
-    const further = invoice.items.reduce((sum, i) => sum + parseFloat(i.furtherTax || 0), 0);
-    const extra = invoice.items.reduce((sum, i) => sum + parseFloat(i.extraTax || 0), 0);
-    const fed = invoice.items.reduce((sum, i) => sum + parseFloat(i.fedPayable || 0), 0);
-    const advanceIncomeTax = invoice.items.reduce((sum, i) => sum + parseFloat(i.advanceIncomeTax || 0), 0);
-    const dis = invoice.items.reduce((sum, i) => sum + parseFloat(i.discount || 0), 0);
-    const withheld = invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxWithheldAtSource || 0), 0);
-  const grandTotal = invoice.items.reduce((sum, i) => sum + parseFloat(i.totalValues || 0), 0);
+    if (parts.length === 0) return ['', '', ''];
+    if (parts.length === 1) return [parts[0], '', ''];
+    if (parts.length === 2) return [parts[0], parts[1], ''];
+    if (parts.length === 3) return [parts[0], parts[1], parts[2]];
+    return [parts[0], parts.slice(1, -1).join(', '), parts[parts.length - 1]];
+    })();
     %>
 
-    <div class="summary-box">
-      <p>Sub Total (Excl. Tax): <%= formatNumber(subTotal) %>
-      </p>
-      <p>Sales Tax (GST): <%= formatNumber(gst) %>
-      </p>
-      <p>Further Tax: <%= formatNumber(further) %>
-      </p>
-      <p>Extra Tax: <%= formatNumber(extra) %>
-      </p>
-      <p>FED Payable: <%= formatNumber(fed) %>
-      </p>
-      <p>Advance Income Tax: <%= formatNumber(advanceIncomeTax) %>
-      </p>
-      <p>Discount: <%= formatNumber(dis) %>
-      </p>
-      <p>Sales Tax Withheld: <%= formatNumber(withheld) %>
-      </p>
-              <p><strong>Grand Total (Incl. All Taxes): Rs. <%= formatNumber(grandTotal) %></strong></p>
+    <div class="page page-break">
+      <table style="margin-top: -50px; font-family: Arial, sans-serif; border-collapse: collapse; width: 100%;">
+        <tr>
+          <td style="width: 22%; vertical-align: middle; padding: 0;">
+            <img src="data:image/png;base64,<%= piercingSystemLogoBase64 %>" alt="PSP Logo"
+              style="width: 100%; max-width: 140px; height: auto; display: block;">
+          </td>
+          <td
+            style="width: 78%; text-align: left; vertical-align: middle; padding-left: 15px; font-weight: bold; font-size: 11.5px;  color: #000;">
+
+            <div style="text-align: center; font-size: 18px; font-weight: bold; margin: 0 0 2px 0;">
+              <%= invoice.sellerBusinessName || 'Piercing Systems Pakistan Pvt Ltd' %>
+            </div>
+
+            <div style="text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 4px;">
+              <%= addressParts[0] || 'Jewelry Market' %>
+            </div>
+
+            <div style="text-align: center; font-size: 11.5px; font-weight: bold; margin-bottom: 2px;">
+              <%= addressParts[1] || 'OFFICE 701, 7TH FLOOR ALKHALEEJ TOWER , MAIN SHAHEED E MILLAT ROAD,' %>
+            </div>
+
+            <div style="text-align: center; font-size: 11.5px; font-weight: bold; margin-bottom: 6px;">
+              <%= addressParts[2] || 'TARIQ ROAD KARACHI- PAKISTAN.' %>
+            </div>
+
+            <table style="width: 100%; margin: 0; padding: 0; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 0; font-weight: bold; font-size: 11.5px; text-align: center; width: 50%;">
+                  Tel : <%= invoice.telNo || '021-34922327/8/9' %>
+                </td>
+                <td style="padding: 0; font-weight: bold; font-size: 11.5px; text-align: center; width: 50%;">
+                  Mob : <%= invoice.mobNo || '+92 333 1025 202' %>
+                </td>
+              </tr>
+            </table>
+
+            <table style="width: 100%; margin: 4px 0 0 0; padding: 0; border-collapse: collapse;">
+              <tr>
+                <td
+                  style="padding: 0; font-weight: bold; font-size: 11px; text-align: left; white-space: nowrap; width: 33%;">
+                  STRN: <%= invoice.strn || '1700360958715' %>
+                </td>
+                <td
+                  style="padding: 0; font-weight: bold; font-size: 11px; text-align: center; white-space: nowrap; width: 25%;">
+                  NTN: <%= invoice.seller_full_ntn || invoice.sellerFullNTN || invoice.sellerNTNCNIC || '3609587-7' %>
+                </td>
+                <td
+                  style="padding: 0; font-weight: bold; font-size: 11px; text-align: right; white-space: nowrap; width: 42%;">
+                  E-mail: <%= invoice.email || 'sales@piercingsystems.pk/info@piercingsystems.pk' %>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+      </table>
+
+      <div class="invoice-title">TAX INVOICE</div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: -1px;">
+        <tr>
+          <td style="width: 49.3%; padding: 0; vertical-align: top;">
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+              <tr class="bg-gray" style="border-bottom: 1px solid #000;">
+                <td style="font-weight: bold; padding: 4px 6px; height: 16px;">INVOICE NO : <%= invoice.invoice_number
+                    || '' %> &nbsp;&nbsp;&nbsp;&nbsp; GST Ref : <%= invoice.companyInvoiceRefNo || '' %>
+                </td>
+              </tr>
+              <tr class="bg-gray" style="border-bottom: 1px solid #000;">
+                <td style="font-weight: bold; padding: 4px 6px;">SHIP TO</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 6px; padding-bottom: 8px;">
+                  <% if (invoice.ShipTo) { %>
+                    <div class="bold">
+                      <%= invoice.ShipTo.name || '' %>
+                    </div>
+                    <div>
+                      <%= invoice.ShipTo.address || '' %>
+                    </div>
+                    <br>
+                    <div>Contact Person : &nbsp;&nbsp; <%= invoice.ShipTo.contactPerson || '' %>
+                    </div>
+                    <div>Contact No : &nbsp;&nbsp; <%= invoice.ShipTo.contactNo || '' %>
+                    </div>
+                    <div>CNIC &nbsp; <%= invoice.ShipTo.cnic || '' %> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        NTN &nbsp;&nbsp; <%= invoice.ShipTo.ntn || '' %>
+                    </div>
+                    <% } else { %>
+                      <div class="bold">HERITAGE JEWELLERY</div>
+                      <div>Shop no 67, second floor, Dolman Mall Phase 6 DHA Lahore</div>
+                      <br>
+                      <div>Contact Person : &nbsp;&nbsp; Mustafa</div>
+                      <div>Contact No :</div>
+                      <div>CNIC &nbsp; 42301-3271072-1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN</div>
+                      <% } %>
+                </td>
+              </tr>
+            </table>
+          </td>
+
+          <td style="width: 1.4%; padding: 0;"></td>
+
+          <td style="width: 49.3%; padding: 0; vertical-align: top;">
+            <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
+              <tr class="bg-gray" style="border-bottom: 1px solid #000;">
+                <td style="font-weight: bold; padding: 4px 6px; height: 16px;">INVOICE DATE : &nbsp;&nbsp; <%=
+                    invoice.invoiceDate || '' %>
+                </td>
+              </tr>
+              <tr class="bg-gray" style="border-bottom: 1px solid #000;">
+                <td style="font-weight: bold; padding: 4px 6px;">BILL TO</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 6px; padding-bottom: 8px;">
+                  <% if (invoice.BillTo) { %>
+                    <div class="bold">
+                      <%= invoice.BillTo.name || '' %>
+                    </div>
+                    <div>
+                      <%= invoice.BillTo.address || '' %>
+                    </div>
+                    <br><br>
+                    <div>Ref No <%= invoice.BillTo.refNo || '' %>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        NTN &nbsp;&nbsp; <%= invoice.BillTo.ntn || '' %>
+                    </div>
+                    <div>STRN : &nbsp;&nbsp; <%= invoice.BillTo.strn || '' %>
+                    </div>
+                    <% } else { %>
+                      <div class="bold">HERITAGE JEWELLERY</div>
+                      <div>Dolman Mall Phase 6 DHA Lahore</div>
+                      <br><br>
+                      <div>Ref No 42301-3271072-1
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        NTN</div>
+                      <div>STRN :</div>
+                      <% } %>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <table class="connected-table text-center">
+        <tr class="bg-gray" style="text-align: center;">
+          <td class="bold" style="width: 28%; text-align: center;">CUST. A/C NO</td>
+          <td class="bold" style="width: 22%; text-align: center;">CUST.LPO NO</td>
+          <td class="bold" style="width: 15%; text-align: center;">LPO DATE</td>
+          <td class="bold" style="width: 25%; text-align: center;">DEL.NOTE NO</td>
+          <td class="bold" style="width: 10%; text-align: center;">SP</td>
+        </tr>
+        <tr style="text-align: center;">
+          <td style="text-align: center;">
+            <%= invoice.custAccountNo || '' %>
+          </td>
+          <td style="text-align: center;">
+            <%= invoice.custLpoNo || '' %>
+          </td>
+          <td style="text-align: center;">
+            <%= invoice.lpoDate || '' %>
+          </td>
+          <td style="text-align: center;">
+            <%= invoice.deliveryNoteNo || '' %>
+          </td>
+          <td style="text-align: center;">
+            <%= invoice.sp || '' %>
+          </td>
+        </tr>
+      </table>
+
+      <table class="connected-table text-center">
+        <tr class="bg-gray" style="text-align: center;">
+          <td class="bold" style="width: 15%; text-align: center; white-space: nowrap;">PRODUCT ORIGIN</td>
+          <td class="bold" style="width: 20%; text-align: center; white-space: nowrap;">PRODUCT CERTIFIED BY</td>
+          <td class="bold" style="width: 18%; text-align: center; white-space: nowrap;">PAYMENT TERMS</td>
+          <td class="bold" style="width: 15%; text-align: center; white-space: nowrap;">PAYMENT DUE</td>
+          <td class="bold" style="width: 32%; text-align: center; white-space: nowrap;">GROUP</td>
+        </tr>
+        <tr style="text-align: center;">
+          <td style="text-align: center; white-space: nowrap;">
+            <%= invoice.productOrigin || '' %>
+          </td>
+          <td style="text-align: center; white-space: nowrap;">
+            <%= invoice.productCertifiedBy || '' %>
+          </td>
+          <td style="text-align: center; white-space: nowrap;">
+            <%= invoice.paymentTerms || '' %>
+          </td>
+          <td style="text-align: center; white-space: nowrap;">
+            <%= invoice.paymentDue || '' %>
+          </td>
+          <td style="text-align: center; white-space: nowrap;">
+            <%= invoice.group || '' %>
+          </td>
+        </tr>
+      </table>
+
+      <table class="items-table">
+        <thead>
+          <tr class="bg-gray">
+            <th style="width: 5%;" class="text-center">SR #</th>
+            <th style="width: 15%;">ITEM CODE</th>
+            <th style="width: 45%;">DESCRIPTION</th>
+            <th style="width: 8%;" class="text-center">UNITS</th>
+            <th style="width: 5%;" class="text-center">QTY</th>
+            <th style="width: 11%;" class="text-right">RATE</th>
+            <th style="width: 11%;" class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% let totalQty=0; if (invoice && invoice.items && invoice.items.length> 0) {
+            invoice.items.forEach((item, index) => {
+            const isLast = index === invoice.items.length - 1;
+            totalQty += Number(item.quantity || 0);
+            %>
+            <tr class="<%= isLast ? 'last-row' : '' %>">
+              <td class="text-center">
+                <%= index + 1 %>
+              </td>
+              <td>
+                <%= item.itemCode || '' %>
+              </td>
+              <td>
+                <%= item.productDescription || item.name || '' %>
+              </td>
+              <td class="text-center">
+                <%= item.units || '' %>
+              </td>
+              <td class="text-center">
+                <%= item.quantity || 0 %>
+              </td>
+              <td class="text-right">
+                <%= item.rate || '' %>
+              </td>
+              <td class="text-right">
+                <%= Number(item.valueSalesExcludingST || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
+                  maximumFractionDigits: 2}) %>
+              </td>
+            </tr>
+            <% }); } else { %>
+              <tr>
+                <td colspan="7" class="text-center">No items found</td>
+              </tr>
+              <% } %>
+
+                <tr class="total-row">
+                  <td colspan="3" class="text-right bold" style="padding-right: 15px;">Total</td>
+                  <td></td>
+                  <td class="text-center bold">
+                    <%= totalQty %>
+                  </td>
+                  <td></td>
+                  <td></td>
+                </tr>
+        </tbody>
+      </table>
+
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 15px;">
+        <tr>
+          <td style="width: 63%; padding: 8px 6px 4px 8px; vertical-align: top; line-height: 1.3;">
+            <div class="bold" style="font-size: 11px;">DECLARATION :</div>
+            <div style="font-size: 10px; text-align: justify; margin-top: 3px; color: #000; font-weight: normal;">
+              We declare that goods received in good condition this invoice shows actual price of the goods described
+              and that all particulars are true and correct.<br>
+              THIS INVOICE IS SUBJECT TO TERMS & CONDITIONS PRINTED OVERLEAF & I HEREBY ACCEPT THIS INVOICE.
+            </div>
+            <br>
+            <div class="bold" style="margin-top: 5px; font-size: 11px;">Goods Received By :</div>
+            <br><br>
+            <div class="bold" style="font-size: 11px;">Date : <span style="font-weight: normal;">
+                <%= invoice.invoiceDate || '' %>
+              </span></div>
+          </td>
+
+          <td style="width: 37%; padding: 6px 8px 4px 6px; vertical-align: top;">
+            <% let sumGrossTotal=0; let sumDiscount=0; let sumCourier=0; let sumTaxable=0; let sumVat25=0; let
+              sumVat18=0; let sumFurther=0; if (invoice && invoice.items) { invoice.items.forEach(item=> {
+              sumGrossTotal += Number(item.valueSalesExcludingST || 0);
+              sumDiscount += Number(item.discount || 0);
+              sumCourier += Number(item.courierCharges || 0);
+              sumTaxable += Number(item.salesTaxApplicable || 0);
+              sumVat25 += Number(item.vat25Amount || 0);
+              sumVat18 += Number(item.vat18Amount || 0);
+              sumFurther += Number(item.furtherTax || 0);
+              });
+              }
+
+              let finalTotal = sumGrossTotal - sumDiscount + sumCourier + sumTaxable + sumVat25 + sumVat18 + sumFurther;
+              %>
+              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px; width: 60%;">Gross Total :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0; width: 40%;">
+                    <%= Number(sumGrossTotal).toLocaleString(undefined, {minimumFractionDigits: 2,
+                      maximumFractionDigits: 2}) %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">Discount :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(sumDiscount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
+                      2}) %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">Courier Charges :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(sumCourier).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
+                      2}) %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">Taxable Value :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(sumTaxable).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
+                      2}) %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">VAT 25% :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(sumVat25).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                      %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">VAT 18% :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(sumVat18).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
+                      %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">Further Tax 4% :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(sumFurther).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
+                      2}) %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">Total :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 0;">
+                    <%= Number(finalTotal).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
+                      2}) %>
+                  </td>
+                </tr>
+              </table>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style=" padding: 6px 8px 6px 8px; vertical-align: middle;">
+            <div class="bold" style="font-size: 11px;">
+              Amount In Words : <span style="font-weight: normal; font-size: 11px;">PKR &nbsp;<%= typeof convertToWords
+                  !=='undefined' ? convertToWords(finalTotal) : '' %></span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 15px;">
+        <tr>
+          <td style="width: 58%; padding: 8px 6px 8px 8px; vertical-align: top;">
+            <div class="bold" style="text-decoration: underline; margin-bottom: 6px; font-size: 11px;">BANK DETAILS :
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px; line-height: 1.45;">
+              <tr>
+                <td style="padding: 1px 0; width: 130px; font-weight: normal;">BENEFICIARY NAME</td>
+                <td style="padding: 1px 0; width: 15px; text-align: center;">:</td>
+                <td style="padding: 1px 0; font-weight: normal;">
+                  Piercing Systems Pakistan Pvt Ltd
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 1px 0; font-weight: normal;">BANK NAME</td>
+                <td style="text-align: center;">:</td>
+                <td style="padding: 1px 0; font-weight: normal;">Bank Al Habib</td>
+              </tr>
+              <tr>
+                <td style="padding: 1px 0; font-weight: normal;">BRANCH NAME</td>
+                <td style="text-align: center;">:</td>
+                <td style="padding: 1px 0; font-weight: normal;">BAHADURABAD</td>
+              </tr>
+              <tr>
+                <td style="padding: 1px 0; font-weight: normal;">IBAN</td>
+                <td style="text-align: center;">:</td>
+                <td style="padding: 1px 0; font-weight: normal;">PK70 1007 0981 020553 01 2</td>
+              </tr>
+              <tr>
+                <td style="padding: 1px 0; font-weight: normal;">SWIFT CODE</td>
+                <td style="text-align: center;">:</td>
+                <td style="padding: 1px 0; font-weight: normal;">BAHLPKKA</td>
+              </tr>
+            </table>
+          </td>
+
+          <td style="width: 42%; padding: 8px 8px 6px 6px; vertical-align: top; text-align: right; position: relative;">
+            <div class="bold" style="font-size: 11px; margin-bottom: 2px; text-align: right; color: #000;">
+              Piercing Systems Pakistan Pvt Ltd
+            </div>
+            <div style="text-align: right; padding-right: 35px; margin-top: 2px;">
+              <img src="data:image/png;base64,<%= stampLogoBase64 %>" alt="Authorized Signatory Stamp"
+                style="max-width: 90px; height: auto; display: inline-block;">
+            </div>
+            <div class="bold" style="font-size: 10px; text-align: right; padding-right: 12px; margin-top: 5px;">
+              AUTHORISED SIGNATORY
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      <div class="text-center bold" style="margin-top: 10px; font-size: 10.5px; font-family: Arial, sans-serif;">
+        "This is Computer Genereted Invoice"
+      </div>
+      <% if ((typeof showFbrLogo !== 'undefined' && showFbrLogo) || (typeof showQRCode !== 'undefined' && showQRCode)) { %>
+      <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+        <tr>
+          <td style="width: 50%; text-align: left; vertical-align: middle;">
+            <% if (typeof showFbrLogo !== 'undefined' && showFbrLogo && typeof companyLogoBase64 !== 'undefined') { %>
+              <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo" style="max-width: 100px; height: auto;">
+            <% } %>
+          </td>
+          <td style="width: 50%; text-align: right; vertical-align: middle;">
+            <% if (typeof showQRCode !== 'undefined' && showQRCode && typeof qrData !== 'undefined') { %>
+              <img src="<%= qrData %>" alt="QR Code" style="max-width: 100px; height: auto;">
+            <% } %>
+          </td>
+        </tr>
+      </table>
+      <% } else { %>
+      <div></div>
+      <% } %>
+
+      <div class="footer-meta">
+        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
+        <table style="margin: 0; font-size: 9px;">
+          <tr>
+            <td><strong>User name :</strong> <%= invoice.created_by_name || 'System' %></td>
+            <td class="text-center"><strong>Print Date & Time :</strong> <%= new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '') %></td>
+            <td class="text-right"><strong>Page :</strong> 1 / 2</td>
+          </tr>
+        </table>
+      </div>
     </div>
 
-   <div class="total-in-words" style="position: relative; bottom: 140px; width: 50%;">
-  <p>Total in words:<br/> <%= convertToWords(grandTotal) %></p>
-</div>
+    <div class="page">
+      <div class="bold text-center" style="font-size: 14px; text-decoration: underline; margin-bottom: 20px;">
+        TERMS & CONDITIONS OF THIS TAX INVOICE
+      </div>
 
+      <ol>
+        <li>This Sales Tax Invoice is subject to Terms and Conditions signed between Supplier and Buyer in "Sales
+          Agreement".</li>
+        <li>This is not a Consignment Sale Invoice. This Tax Invoice is payable on or before due date as mentioned on
+          this Tax Invoice.</li>
+        <li>It is Buyer responsibility to check content of this Tax Invoice and report damage within 07 days from the
+          date of delivery.</li>
+        <li>Supplier will exchange damage good within 30 days from date of this Tax Invoice.</li>
+        <li>Payment cheques must be in favor of Piercing Systems Pakistan Private Limited.</li>
+        <li>If payment is in cash, Buyer must demand Official payment receipt from Supplier or it's representative.</li>
+        <li>Buyer is responsible to ensure proper and sufficient insurance against the goods value in case of internal
+          loose, theft, or but not limited to other risks known and unknown.</li>
+        <li>Delivery charges of Rs500.00 will apply on all Orders under the value of Rs10,000.00</li>
+        <li>All Products remains property of Piercing Systems Pakistan Private Limited until paid in full.</li>
+        <li>Supplier will process and deliver orders according to Buyers LPO within 07 (Seven) working days.</li>
+        <li>Buyer agrees not to hold Supplier responsible for delay of order delivery, unavailability and short supply
+          of stock for whatsoever reason.</li>
+        <li>Piercing Systems Pakistan Private Limited will charge 25% GST (General Sales Tax) on Tax invoices and if
+          customer is unregistered in STRN 3% further tax will be applicable as stipulated by Pakistan Tax Authority
+          laws and regulations. Taxes may change on orders of Pakistan Taxes Authority.</li>
+        <li>Payments to be paid directly on or before payment due date to Suppliers banking account or by bank cheque in
+          favor of Piercing Systems Pakistan Private Limited. Accounts past due payment date is subject to suspension of
+          credit privilege and future order/s supply.</li>
+        <li>In case of delay of payment due to Supplier, Buyer shall pay payment delay penalty of Rs.200.00 on all
+          outstanding dues.</li>
+        <li>In the event/s of nonpayment from Buyer within agreed payment terms, Suppliers reserve the rights to stop
+          future supply, has right to takeback, uplift stocks to recover outstanding charges from Buyer. Supplier within
+          its right will take appropriate legal action to recover outstanding amount from Buyer.</li>
+        <li>Piercing Systems Pakistan Private Limited within it's right will report bounce/unpaid cheques to police and
+          will take necessary legal action against Buyer.</li>
+        <li>In the event of any dispute, the Pakistan Courts shall be competent to hear the dispute.</li>
+        <li>In case of cheque bounce for any reason company is authorized to charge 1000/- penalty amount.</li>
+      </ol>
 
-    <div class="qr-box" style="position: relative; bottom: 7.5rem;">
-      <% if (showFbrLogo) { %>
-        <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo" class="fbr-logo" />
-      <% } %>
-      <% if (showQRCode) { %>
-        <img src="<%= qrData %>" alt="QR Code" class="qr-image" />
-      <% } %>
+      <div
+        style="font-size: 11px; line-height: 1.5; padding-top: 25px; font-family: Arial, sans-serif; text-align: left; color: #000;">
+        To place reorders, complaint, compliments and enquires contact us on following.<br>
+        Telephone. <%= invoice.telNo || '(021) 349-22-329 / (021) 349-22-327 /(021) 349-22-328' %> Mobile & What's App.
+          <%= invoice.mobNo || '+923331025202' %><br>
+            Email. <%= invoice.email || 'sales@piercingsystems.pk / info@piercingsystems.pk' %><br>
+              Customer Signature
+      </div>
+
+      <div class="footer-meta">
+        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
+        <table style="margin: 0; font-size: 9px;">
+          <tr>
+            <td><strong>User name :</strong> <%= invoice.created_by_name || 'System' %></td>
+            <td class="text-center"><strong>Print Date & Time :</strong> <%= new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '') %></td>
+            <td class="text-right"><strong>Page :</strong> 2 / 2</td>
+          </tr>
+        </table>
+      </div>
     </div>
 
-    <div class="clear"></div>
 </body>
 
 </html>

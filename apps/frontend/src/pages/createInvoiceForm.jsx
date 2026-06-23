@@ -32,6 +32,13 @@ import {
   TableHead,
   TableRow,
   Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stack,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
 import {
   Business,
@@ -39,6 +46,7 @@ import {
   LocationOn,
   Map as MapIcon,
   ErrorOutline as ErrorOutlineIcon,
+  Close as CloseIcon,
 } from "@mui/icons-material";
 import { DemoContainer } from "@mui/x-date-pickers/internals/demo";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -205,8 +213,20 @@ export default function CreateInvoice() {
     buyerRegistrationType: "",
     invoiceRefNo: "",
     companyInvoiceRefNo: "",
+    custAccountNo: "",
+    custLpoNo: "",
+    lpoDate: "",
+    deliveryNoteNo: "",
+    sp: "",
+    productOrigin: "",
+    productCertifiedBy: "",
+    paymentTerms: "",
+    paymentDue: "",
+    group: "",
     sourceInvoiceNo: "",
     transctypeId: "",
+    billToId: "",
+    shipToId: "",
     items: [
       {
         name: "",
@@ -216,6 +236,9 @@ export default function CreateInvoice() {
         quantity: "1",
         unitPrice: "0.00", // Calculated field: Retail Price ÷ Quantity
         retailPrice: "0", // User input field
+        itemCode: "",
+        units: "",
+        courierCharges: "0",
         totalValues: "0",
         valueSalesExcludingST: "0",
         salesTaxApplicable: "0",
@@ -232,6 +255,9 @@ export default function CreateInvoice() {
         fedPayable: "0",
         discount: "0",
         advanceIncomeTax: "0",
+        vat18: false,
+        vat25: false,
+        vatAmount: 0,
         isValueSalesManual: false,
         isTotalValuesManual: false,
         isSalesTaxManual: false,
@@ -278,6 +304,192 @@ export default function CreateInvoice() {
   // Prevents the formData effect from clearing isSubmitVisible right after a
   // successful save-validate (where we update both formData and isSubmitVisible together)
   const suppressSubmitResetRef = useRef(false);
+
+  // Bill To & Ship To State Management
+  const [billToOptions, setBillToOptions] = useState([]);
+  const [billToSearch, setBillToSearch] = useState("");
+  const [loadingBillTo, setLoadingBillTo] = useState(false);
+  const [selectedBillTo, setSelectedBillTo] = useState(null);
+  const [isBillToModalOpen, setIsBillToModalOpen] = useState(false);
+  const [billToInputValue, setBillToInputValue] = useState("");
+
+  const [shipToOptions, setShipToOptions] = useState([]);
+  const [shipToSearch, setShipToSearch] = useState("");
+  const [loadingShipTo, setLoadingShipTo] = useState(false);
+  const [selectedShipTo, setSelectedShipTo] = useState(null);
+  const [isShipToModalOpen, setIsShipToModalOpen] = useState(false);
+  const [shipToInputValue, setShipToInputValue] = useState("");
+
+  const fetchShipTo = async (searchVal = "") => {
+    if (!selectedTenant) return;
+    setLoadingShipTo(true);
+    try {
+      const response = await api.get(`/tenant/${selectedTenant.tenant_id}/ship-to`, {
+        params: { search: searchVal, limit: 50 },
+      });
+      if (response.data && response.data.success) {
+        setShipToOptions(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching ship-to options:", error);
+    } finally {
+      setLoadingShipTo(false);
+    }
+  };
+
+  const fetchBillTo = async (searchVal = "") => {
+    if (!selectedTenant) return;
+    setLoadingBillTo(true);
+    try {
+      const response = await api.get(`/tenant/${selectedTenant.tenant_id}/bill-to`, {
+        params: { search: searchVal, limit: 50 },
+      });
+      if (response.data && response.data.success) {
+        setBillToOptions(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching bill-to options:", error);
+    } finally {
+      setLoadingBillTo(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedTenant) {
+      fetchShipTo("");
+      fetchBillTo("");
+    } else {
+      setShipToOptions([]);
+      setBillToOptions([]);
+      setSelectedShipTo(null);
+      setSelectedBillTo(null);
+    }
+  }, [selectedTenant]);
+
+  useEffect(() => {
+    if (formData.billToId && billToOptions.length > 0) {
+      const found = billToOptions.find(b => String(b.id) === String(formData.billToId));
+      if (found) {
+        setSelectedBillTo(found);
+        setBillToInputValue(found.name);
+      }
+    } else if (!formData.billToId) {
+      setSelectedBillTo(null);
+      setBillToInputValue("");
+    }
+  }, [formData.billToId, billToOptions]);
+
+  useEffect(() => {
+    if (formData.shipToId && shipToOptions.length > 0) {
+      const found = shipToOptions.find(s => String(s.id) === String(formData.shipToId));
+      if (found) {
+        setSelectedShipTo(found);
+        setShipToInputValue(found.name);
+      }
+    } else if (!formData.shipToId) {
+      setSelectedShipTo(null);
+      setShipToInputValue("");
+    }
+  }, [formData.shipToId, shipToOptions]);
+
+  // Bill To & Ship To Creation Form States & Handlers
+  const [shipToForm, setShipToForm] = useState({
+    name: "",
+    address: "",
+    contactPerson: "",
+    contactNo: "",
+    cnic: "",
+    ntn: "",
+  });
+
+  const [billToForm, setBillToForm] = useState({
+    name: "",
+    address: "",
+    refNo: "",
+    ntn: "",
+    strn: "",
+  });
+
+  const [shipToFormErrors, setShipToFormErrors] = useState({});
+  const [billToFormErrors, setBillToFormErrors] = useState({});
+  const [isSubmittingShipTo, setIsSubmittingShipTo] = useState(false);
+  const [isSubmittingBillTo, setIsSubmittingBillTo] = useState(false);
+
+  const handleSaveShipTo = async (e) => {
+    e.preventDefault();
+    if (isSubmittingShipTo) return;
+
+    // Validation
+    const errors = {};
+    if (!shipToForm.name.trim()) errors.name = "Name is required";
+    if (!shipToForm.address.trim()) errors.address = "Address is required";
+    if (!shipToForm.contactPerson.trim()) errors.contactPerson = "Contact Person is required";
+    if (!shipToForm.contactNo.trim()) errors.contactNo = "Contact No is required";
+    if (!shipToForm.cnic.trim()) errors.cnic = "CNIC is required";
+
+    setShipToFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setIsSubmittingShipTo(true);
+    try {
+      const response = await api.post(`/tenant/${selectedTenant.tenant_id}/ship-to`, shipToForm);
+      if (response.data && response.data.success) {
+        const newRecord = response.data.data;
+        toast.success("Ship To added successfully!");
+
+        // Add to options list
+        setShipToOptions((prev) => [newRecord, ...prev]);
+        // Select it
+        setSelectedShipTo(newRecord);
+        handleChange("shipToId", newRecord.id);
+
+        // Reset form & close
+        setShipToForm({ name: "", address: "", contactPerson: "", contactNo: "", cnic: "", ntn: "" });
+        setIsShipToModalOpen(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create Ship To record.");
+    } finally {
+      setIsSubmittingShipTo(false);
+    }
+  };
+
+  const handleSaveBillTo = async (e) => {
+    e.preventDefault();
+    if (isSubmittingBillTo) return;
+
+    // Validation
+    const errors = {};
+    if (!billToForm.name.trim()) errors.name = "Name is required";
+    if (!billToForm.address.trim()) errors.address = "Address is required";
+    if (!billToForm.refNo.trim()) errors.refNo = "Ref No is required";
+
+    setBillToFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setIsSubmittingBillTo(true);
+    try {
+      const response = await api.post(`/tenant/${selectedTenant.tenant_id}/bill-to`, billToForm);
+      if (response.data && response.data.success) {
+        const newRecord = response.data.data;
+        toast.success("Bill To added successfully!");
+
+        // Add to options list
+        setBillToOptions((prev) => [newRecord, ...prev]);
+        // Select it
+        setSelectedBillTo(newRecord);
+        handleChange("billToId", newRecord.id);
+
+        // Reset form & close
+        setBillToForm({ name: "", address: "", refNo: "", ntn: "", strn: "" });
+        setIsBillToModalOpen(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to create Bill To record.");
+    } finally {
+      setIsSubmittingBillTo(false);
+    }
+  };
 
   const normalizeHsCode = (hsCode) => {
     if (!hsCode) return "";
@@ -1050,8 +1262,20 @@ export default function CreateInvoice() {
           buyerRegistrationType: invoiceData.buyerRegistrationType || "",
           invoiceRefNo: invoiceData.invoiceRefNo || "",
           companyInvoiceRefNo: invoiceData.companyInvoiceRefNo || "",
+          custAccountNo: invoiceData.custAccountNo || "",
+          custLpoNo: invoiceData.custLpoNo || "",
+          lpoDate: invoiceData.lpoDate || "",
+          deliveryNoteNo: invoiceData.deliveryNoteNo || "",
+          sp: invoiceData.sp || "",
+          productOrigin: invoiceData.productOrigin || "",
+          productCertifiedBy: invoiceData.productCertifiedBy || "",
+          paymentTerms: invoiceData.paymentTerms || "",
+          paymentDue: invoiceData.paymentDue || "",
+          group: invoiceData.group || "",
           sourceInvoiceNo: invoiceData.sourceInvoiceNo || "",
           transctypeId: "",
+          billToId: invoiceData.bill_to_id || invoiceData.billToId || "",
+          shipToId: invoiceData.ship_to_id || invoiceData.shipToId || "",
           items: [
             {
               name: "",
@@ -1061,6 +1285,9 @@ export default function CreateInvoice() {
               quantity: "1",
               unitPrice: "0.00", // Calculated field: Retail Price ÷ Quantity
               retailPrice: "0", // User input field
+              itemCode: "",
+              units: "",
+              courierCharges: "0",
               totalValues: "0",
               valueSalesExcludingST: "0",
               salesTaxApplicable: "0",
@@ -1089,6 +1316,15 @@ export default function CreateInvoice() {
 
         setFormData(formDataFromInvoice);
 
+        if (invoiceData.BillTo) {
+          setSelectedBillTo(invoiceData.BillTo);
+          setBillToInputValue(invoiceData.BillTo.name || "");
+        }
+        if (invoiceData.ShipTo) {
+          setSelectedShipTo(invoiceData.ShipTo);
+          setShipToInputValue(invoiceData.ShipTo.name || "");
+        }
+
         // Set existing items to addedItems for editing
         if (invoiceData.items && invoiceData.items.length > 0) {
           const existingItems = invoiceData.items.map((item) => ({
@@ -1103,6 +1339,11 @@ export default function CreateInvoice() {
               : "0.00",
             retailPrice:
               item.retailPrice || item.fixedNotifiedValueOrRetailPrice || "0",
+            itemCode: item.item_code || item.itemCode || "",
+            units: item.units || "",
+            courierCharges: item.courier_charges !== undefined
+              ? String(item.courier_charges)
+              : item.courierCharges || "0",
             totalValues: item.totalValues || "0",
             valueSalesExcludingST: item.valueSalesExcludingST || "0",
             salesTaxApplicable: item.salesTaxApplicable || "0",
@@ -1119,6 +1360,11 @@ export default function CreateInvoice() {
             fedPayable: item.fedPayable || "0",
             discount: item.discount || "0",
             advanceIncomeTax: item.advanceIncomeTax || "0",
+            vat18: item.vat18 || false,
+            vat25: item.vat25 || false,
+            vatAmount: item.vatAmount || 0,
+            vat18Amount: item.vat18Amount !== undefined && item.vat18Amount !== null ? parseFloat(item.vat18Amount) : (item.vat18 ? Math.round(((parseFloat(item.valueSalesExcludingST || 0) || 0) + (parseFloat(item.salesTaxApplicable || 0) || 0)) * 0.18 * 100) / 100 : 0),
+            vat25Amount: item.vat25Amount !== undefined && item.vat25Amount !== null ? parseFloat(item.vat25Amount) : (item.vat25 ? Math.round(((parseFloat(item.valueSalesExcludingST || 0) || 0) + (parseFloat(item.salesTaxApplicable || 0) || 0)) * 0.25 * 100) / 100 : 0),
             isValueSalesManual: false,
             isTotalValuesManual: false,
             isSalesTaxManual: false,
@@ -2071,6 +2317,7 @@ export default function CreateInvoice() {
           "quantity",
           "unitPrice", // Calculated field
           "retailPrice", // User input field
+          "courierCharges",
           "valueSalesExcludingST",
           "salesTaxApplicable",
           "totalValues",
@@ -2078,6 +2325,7 @@ export default function CreateInvoice() {
           "extraTax",
           "furtherTax",
           "fedPayable",
+          "advanceIncomeTax",
           "discount",
         ].includes(field)
       ) {
@@ -2102,7 +2350,13 @@ export default function CreateInvoice() {
           item.isFedPayableManual = true;
         }
       } else {
-        item[field] = value;
+        if (field === "vat18") {
+          item.vat18 = value;
+        } else if (field === "vat25") {
+          item.vat25 = value;
+        } else {
+          item[field] = value;
+        }
       }
 
       // Handle SRO reset logic
@@ -2238,26 +2492,43 @@ export default function CreateInvoice() {
       }
 
       // Recalculate total value if it's not manually entered
+      // Formula: (Qty × Unit Cost) + Courier Charges
+      // Calculate VAT Amounts separately
+      const salesExclSTVal = parseFloat(item.valueSalesExcludingST || 0) || 0;
+      const salesTaxVal = parseFloat(item.salesTaxApplicable || 0) || 0;
+      
+      const vat18Amt = item.vat18 ? Math.round((salesExclSTVal + salesTaxVal) * 0.18 * 100) / 100 : 0;
+      const vat25Amt = item.vat25 ? Math.round((salesExclSTVal + salesTaxVal) * 0.25 * 100) / 100 : 0;
+      
+      item.vat18Amount = vat18Amt;
+      item.vat25Amount = vat25Amt;
+      item.vatAmount = vat18Amt + vat25Amt;
+
       if (!item.isTotalValuesManual) {
-        const calculatedTotalBeforeDiscount =
-          parseFloat(item.valueSalesExcludingST || 0) +
-          parseFloat(item.salesTaxApplicable || 0) +
-          parseFloat(item.furtherTax || 0) +
-          parseFloat(item.fedPayable || 0) +
-          parseFloat(item.extraTax || 0) +
-          parseFloat(item.advanceIncomeTax || 0);
+        const qty = parseFloat(item.quantity || 0);
+        const unitCostForTotal = parseFloat(item.unitPrice || 0);
+        const courierForTotal = parseFloat(item.courierCharges || 0);
+        const salesTaxApp = parseFloat(item.salesTaxApplicable || 0);
+        const salesTaxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
+        const extraTaxVal = parseFloat(item.extraTax || 0);
+        const furtherTaxVal = parseFloat(item.furtherTax || 0);
+        const fedPayableVal = parseFloat(item.fedPayable || 0);
+        const advIncomeTaxVal = parseFloat(item.advanceIncomeTax || 0);
 
-        const discountAmount = parseFloat(item.discount || 0);
-
-        const totalAfterDiscount =
-          calculatedTotalBeforeDiscount - discountAmount;
-
-        const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
-
-        const calculatedTotal = Number(
-          (totalAfterDiscount + taxWithheld).toFixed(2),
+        const rowLineTotal = Number(
+          (
+            (qty * unitCostForTotal) +
+            courierForTotal +
+            salesTaxApp +
+            salesTaxWithheld +
+            extraTaxVal +
+            furtherTaxVal +
+            fedPayableVal +
+            advIncomeTaxVal +
+            item.vatAmount
+          ).toFixed(2),
         );
-        item.totalValues = calculatedTotal.toString();
+        item.totalValues = rowLineTotal.toString();
       }
 
       updatedItems[index] = item;
@@ -2353,6 +2624,9 @@ export default function CreateInvoice() {
           quantity: "1",
           unitPrice: "0.00", // Calculated field: Retail Price ÷ Quantity
           retailPrice: "0", // User input field
+          itemCode: "",
+          units: "",
+          courierCharges: "0",
           totalValues: "0",
           valueSalesExcludingST: "0",
           salesTaxApplicable: "0",
@@ -2369,6 +2643,9 @@ export default function CreateInvoice() {
           saleType: "", // Clear Sales Type on add item
           isSROScheduleEnabled: false,
           isSROItemEnabled: false,
+          vat18: false,
+          vat25: false,
+          vatAmount: 0,
           isValueSalesManual: false,
           isTotalValuesManual: false,
           isSalesTaxManual: false,
@@ -3308,8 +3585,24 @@ export default function CreateInvoice() {
       const sanitizeAddress = (address) =>
         address ? address.replace(/\r?\n/g, " ") : "";
 
+      const {
+        custAccountNo,
+        custLpoNo,
+        lpoDate,
+        deliveryNoteNo,
+        sp,
+        productOrigin,
+        productCertifiedBy,
+        paymentTerms,
+        paymentDue,
+        group,
+        billToId,
+        shipToId,
+        ...fbrFormData
+      } = formData;
+
       const cleanedData = {
-        ...formData,
+        ...fbrFormData,
         buyerAddress: sanitizeAddress(formData.buyerAddress),
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
@@ -3328,6 +3621,14 @@ export default function CreateInvoice() {
               isFurtherTaxManual,
               isFedPayableManual,
               advanceIncomeTax, // Remove from FBR API payload
+              itemCode,
+              units,
+              courierCharges,
+              vat18,
+              vat25,
+              vatAmount,
+              vat18Amount,
+              vat25Amount,
               ...rest
             },
             index,
@@ -3357,7 +3658,7 @@ export default function CreateInvoice() {
               furtherTax: Number(Number(rest.furtherTax || 0).toFixed(2)),
               fedPayable: Number(Number(rest.fedPayable || 0).toFixed(2)),
               discount: Number(Number(rest.discount || 0).toFixed(2)),
-              // advanceIncomeTax removed from FBR API payload but kept in database
+              // advanceIncomeTax and other custom fields removed from FBR API payload but kept in database
             };
 
             if (rest.saleType?.trim() !== "Goods at Reduced Rate") {
@@ -3703,6 +4004,14 @@ export default function CreateInvoice() {
             isFurtherTaxManual,
             isFedPayableManual,
             advanceIncomeTax, // Remove from FBR API payload
+            itemCode,
+            units,
+            courierCharges,
+            vat18,
+            vat25,
+            vatAmount,
+            vat18Amount,
+            vat25Amount,
             ...rest
           },
           index,
@@ -3735,7 +4044,7 @@ export default function CreateInvoice() {
             discount: Number(Number(rest.discount || 0).toFixed(2)),
             billOfLadingUoM: rest.billOfLadingUoM?.trim() || null,
             uoM: rest.uoM?.trim() || null,
-            // advanceIncomeTax removed from FBR API payload but kept in database
+            // advanceIncomeTax and other custom fields removed from FBR API payload but kept in database
           };
 
           // Only include extraTax if saleType is NOT "Goods at Reduced Rate"
@@ -3750,8 +4059,24 @@ export default function CreateInvoice() {
       const sanitizeAddress = (address) =>
         address ? address.replace(/\r?\n/g, " ") : "";
 
+      const {
+        custAccountNo,
+        custLpoNo,
+        lpoDate,
+        deliveryNoteNo,
+        sp,
+        productOrigin,
+        productCertifiedBy,
+        paymentTerms,
+        paymentDue,
+        group,
+        billToId,
+        shipToId,
+        ...fbrFormData
+      } = formData;
+
       const cleanedData = {
-        ...formData,
+        ...fbrFormData,
         buyerAddress: sanitizeAddress(formData.buyerAddress),
         sellerAddress: sanitizeAddress(formData.sellerAddress),
         invoiceDate: dayjs(formData.invoiceDate).format("YYYY-MM-DD"),
@@ -4022,6 +4347,16 @@ export default function CreateInvoice() {
       buyerRegistrationType: "",
       invoiceRefNo: "",
       companyInvoiceRefNo: "",
+      custAccountNo: "",
+      custLpoNo: "",
+      lpoDate: "",
+      deliveryNoteNo: "",
+      sp: "",
+      productOrigin: "",
+      productCertifiedBy: "",
+      paymentTerms: "",
+      paymentDue: "",
+      group: "",
       transctypeId: "",
       items: [
         {
@@ -4392,6 +4727,296 @@ export default function CreateInvoice() {
                 },
                 "& .MuiInputLabel-root": { color: "#6b7280" },
               }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="CUST. A/C NO"
+              value={formData.custAccountNo}
+              onChange={(e) => handleChange("custAccountNo", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="CUST. LPO NO"
+              value={formData.custLpoNo}
+              onChange={(e) => handleChange("custLpoNo", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="LPO DATE"
+              value={formData.lpoDate}
+              onChange={(e) => handleChange("lpoDate", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="DEL. NOTE NO"
+              value={formData.deliveryNoteNo}
+              onChange={(e) => handleChange("deliveryNoteNo", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="SP"
+              value={formData.sp}
+              onChange={(e) => handleChange("sp", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="PRODUCT ORIGIN"
+              value={formData.productOrigin}
+              onChange={(e) => handleChange("productOrigin", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="PRODUCT CERTIFIED BY"
+              value={formData.productCertifiedBy}
+              onChange={(e) => handleChange("productCertifiedBy", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="PAYMENT TERMS"
+              value={formData.paymentTerms}
+              onChange={(e) => handleChange("paymentTerms", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="PAYMENT DUE"
+              value={formData.paymentDue}
+              onChange={(e) => handleChange("paymentDue", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <TextField
+              fullWidth
+              size="small"
+              label="GROUP"
+              value={formData.group}
+              onChange={(e) => handleChange("group", e.target.value)}
+              variant="outlined"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  "& fieldset": { borderColor: "#e5e7eb" },
+                },
+                "& .MuiInputLabel-root": { color: "#6b7280" },
+              }}
+            />
+
+            <Autocomplete
+              fullWidth
+              size="small"
+              options={(() => {
+                const opts = [{ id: "__add__", name: "+ Add Bill To" }];
+                if (selectedBillTo) {
+                  opts.push(selectedBillTo);
+                }
+                billToOptions.forEach((o) => {
+                  if (!selectedBillTo || String(o.id) !== String(selectedBillTo.id)) {
+                    opts.push(o);
+                  }
+                });
+                return opts;
+              })()}
+              getOptionLabel={(option) => option.name || ""}
+              value={selectedBillTo}
+              inputValue={billToInputValue}
+              onInputChange={(event, newValue, reason) => {
+                setBillToInputValue(newValue);
+                if (reason === "input") {
+                  setBillToSearch(newValue);
+                  fetchBillTo(newValue);
+                }
+              }}
+              onChange={(event, newValue) => {
+                if (newValue?.id === "__add__") {
+                  setIsBillToModalOpen(true);
+                  return;
+                }
+                setSelectedBillTo(newValue);
+                handleChange("billToId", newValue?.id || "");
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Bill To"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      "& fieldset": { borderColor: "#e5e7eb" },
+                    },
+                    "& .MuiInputLabel-root": { color: "#6b7280" },
+                  }}
+                />
+              )}
+              renderOption={(props, option) => {
+                const { key, ...rest } = props;
+                if (option.id === "__add__") {
+                  return (
+                    <li key={key} {...rest} style={{ color: "#007AFF", fontWeight: 600 }}>
+                      + Add New Bill To
+                    </li>
+                  );
+                }
+                return (
+                  <li key={key} {...rest}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {option.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.address}
+                      </Typography>
+                    </Box>
+                  </li>
+                );
+              }}
+              isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
+            />
+
+            <Autocomplete
+              fullWidth
+              size="small"
+              options={(() => {
+                const opts = [{ id: "__add__", name: "+ Add Ship To" }];
+                if (selectedShipTo) {
+                  opts.push(selectedShipTo);
+                }
+                shipToOptions.forEach((o) => {
+                  if (!selectedShipTo || String(o.id) !== String(selectedShipTo.id)) {
+                    opts.push(o);
+                  }
+                });
+                return opts;
+              })()}
+              getOptionLabel={(option) => option.name || ""}
+              value={selectedShipTo}
+              inputValue={shipToInputValue}
+              onInputChange={(event, newValue, reason) => {
+                setShipToInputValue(newValue);
+                if (reason === "input") {
+                  setShipToSearch(newValue);
+                  fetchShipTo(newValue);
+                }
+              }}
+              onChange={(event, newValue) => {
+                if (newValue?.id === "__add__") {
+                  setIsShipToModalOpen(true);
+                  return;
+                }
+                setSelectedShipTo(newValue);
+                handleChange("shipToId", newValue?.id || "");
+              }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Ship To"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      "& fieldset": { borderColor: "#e5e7eb" },
+                    },
+                    "& .MuiInputLabel-root": { color: "#6b7280" },
+                  }}
+                />
+              )}
+              renderOption={(props, option) => {
+                const { key, ...rest } = props;
+                if (option.id === "__add__") {
+                  return (
+                    <li key={key} {...rest} style={{ color: "#007AFF", fontWeight: 600 }}>
+                      + Add New Ship To
+                    </li>
+                  );
+                }
+                return (
+                  <li key={key} {...rest}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {option.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.address}
+                      </Typography>
+                    </Box>
+                  </li>
+                );
+              }}
+              isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
             />
           </Box>
         </Box>
@@ -5548,9 +6173,142 @@ export default function CreateInvoice() {
                   <TextField
                     fullWidth
                     size="small"
+                    label="Item Code"
+                    type="text"
+                    value={item.itemCode || ""}
+                    onChange={(e) =>
+                      handleItemChange(index, "itemCode", e.target.value)
+                    }
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Units"
+                    type="text"
+                    value={item.units || ""}
+                    onChange={(e) =>
+                      handleItemChange(index, "units", e.target.value)
+                    }
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Courier Charges"
+                    type="text"
+                    value={
+                      item.courierCharges === "0.00" ||
+                      item.courierCharges === "0"
+                        ? ""
+                        : formatWithCommasWhileTyping(item.courierCharges)
+                    }
+                    onChange={(e) => {
+                      const newValue = handleFloatingNumberInput(
+                        e.target.value,
+                        true,
+                      );
+                      if (newValue !== null) {
+                        handleItemChange(index, "courierCharges", newValue);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        const cleanValue = value.replace(/,/g, "");
+                        const numValue = parseFloat(cleanValue);
+                        if (!isNaN(numValue)) {
+                          handleItemChange(
+                            index,
+                            "courierCharges",
+                            numValue.toString(),
+                          );
+                        }
+                      }
+                    }}
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
+                  <TextField
+                    fullWidth
+                    size="small"
                     label="Sales Tax Applicable"
                     type="text"
                     value={formatNumberWithCommas(item.salesTaxApplicable)}
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                    variant="outlined"
+                    sx={{
+                      "& .MuiInputBase-input.Mui-readOnly": {
+                        backgroundColor: "#f5f5f5",
+                        cursor: "not-allowed",
+                      },
+                    }}
+                  />
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mt: 1, alignItems: "flex-start" }}>
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px", display: "flex", flexDirection: "column" }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={item.vat18 || false}
+                        onChange={(e) => handleItemChange(index, "vat18", e.target.checked)}
+                        color="primary"
+                        size="small"
+                      />
+                    }
+                    label="VAT 18%"
+                    sx={{ mb: 0.5, ml: 0 }}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Calculated VAT 18%"
+                    type="text"
+                    value={formatNumberWithCommas(item.vat18Amount || 0)}
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                    variant="outlined"
+                    sx={{
+                      "& .MuiInputBase-input.Mui-readOnly": {
+                        backgroundColor: "#f5f5f5",
+                        cursor: "not-allowed",
+                      },
+                    }}
+                  />
+                </Box>
+
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px", display: "flex", flexDirection: "column" }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={item.vat25 || false}
+                        onChange={(e) => handleItemChange(index, "vat25", e.target.checked)}
+                        color="primary"
+                        size="small"
+                      />
+                    }
+                    label="VAT 25%"
+                    sx={{ mb: 0.5, ml: 0 }}
+                  />
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Calculated VAT 25%"
+                    type="text"
+                    value={formatNumberWithCommas(item.vat25Amount || 0)}
                     InputProps={{
                       readOnly: true,
                     }}
@@ -5951,6 +6709,15 @@ export default function CreateInvoice() {
                         Unit Cost
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                        Item Code
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                        Units
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                        Courier Charges
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
                         Total Value
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
@@ -5991,6 +6758,15 @@ export default function CreateInvoice() {
                         </TableCell>
                         <TableCell sx={{ fontSize: "0.875rem" }}>
                           {formatNumberWithCommas(item.unitPrice)}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.875rem" }}>
+                          {item.itemCode || "-"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.875rem" }}>
+                          {item.units || "-"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.875rem" }}>
+                          {formatNumberWithCommas(item.courierCharges)}
                         </TableCell>
                         <TableCell sx={{ fontSize: "0.875rem" }}>
                           {formatNumberWithCommas(item.totalValues)}
@@ -6198,6 +6974,155 @@ export default function CreateInvoice() {
           onSave={handleSaveProduct}
           initialProduct={null}
         />
+
+        {/* Bill To Modal */}
+        <Dialog open={isBillToModalOpen} onClose={() => setIsBillToModalOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            Add New Bill To
+            <IconButton onClick={() => setIsBillToModalOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <form onSubmit={handleSaveBillTo}>
+            <DialogContent dividers sx={{ p: 3 }}>
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <TextField
+                  label="Name"
+                  required
+                  value={billToForm.name}
+                  onChange={(e) => setBillToForm({ ...billToForm, name: e.target.value })}
+                  error={!!billToFormErrors.name}
+                  helperText={billToFormErrors.name}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Address"
+                  required
+                  value={billToForm.address}
+                  onChange={(e) => setBillToForm({ ...billToForm, address: e.target.value })}
+                  error={!!billToFormErrors.address}
+                  helperText={billToFormErrors.address}
+                  fullWidth
+                  multiline
+                  rows={2}
+                  size="small"
+                />
+                <TextField
+                  label="Ref No"
+                  required
+                  value={billToForm.refNo}
+                  onChange={(e) => setBillToForm({ ...billToForm, refNo: e.target.value })}
+                  error={!!billToFormErrors.refNo}
+                  helperText={billToFormErrors.refNo}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="NTN"
+                  value={billToForm.ntn}
+                  onChange={(e) => setBillToForm({ ...billToForm, ntn: e.target.value })}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="STRN"
+                  value={billToForm.strn}
+                  onChange={(e) => setBillToForm({ ...billToForm, strn: e.target.value })}
+                  fullWidth
+                  size="small"
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setIsBillToModalOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="contained" color="primary" disabled={isSubmittingBillTo}>
+                {isSubmittingBillTo ? <CircularProgress size={24} /> : "Save"}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
+
+        {/* Ship To Modal */}
+        <Dialog open={isShipToModalOpen} onClose={() => setIsShipToModalOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            Add New Ship To
+            <IconButton onClick={() => setIsShipToModalOpen(false)}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <form onSubmit={handleSaveShipTo}>
+            <DialogContent dividers sx={{ p: 3 }}>
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <TextField
+                  label="Name"
+                  required
+                  value={shipToForm.name}
+                  onChange={(e) => setShipToForm({ ...shipToForm, name: e.target.value })}
+                  error={!!shipToFormErrors.name}
+                  helperText={shipToFormErrors.name}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Address"
+                  required
+                  value={shipToForm.address}
+                  onChange={(e) => setShipToForm({ ...shipToForm, address: e.target.value })}
+                  error={!!shipToFormErrors.address}
+                  helperText={shipToFormErrors.address}
+                  fullWidth
+                  multiline
+                  rows={2}
+                  size="small"
+                />
+                <TextField
+                  label="Contact Person"
+                  required
+                  value={shipToForm.contactPerson}
+                  onChange={(e) => setShipToForm({ ...shipToForm, contactPerson: e.target.value })}
+                  error={!!shipToFormErrors.contactPerson}
+                  helperText={shipToFormErrors.contactPerson}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Contact No"
+                  required
+                  value={shipToForm.contactNo}
+                  onChange={(e) => setShipToForm({ ...shipToForm, contactNo: e.target.value })}
+                  error={!!shipToFormErrors.contactNo}
+                  helperText={shipToFormErrors.contactNo}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="CNIC"
+                  required
+                  value={shipToForm.cnic}
+                  onChange={(e) => setShipToForm({ ...shipToForm, cnic: e.target.value })}
+                  error={!!shipToFormErrors.cnic}
+                  helperText={shipToFormErrors.cnic}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="NTN"
+                  value={shipToForm.ntn}
+                  onChange={(e) => setShipToForm({ ...shipToForm, ntn: e.target.value })}
+                  fullWidth
+                  size="small"
+                />
+              </Stack>
+            </DialogContent>
+            <DialogActions sx={{ p: 2 }}>
+              <Button onClick={() => setIsShipToModalOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="contained" color="primary" disabled={isSubmittingShipTo}>
+                {isSubmittingShipTo ? <CircularProgress size={24} /> : "Save"}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
       </Box>
     </TenantSelectionPrompt>
   );

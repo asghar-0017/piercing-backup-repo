@@ -25,6 +25,10 @@ export default function UserProfileMenuMount({ open, setOpen }) {
           sellerFullNTN: data.sellerFullNTN,
           sellerProvince: data.sellerProvince,
           sellerAddress: data.sellerAddress,
+          telNo: data.telNo,
+          mobNo: data.mobNo,
+          strn: data.strn,
+          email: data.email,
         });
         if (resp.data?.success && resp.data?.data) {
           // refresh selected tenant in context

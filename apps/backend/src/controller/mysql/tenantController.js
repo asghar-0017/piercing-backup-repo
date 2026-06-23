@@ -128,6 +128,10 @@ export const getTenantById = async (req, res) => {
         "created_at",
         "sandbox_test_token",
         "sandbox_production_token",
+        "tel_no",
+        "mob_no",
+        "strn",
+        "email",
       ],
       raw: true,
     });
@@ -153,6 +157,10 @@ export const getTenantById = async (req, res) => {
       created_at: tenant.created_at,
       sandboxTestToken: tenant.sandbox_test_token,
       sandboxProductionToken: tenant.sandbox_production_token,
+      telNo: tenant.tel_no,
+      mobNo: tenant.mob_no,
+      strn: tenant.strn,
+      email: tenant.email,
     };
 
     res.status(200).json({
@@ -173,8 +181,18 @@ export const getTenantById = async (req, res) => {
 export const updateTenant = async (req, res) => {
   try {
     const { tenantId } = req.params;
-    const { sellerBusinessName, sellerProvince, sellerAddress, sellerFullNTN } =
-      req.body;
+    const {
+      sellerBusinessName,
+      sellerProvince,
+      sellerAddress,
+      sellerFullNTN,
+      telNo,
+      tel_no,
+      mobNo,
+      mob_no,
+      strn,
+      email,
+    } = req.body;
 
     const tenant = await Tenant.findOne({
       where: { tenant_id: tenantId },
@@ -192,6 +210,10 @@ export const updateTenant = async (req, res) => {
       seller_province: sellerProvince,
       seller_address: sellerAddress,
       ...(sellerFullNTN !== undefined && { seller_full_ntn: sellerFullNTN }),
+      ...((telNo !== undefined || tel_no !== undefined) && { telNo: telNo !== undefined ? telNo : tel_no }),
+      ...((mobNo !== undefined || mob_no !== undefined) && { mobNo: mobNo !== undefined ? mobNo : mob_no }),
+      ...(strn !== undefined && { strn }),
+      ...(email !== undefined && { email }),
     });
 
     // Map fields to camelCase for consistency with frontend
@@ -208,6 +230,10 @@ export const updateTenant = async (req, res) => {
       sandboxProductionToken: tenant.sandbox_production_token,
       is_active: tenant.is_active,
       created_at: tenant.created_at,
+      telNo: tenant.telNo,
+      mobNo: tenant.mobNo,
+      strn: tenant.strn,
+      email: tenant.email,
     };
 
     res.status(200).json({

@@ -76,11 +76,71 @@ export const createInvoiceModel = (sequelize) => {
         onUpdate: "CASCADE",
         onDelete: "SET NULL",
       },
+      bill_to_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        references: {
+          model: "bill_to_ship_to_records",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
+      },
+      ship_to_id: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        references: {
+          model: "bill_to_ship_to_records",
+          key: "id",
+        },
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
+      },
       invoiceRefNo: {
         type: DataTypes.STRING(100),
         allowNull: true,
       },
       companyInvoiceRefNo: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      custAccountNo: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      custLpoNo: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      lpoDate: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      deliveryNoteNo: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      sp: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      productOrigin: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      productCertifiedBy: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      paymentTerms: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      paymentDue: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
+      group: {
         type: DataTypes.STRING(100),
         allowNull: true,
       },

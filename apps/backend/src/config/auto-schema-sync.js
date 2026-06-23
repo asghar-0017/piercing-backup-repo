@@ -37,6 +37,7 @@ import { createInvoiceModel } from "../model/mysql/tenant/Invoice.js";
 import { createInvoiceItemModel } from "../model/mysql/tenant/InvoiceItem.js";
 import { createInvoiceBackupModel } from "../model/mysql/tenant/InvoiceBackup.js";
 import { createInvoiceBackupSummaryModel } from "../model/mysql/tenant/InvoiceBackupSummary.js";
+import { createBillToShipToModel } from "../model/mysql/tenant/BillToShipTo.js";
 
 dotenv.config();
 
@@ -127,6 +128,10 @@ class AutoSchemaSync {
         name: "InvoiceBackupSummary",
         model: createInvoiceBackupSummaryModel(sequelize),
       },
+      {
+        name: "BillToShipTo",
+        model: createBillToShipToModel(sequelize),
+      },
     ];
   }
 
@@ -143,6 +148,10 @@ class AutoSchemaSync {
       {
         name: "InvoiceBackupSummary",
         model: createInvoiceBackupSummaryModel(sequelize),
+      },
+      {
+        name: "BillToShipTo",
+        model: createBillToShipToModel(sequelize),
       },
     ];
   }
@@ -387,9 +396,59 @@ class AutoSchemaSync {
         isUpdate: true,
       },
       {
+        table: "invoice_items",
+        column: "itemCode",
+        type: "VARCHAR(255)",
+        allowNull: true,
+      },
+      {
+        table: "invoice_items",
+        column: "units",
+        type: "VARCHAR(50)",
+        allowNull: true,
+      },
+      {
+        table: "invoice_items",
+        column: "courierCharges",
+        type: "DECIMAL(20,2)",
+        allowNull: true,
+      },
+      {
         table: "invoice_backups",
         column: "user_role",
         type: "VARCHAR(50)",
+        allowNull: true,
+      },
+      {
+        table: "invoice_items",
+        column: "vat18",
+        type: "TINYINT(1)",
+        allowNull: false,
+        defaultValue: 0,
+      },
+      {
+        table: "invoice_items",
+        column: "vat25",
+        type: "TINYINT(1)",
+        allowNull: false,
+        defaultValue: 0,
+      },
+      {
+        table: "invoice_items",
+        column: "vatAmount",
+        type: "DECIMAL(20,2)",
+        allowNull: true,
+      },
+      {
+        table: "invoice_items",
+        column: "vat18Amount",
+        type: "DECIMAL(20,2)",
+        allowNull: true,
+      },
+      {
+        table: "invoice_items",
+        column: "vat25Amount",
+        type: "DECIMAL(20,2)",
         allowNull: true,
       },
     ];

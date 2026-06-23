@@ -191,6 +191,10 @@ class UserManagementService {
                   "created_at",
                   "sandboxTestToken",
                   "sandboxProductionToken",
+                  "telNo",
+                  "mobNo",
+                  "strn",
+                  "email",
                 ],
               },
             ],
@@ -236,6 +240,10 @@ class UserManagementService {
                   "created_at",
                   "sandboxTestToken",
                   "sandboxProductionToken",
+                  "telNo",
+                  "mobNo",
+                  "strn",
+                  "email",
                 ],
               },
             ],
@@ -315,6 +323,10 @@ class UserManagementService {
         "seller_province",
         "seller_address",
         "seller_full_ntn",
+        "telNo",
+        "mobNo",
+        "strn",
+        "email",
       ];
 
       const updateFields = {};
@@ -324,7 +336,7 @@ class UserManagementService {
         }
       });
 
-      // Map camelCase to snake_case for database
+      // Map camelCase/snake_case to model fields
       if (updateData.sellerBusinessName !== undefined) {
         updateFields.seller_business_name = updateData.sellerBusinessName;
       }
@@ -336,6 +348,24 @@ class UserManagementService {
       }
       if (updateData.sellerFullNTN !== undefined) {
         updateFields.seller_full_ntn = updateData.sellerFullNTN;
+      }
+      if (updateData.telNo !== undefined) {
+        updateFields.telNo = updateData.telNo;
+      }
+      if (updateData.tel_no !== undefined) {
+        updateFields.telNo = updateData.tel_no;
+      }
+      if (updateData.mobNo !== undefined) {
+        updateFields.mobNo = updateData.mobNo;
+      }
+      if (updateData.mob_no !== undefined) {
+        updateFields.mobNo = updateData.mob_no;
+      }
+      if (updateData.strn !== undefined) {
+        updateFields.strn = updateData.strn;
+      }
+      if (updateData.email !== undefined) {
+        updateFields.email = updateData.email;
       }
 
       await tenant.update(updateFields);
@@ -349,6 +379,10 @@ class UserManagementService {
         sellerBusinessName: tenant.seller_business_name,
         sellerProvince: tenant.seller_province,
         sellerAddress: tenant.seller_address,
+        telNo: tenant.telNo,
+        mobNo: tenant.mobNo,
+        strn: tenant.strn,
+        email: tenant.email,
         database_name: tenant.database_name,
         sandboxTestToken: tenant.sandbox_test_token,
         sandboxProductionToken: tenant.sandbox_production_token,
@@ -369,9 +403,9 @@ class UserManagementService {
         attributes: [
           "id",
           "tenant_id",
-          "seller_business_name",
           "seller_ntn_cnic",
           "seller_full_ntn",
+          "seller_business_name",
           "seller_province",
           "seller_address",
           "database_name",
@@ -379,6 +413,10 @@ class UserManagementService {
           "created_at",
           "sandbox_test_token",
           "sandbox_production_token",
+          "tel_no",
+          "mob_no",
+          "strn",
+          "email",
         ],
         order: [["seller_business_name", "ASC"]],
         raw: true,
@@ -393,6 +431,10 @@ class UserManagementService {
         sellerBusinessName: tenant.seller_business_name,
         sellerProvince: tenant.seller_province,
         sellerAddress: tenant.seller_address,
+        telNo: tenant.tel_no,
+        mobNo: tenant.mob_no,
+        strn: tenant.strn,
+        email: tenant.email,
         is_active: Boolean(tenant.is_active), // Convert MySQL boolean to JavaScript boolean
         database_name: tenant.database_name,
         created_at: tenant.created_at,

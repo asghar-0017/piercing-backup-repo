@@ -229,6 +229,10 @@ export const login = catchAsync(async (req, res, next) => {
           sandboxProductionToken:
             assignment.Tenant.sandboxProductionToken ||
             assignment.Tenant.sandbox_production_token,
+          telNo: assignment.Tenant.telNo,
+          mobNo: assignment.Tenant.mobNo,
+          strn: assignment.Tenant.strn,
+          email: assignment.Tenant.email,
         })),
       },
       process.env.JWT_SECRET,
@@ -272,6 +276,10 @@ export const login = catchAsync(async (req, res, next) => {
         sandboxProductionToken:
           assignment.Tenant.sandboxProductionToken ||
           assignment.Tenant.sandbox_production_token,
+        telNo: assignment.Tenant.telNo,
+        mobNo: assignment.Tenant.mobNo,
+        strn: assignment.Tenant.strn,
+        email: assignment.Tenant.email,
       })),
     };
 

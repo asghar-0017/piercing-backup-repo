@@ -20,6 +20,10 @@ export default function ProfileUpdateModal({
 }) {
   const [sellerBusinessName, setSellerBusinessName] = useState("");
   const [sellerFullNTN, setSellerFullNTN] = useState("");
+  const [telNo, setTelNo] = useState("");
+  const [mobNo, setMobNo] = useState("");
+  const [strn, setStrn] = useState("");
+  const [email, setEmail] = useState("");
   const [sellerProvince, setSellerProvince] = useState("");
   const [sellerAddress, setSellerAddress] = useState("");
 
@@ -27,6 +31,10 @@ export default function ProfileUpdateModal({
     if (initialTenant) {
       setSellerBusinessName(initialTenant.sellerBusinessName || "");
       setSellerFullNTN(initialTenant.sellerFullNTN || "");
+      setTelNo(initialTenant.telNo || "");
+      setMobNo(initialTenant.mobNo || "");
+      setStrn(initialTenant.strn || "");
+      setEmail(initialTenant.email || "");
       setSellerProvince(initialTenant.sellerProvince || "");
       setSellerAddress(initialTenant.sellerAddress || "");
     }
@@ -37,6 +45,10 @@ export default function ProfileUpdateModal({
     onSave({
       sellerBusinessName: sellerBusinessName?.trim(),
       sellerFullNTN: sellerFullNTN?.trim(),
+      telNo: telNo?.trim(),
+      mobNo: mobNo?.trim(),
+      strn: strn?.trim(),
+      email: email?.trim(),
       sellerProvince: sellerProvince?.trim(),
       sellerAddress: sellerAddress?.trim(),
     });
@@ -58,6 +70,30 @@ export default function ProfileUpdateModal({
               label="Seller Full NTN"
               value={sellerFullNTN}
               onChange={(e) => setSellerFullNTN(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Tel No"
+              value={telNo}
+              onChange={(e) => setTelNo(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Mob No"
+              value={mobNo}
+              onChange={(e) => setMobNo(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="STRN"
+              value={strn}
+              onChange={(e) => setStrn(e.target.value)}
+              fullWidth
+            />
+            <TextField
+              label="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               fullWidth
             />
             <TextField

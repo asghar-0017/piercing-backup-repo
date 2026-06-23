@@ -5,6 +5,7 @@ import { createInvoiceItemModel } from "../model/mysql/tenant/InvoiceItem.js";
 import { createProductModel } from "../model/mysql/tenant/Product.js";
 import { createInvoiceBackupModel } from "../model/mysql/tenant/InvoiceBackup.js";
 import { createInvoiceBackupSummaryModel } from "../model/mysql/tenant/InvoiceBackupSummary.js";
+import { createBillToShipToModel } from "../model/mysql/tenant/BillToShipTo.js";
 import Tenant from "../model/mysql/Tenant.js";
 import { masterSequelize } from "../config/mysql.js";
 
@@ -148,6 +149,7 @@ class TenantDatabaseService {
       const Product = createProductModel(sequelize);
       const InvoiceBackup = createInvoiceBackupModel(sequelize);
       const InvoiceBackupSummary = createInvoiceBackupSummaryModel(sequelize);
+      const BillToShipTo = createBillToShipToModel(sequelize);
 
       // Define associations
       Invoice.hasMany(InvoiceItem, { foreignKey: "invoice_id" });
@@ -167,6 +169,12 @@ class TenantDatabaseService {
       Invoice.hasOne(InvoiceBackupSummary, { foreignKey: "original_invoice_id" });
       InvoiceBackupSummary.belongsTo(Invoice, { foreignKey: "original_invoice_id" });
 
+      // BillToShipTo-Invoice associations
+      BillToShipTo.hasMany(Invoice, { as: "BillToInvoices", foreignKey: "bill_to_id" });
+      Invoice.belongsTo(BillToShipTo, { as: "BillTo", foreignKey: "bill_to_id" });
+      BillToShipTo.hasMany(Invoice, { as: "ShipToInvoices", foreignKey: "ship_to_id" });
+      Invoice.belongsTo(BillToShipTo, { as: "ShipTo", foreignKey: "ship_to_id" });
+
       // Sync all models to create tables
       console.log(`Creating tables in database: ${databaseName}`);
       await sequelize.sync({ alter: true });
@@ -183,6 +191,7 @@ class TenantDatabaseService {
         Product,
         InvoiceBackup,
         InvoiceBackupSummary,
+        BillToShipTo,
       });
 
       console.log(
@@ -257,6 +266,7 @@ class TenantDatabaseService {
       const Product = createProductModel(sequelize);
       const InvoiceBackup = createInvoiceBackupModel(sequelize);
       const InvoiceBackupSummary = createInvoiceBackupSummaryModel(sequelize);
+      const BillToShipTo = createBillToShipToModel(sequelize);
 
       // Define associations
       Invoice.hasMany(InvoiceItem, { foreignKey: "invoice_id" });
@@ -276,6 +286,12 @@ class TenantDatabaseService {
       Invoice.hasOne(InvoiceBackupSummary, { foreignKey: "original_invoice_id" });
       InvoiceBackupSummary.belongsTo(Invoice, { foreignKey: "original_invoice_id" });
 
+      // BillToShipTo-Invoice associations
+      BillToShipTo.hasMany(Invoice, { as: "BillToInvoices", foreignKey: "bill_to_id" });
+      Invoice.belongsTo(BillToShipTo, { as: "BillTo", foreignKey: "bill_to_id" });
+      BillToShipTo.hasMany(Invoice, { as: "ShipToInvoices", foreignKey: "ship_to_id" });
+      Invoice.belongsTo(BillToShipTo, { as: "ShipTo", foreignKey: "ship_to_id" });
+
       // Store connection and models
       this.tenantConnections.set(databaseName, sequelize);
       this.tenantModels.set(databaseName, {
@@ -285,6 +301,7 @@ class TenantDatabaseService {
         Product,
         InvoiceBackup,
         InvoiceBackupSummary,
+        BillToShipTo,
       });
 
       return {
@@ -297,6 +314,7 @@ class TenantDatabaseService {
           Product,
           InvoiceBackup,
           InvoiceBackupSummary,
+          BillToShipTo,
         },
       };
     } catch (error) {
@@ -345,6 +363,10 @@ class TenantDatabaseService {
           "created_at",
           "sandbox_test_token",
           "sandbox_production_token",
+          "tel_no",
+          "mob_no",
+          "strn",
+          "email",
         ],
         raw: true,
       });
@@ -358,6 +380,10 @@ class TenantDatabaseService {
         sellerBusinessName: tenant.seller_business_name,
         sellerProvince: tenant.seller_province,
         sellerAddress: tenant.seller_address,
+        telNo: tenant.tel_no,
+        mobNo: tenant.mob_no,
+        strn: tenant.strn,
+        email: tenant.email,
         is_active: Boolean(tenant.is_active), // Convert MySQL boolean to JavaScript boolean
         database_name: tenant.database_name,
         created_at: tenant.created_at,

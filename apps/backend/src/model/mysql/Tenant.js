@@ -54,6 +54,26 @@ const Tenant = masterSequelize.define(
       allowNull: true,
       field: "sandbox_production_token",
     },
+    telNo: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: "tel_no",
+    },
+    mobNo: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: "mob_no",
+    },
+    strn: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: "strn",
+    },
+    email: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: "email",
+    },
     is_active: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,

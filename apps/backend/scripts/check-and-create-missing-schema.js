@@ -552,7 +552,13 @@ async function main() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+import { fileURLToPath } from 'url';
+const isDirectRun = process.argv[1] && (
+  fileURLToPath(import.meta.url).replace(/\\/g, '/').toLowerCase() === 
+  process.argv[1].replace(/\\/g, '/').toLowerCase()
+);
+
+if (isDirectRun) {
   main().catch(console.error);
 }
 

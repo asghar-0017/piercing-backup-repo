@@ -26,6 +26,7 @@ import invoiceRoutes, { publicInvoiceRoutes } from "./routes/invoiceRoutes.js";
 import invoiceBackupRoutes from "./routes/invoiceBackupRoutes.js";
 import hsCodeRoutes from "./routes/hsCodeRoutes.js";
 import performanceRoutes from "./routes/performanceRoutes.js";
+import shipToBillToRoutes from "./routes/shipToBillToRoutes.js";
 
 dotenv.config({ path: "./.env" });
 
@@ -98,6 +99,7 @@ app.use("/api/admin", tenantRoutes);
 app.use("/api/tenant/:tenantId", buyerRoutes);
 app.use("/api/tenant/:tenantId", invoiceRoutes);
 app.use("/api/tenant/:tenantId", invoiceBackupRoutes);
+app.use("/api/tenant/:tenantId", shipToBillToRoutes);
 
 // Performance monitoring routes
 app.use("/api/tenant/:tenantId/performance", performanceRoutes);

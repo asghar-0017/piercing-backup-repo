@@ -187,6 +187,17 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
     companyInvoiceRefNo,
 
+    custAccountNo,
+    custLpoNo,
+    lpoDate,
+    deliveryNoteNo,
+    sp,
+    productOrigin,
+    productCertifiedBy,
+    paymentTerms,
+    paymentDue,
+    group,
+
     internalInvoiceNo,
 
     transctypeId,
@@ -198,6 +209,8 @@ export const createInvoice = catchAsync(async (req, res, next) => {
     fbr_invoice_number = null,
     idToDelete = null,
     sourceInvoiceNo,
+    billToId,
+    shipToId,
   } = req.body;
 
   // Debug: Log internal invoice number
@@ -410,10 +423,23 @@ export const createInvoice = catchAsync(async (req, res, next) => {
         buyerRegistrationType,
 
         buyer_id: buyerId, // Set foreign key to buyer
+        bill_to_id: billToId || null,
+        ship_to_id: shipToId || null,
 
         invoiceRefNo,
 
         companyInvoiceRefNo,
+
+        custAccountNo,
+        custLpoNo,
+        lpoDate,
+        deliveryNoteNo,
+        sp,
+        productOrigin,
+        productCertifiedBy,
+        paymentTerms,
+        paymentDue,
+        group,
 
         internal_invoice_no: internalInvoiceNo,
 
@@ -510,6 +536,12 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
           unitPrice: cleanNumericValue(item.unitPrice),
 
+          itemCode: cleanValue(item.itemCode),
+
+          units: cleanValue(item.units),
+
+          courierCharges: cleanNumericValue(item.courierCharges),
+
           totalValues: cleanNumericValue(item.totalValues),
 
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
@@ -538,7 +570,18 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
           sroItemSerialNo: cleanValue(item.sroItemSerialNo),
           invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
+          vat18: !!(item.vat18 === true || item.vat18 === "true" || item.vat18 === 1 || item.vat18 === "1"),
+          vat25: !!(item.vat25 === true || item.vat25 === "true" || item.vat25 === 1 || item.vat25 === "1"),
+          vatAmount: 0,
         };
+
+        const salesExclST = cleanNumericValue(item.valueSalesExcludingST) || 0;
+        const salesTax = cleanNumericValue(item.salesTaxApplicable) || 0;
+        const vat18Amt = mappedItem.vat18 ? Math.round((salesExclST + salesTax) * 0.18 * 100) / 100 : 0;
+        const vat25Amt = mappedItem.vat25 ? Math.round((salesExclST + salesTax) * 0.25 * 100) / 100 : 0;
+        mappedItem.vat18Amount = vat18Amt;
+        mappedItem.vat25Amount = vat25Amt;
+        mappedItem.vatAmount = vat18Amt + vat25Amt;
 
         // Only include extraTax when it's a positive value (> 0)
 
@@ -648,6 +691,9 @@ export const createInvoice = catchAsync(async (req, res, next) => {
       rate: item.rate,
       uoM: item.uoM,
       unitPrice: item.unitPrice,
+      itemCode: item.itemCode,
+      units: item.units,
+      courierCharges: item.courierCharges,
       totalValues: item.totalValues,
       valueSalesExcludingST: item.valueSalesExcludingST,
       fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
@@ -707,30 +753,33 @@ export const createInvoice = catchAsync(async (req, res, next) => {
       // Complete Invoice Items with All Details
       invoice_items: invoiceItemsForAudit
         ? invoiceItemsForAudit.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
+          id: item.id,
+          product_name: item.name,
+          hsCode: item.hsCode,
+          productDescription: item.productDescription,
+          quantity: item.quantity,
+          rate: item.rate,
+          uoM: item.uoM,
+          unitPrice: item.unitPrice,
+          itemCode: item.itemCode,
+          units: item.units,
+          courierCharges: item.courierCharges,
+          totalValues: item.totalValues,
+          valueSalesExcludingST: item.valueSalesExcludingST,
+          fixedNotifiedValueOrRetailPrice:
+            item.fixedNotifiedValueOrRetailPrice,
+          salesTaxApplicable: item.salesTaxApplicable,
+          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+          extraTax: item.extraTax,
+          furtherTax: item.furtherTax,
+          sroScheduleNo: item.sroScheduleNo,
+          fedPayable: item.fedPayable,
+          advanceIncomeTax: item.advanceIncomeTax,
+          discount: item.discount,
+          saleType: item.saleType,
+          sroItemSerialNo: item.sroItemSerialNo,
+          billOfLadingUoM: item.billOfLadingUoM,
+        }))
         : [],
     }, // newValues
     {
@@ -798,12 +847,25 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
     companyInvoiceRefNo,
 
+    custAccountNo,
+    custLpoNo,
+    lpoDate,
+    deliveryNoteNo,
+    sp,
+    productOrigin,
+    productCertifiedBy,
+    paymentTerms,
+    paymentDue,
+    group,
+
     internalInvoiceNo,
 
     transctypeId,
 
     items,
     sourceInvoiceNo,
+    billToId,
+    shipToId,
   } = req.body;
 
   // Check companyInvoiceRefNo uniqueness before saving draft
@@ -894,6 +956,17 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           companyInvoiceRefNo,
 
+          custAccountNo,
+          custLpoNo,
+          lpoDate,
+          deliveryNoteNo,
+          sp,
+          productOrigin,
+          productCertifiedBy,
+          paymentTerms,
+          paymentDue,
+          group,
+
           internal_invoice_no: internalInvoiceNo,
 
           transctypeId,
@@ -902,6 +975,8 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           fbr_invoice_number: null,
           sourceInvoiceNo: companyInvoiceRefNo || sourceInvoiceNo || invoice.sourceInvoiceNo,
+          bill_to_id: billToId !== undefined ? (billToId || null) : invoice.bill_to_id,
+          ship_to_id: shipToId !== undefined ? (shipToId || null) : invoice.ship_to_id,
         },
 
         { transaction: t },
@@ -963,6 +1038,17 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           companyInvoiceRefNo,
 
+          custAccountNo,
+          custLpoNo,
+          lpoDate,
+          deliveryNoteNo,
+          sp,
+          productOrigin,
+          productCertifiedBy,
+          paymentTerms,
+          paymentDue,
+          group,
+
           internal_invoice_no: internalInvoiceNo,
 
           transctypeId,
@@ -971,6 +1057,8 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           fbr_invoice_number: null,
           sourceInvoiceNo: companyInvoiceRefNo || sourceInvoiceNo,
+          bill_to_id: billToId || null,
+          ship_to_id: shipToId || null,
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -1047,6 +1135,12 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           unitPrice: cleanNumericValue(item.unitPrice),
 
+          itemCode: cleanValue(item.itemCode),
+
+          units: cleanValue(item.units),
+
+          courierCharges: cleanNumericValue(item.courierCharges),
+
           totalValues: cleanNumericValue(item.totalValues),
 
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
@@ -1075,7 +1169,18 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           sroItemSerialNo: cleanValue(item.sroItemSerialNo),
           invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
+          vat18: !!(item.vat18 === true || item.vat18 === "true" || item.vat18 === 1 || item.vat18 === "1"),
+          vat25: !!(item.vat25 === true || item.vat25 === "true" || item.vat25 === 1 || item.vat25 === "1"),
+          vatAmount: 0,
         };
+
+        const salesExclST = cleanNumericValue(item.valueSalesExcludingST) || 0;
+        const salesTax = cleanNumericValue(item.salesTaxApplicable) || 0;
+        const vat18Amt = mappedItem.vat18 ? Math.round((salesExclST + salesTax) * 0.18 * 100) / 100 : 0;
+        const vat25Amt = mappedItem.vat25 ? Math.round((salesExclST + salesTax) * 0.25 * 100) / 100 : 0;
+        mappedItem.vat18Amount = vat18Amt;
+        mappedItem.vat25Amount = vat25Amt;
+        mappedItem.vatAmount = vat18Amt + vat25Amt;
 
         // Only include extraTax when it's a positive value (> 0)
 
@@ -1162,30 +1267,33 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
       // Complete Invoice Items with All Details
       invoice_items: items
         ? items.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
+          id: item.id,
+          product_name: item.name,
+          hsCode: item.hsCode,
+          productDescription: item.productDescription,
+          quantity: item.quantity,
+          rate: item.rate,
+          uoM: item.uoM,
+          unitPrice: item.unitPrice,
+          itemCode: item.itemCode,
+          units: item.units,
+          courierCharges: item.courierCharges,
+          totalValues: item.totalValues,
+          valueSalesExcludingST: item.valueSalesExcludingST,
+          fixedNotifiedValueOrRetailPrice:
+            item.fixedNotifiedValueOrRetailPrice,
+          salesTaxApplicable: item.salesTaxApplicable,
+          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+          extraTax: item.extraTax,
+          furtherTax: item.furtherTax,
+          sroScheduleNo: item.sroScheduleNo,
+          fedPayable: item.fedPayable,
+          advanceIncomeTax: item.advanceIncomeTax,
+          discount: item.discount,
+          saleType: item.saleType,
+          sroItemSerialNo: item.sroItemSerialNo,
+          billOfLadingUoM: item.billOfLadingUoM,
+        }))
         : [],
     }, // newValues
     {
@@ -1254,12 +1362,25 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
     companyInvoiceRefNo,
 
+    custAccountNo,
+    custLpoNo,
+    lpoDate,
+    deliveryNoteNo,
+    sp,
+    productOrigin,
+    productCertifiedBy,
+    paymentTerms,
+    paymentDue,
+    group,
+
     internalInvoiceNo,
 
     transctypeId,
 
     items,
     sourceInvoiceNo,
+    billToId,
+    shipToId,
   } = req.body;
 
   // Generate appropriate invoice number based on whether it's a new invoice or update
@@ -1398,6 +1519,17 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           companyInvoiceRefNo,
 
+          custAccountNo,
+          custLpoNo,
+          lpoDate,
+          deliveryNoteNo,
+          sp,
+          productOrigin,
+          productCertifiedBy,
+          paymentTerms,
+          paymentDue,
+          group,
+
           internal_invoice_no: internalInvoiceNo,
 
           transctypeId,
@@ -1406,6 +1538,8 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           fbr_invoice_number: null,
           sourceInvoiceNo: companyInvoiceRefNo || sourceInvoiceNo || invoice.sourceInvoiceNo,
+          bill_to_id: billToId !== undefined ? (billToId || null) : invoice.bill_to_id,
+          ship_to_id: shipToId !== undefined ? (shipToId || null) : invoice.ship_to_id,
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -1465,6 +1599,17 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           companyInvoiceRefNo,
 
+          custAccountNo,
+          custLpoNo,
+          lpoDate,
+          deliveryNoteNo,
+          sp,
+          productOrigin,
+          productCertifiedBy,
+          paymentTerms,
+          paymentDue,
+          group,
+
           internal_invoice_no: internalInvoiceNo,
 
           transctypeId,
@@ -1473,6 +1618,8 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           fbr_invoice_number: null,
           sourceInvoiceNo: companyInvoiceRefNo || sourceInvoiceNo,
+          bill_to_id: billToId || null,
+          ship_to_id: shipToId || null,
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -1547,6 +1694,12 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           unitPrice: cleanNumericValue(item.unitPrice),
 
+          itemCode: cleanValue(item.itemCode),
+
+          units: cleanValue(item.units),
+
+          courierCharges: cleanNumericValue(item.courierCharges),
+
           totalValues: cleanNumericValue(item.totalValues),
 
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
@@ -1575,7 +1728,18 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           sroItemSerialNo: cleanValue(item.sroItemSerialNo),
           invoiceItemNo: cleanValue(item.invoiceItemNo) || "",
+          vat18: !!(item.vat18 === true || item.vat18 === "true" || item.vat18 === 1 || item.vat18 === "1"),
+          vat25: !!(item.vat25 === true || item.vat25 === "true" || item.vat25 === 1 || item.vat25 === "1"),
+          vatAmount: 0,
         };
+
+        const salesExclST = cleanNumericValue(item.valueSalesExcludingST) || 0;
+        const salesTax = cleanNumericValue(item.salesTaxApplicable) || 0;
+        const vat18Amt = mappedItem.vat18 ? Math.round((salesExclST + salesTax) * 0.18 * 100) / 100 : 0;
+        const vat25Amt = mappedItem.vat25 ? Math.round((salesExclST + salesTax) * 0.25 * 100) / 100 : 0;
+        mappedItem.vat18Amount = vat18Amt;
+        mappedItem.vat25Amount = vat25Amt;
+        mappedItem.vatAmount = vat18Amt + vat25Amt;
 
         // Only include extraTax when it's a positive value (> 0)
 
@@ -1662,30 +1826,33 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
       // Complete Invoice Items with All Details
       invoice_items: items
         ? items.map((item) => ({
-            id: item.id,
-            product_name: item.name,
-            hsCode: item.hsCode,
-            productDescription: item.productDescription,
-            quantity: item.quantity,
-            rate: item.rate,
-            uoM: item.uoM,
-            unitPrice: item.unitPrice,
-            totalValues: item.totalValues,
-            valueSalesExcludingST: item.valueSalesExcludingST,
-            fixedNotifiedValueOrRetailPrice:
-              item.fixedNotifiedValueOrRetailPrice,
-            salesTaxApplicable: item.salesTaxApplicable,
-            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-            extraTax: item.extraTax,
-            furtherTax: item.furtherTax,
-            sroScheduleNo: item.sroScheduleNo,
-            fedPayable: item.fedPayable,
-            advanceIncomeTax: item.advanceIncomeTax,
-            discount: item.discount,
-            saleType: item.saleType,
-            sroItemSerialNo: item.sroItemSerialNo,
-            billOfLadingUoM: item.billOfLadingUoM,
-          }))
+          id: item.id,
+          product_name: item.name,
+          hsCode: item.hsCode,
+          productDescription: item.productDescription,
+          quantity: item.quantity,
+          rate: item.rate,
+          uoM: item.uoM,
+          unitPrice: item.unitPrice,
+          itemCode: item.itemCode,
+          units: item.units,
+          courierCharges: item.courierCharges,
+          totalValues: item.totalValues,
+          valueSalesExcludingST: item.valueSalesExcludingST,
+          fixedNotifiedValueOrRetailPrice:
+            item.fixedNotifiedValueOrRetailPrice,
+          salesTaxApplicable: item.salesTaxApplicable,
+          salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+          extraTax: item.extraTax,
+          furtherTax: item.furtherTax,
+          sroScheduleNo: item.sroScheduleNo,
+          fedPayable: item.fedPayable,
+          advanceIncomeTax: item.advanceIncomeTax,
+          discount: item.discount,
+          saleType: item.saleType,
+          sroItemSerialNo: item.sroItemSerialNo,
+          billOfLadingUoM: item.billOfLadingUoM,
+        }))
         : [],
     }, // newValues
     {
@@ -2655,10 +2822,10 @@ export const getAllInvoices = async (req, res) => {
         updated_at: plainInvoice.updated_at,
         ...(req.user?.role === "admin"
           ? {
-              created_by_user_id: plainInvoice.created_by_user_id,
-              created_by_email: plainInvoice.created_by_email,
-              created_by_name: plainInvoice.created_by_name,
-            }
+            created_by_user_id: plainInvoice.created_by_user_id,
+            created_by_email: plainInvoice.created_by_email,
+            created_by_name: plainInvoice.created_by_name,
+          }
           : {}),
       };
     });
@@ -2728,7 +2895,7 @@ export const getAllInvoices = async (req, res) => {
 
 export const getInvoiceById = async (req, res) => {
   try {
-    const { Invoice, InvoiceItem } = req.tenantModels;
+    const { Invoice, InvoiceItem, BillToShipTo } = req.tenantModels;
 
     const { id } = req.params;
 
@@ -2737,6 +2904,16 @@ export const getInvoiceById = async (req, res) => {
         {
           model: InvoiceItem,
           as: "InvoiceItems",
+          required: false,
+        },
+        {
+          model: BillToShipTo,
+          as: "BillTo",
+          required: false,
+        },
+        {
+          model: BillToShipTo,
+          as: "ShipTo",
           required: false,
         },
       ],
@@ -2797,9 +2974,25 @@ export const getInvoiceById = async (req, res) => {
 
       companyInvoiceRefNo: plainInvoice.companyInvoiceRefNo,
 
+      custAccountNo: plainInvoice.custAccountNo,
+      custLpoNo: plainInvoice.custLpoNo,
+      lpoDate: plainInvoice.lpoDate,
+      deliveryNoteNo: plainInvoice.deliveryNoteNo,
+      sp: plainInvoice.sp,
+      productOrigin: plainInvoice.productOrigin,
+      productCertifiedBy: plainInvoice.productCertifiedBy,
+      paymentTerms: plainInvoice.paymentTerms,
+      paymentDue: plainInvoice.paymentDue,
+      group: plainInvoice.group,
+
       sourceInvoiceNo: plainInvoice.sourceInvoiceNo,
 
       fbr_invoice_number: plainInvoice.fbr_invoice_number,
+
+      billToId: plainInvoice.bill_to_id || "",
+      shipToId: plainInvoice.ship_to_id || "",
+      BillTo: plainInvoice.BillTo || null,
+      ShipTo: plainInvoice.ShipTo || null,
 
       items: (plainInvoice.InvoiceItems || []).map((item) => ({
         ...item,
@@ -2911,14 +3104,18 @@ export const printInvoice = async (req, res) => {
 
     const { invoice, tenantDb, tenant } = result;
 
-    const { InvoiceItem } = tenantDb.models;
+    const { InvoiceItem, BillToShipTo } = tenantDb.models;
 
     // Fetch invoice with items using the already found invoice
 
     const invoiceWithItems = await invoice.constructor.findOne({
       where: { id: invoice.id },
 
-      include: [{ model: InvoiceItem, as: "InvoiceItems" }],
+      include: [
+        { model: InvoiceItem, as: "InvoiceItems" },
+        { model: BillToShipTo, as: "BillTo", required: false },
+        { model: BillToShipTo, as: "ShipTo", required: false },
+      ],
     });
 
     if (!invoiceWithItems) {
@@ -2945,6 +3142,18 @@ export const printInvoice = async (req, res) => {
         path.join(process.cwd(), "public", "images", "Pakprogressive.png"),
       )
 
+      .toString("base64");
+
+    const piercingSystemLogoBase64 = fs
+      .readFileSync(
+        path.join(process.cwd(), "public", "images", "piercingsystemlogo.png"),
+      )
+      .toString("base64");
+
+    const stampLogoBase64 = fs
+      .readFileSync(
+        path.join(process.cwd(), "public", "images", "stemp-logo.png"),
+      )
       .toString("base64");
 
     // Prepare paths
@@ -3017,6 +3226,10 @@ export const printInvoice = async (req, res) => {
       // Some templates read underscore variant
       plainInvoice.seller_full_ntn =
         tenant.sellerFullNTN || plainInvoice.seller_full_ntn;
+      plainInvoice.telNo = tenant.telNo || tenant.tel_no || plainInvoice.telNo;
+      plainInvoice.mobNo = tenant.mobNo || tenant.mob_no || plainInvoice.mobNo;
+      plainInvoice.strn = tenant.strn || plainInvoice.strn;
+      plainInvoice.email = tenant.email || plainInvoice.email;
     }
 
     // Render EJS HTML
@@ -3034,6 +3247,10 @@ export const printInvoice = async (req, res) => {
         companyLogoBase64,
 
         pakistanGumLogoBase64,
+
+        piercingSystemLogoBase64,
+
+        stampLogoBase64,
 
         showFbrLogo: invoiceWithItems.status === "posted", // Only show FBR logo for posted invoices
 
@@ -3119,6 +3336,15 @@ export const updateInvoice = async (req, res) => {
 
     const updateData = req.body;
 
+    if ("billToId" in updateData) {
+      updateData.bill_to_id = updateData.billToId || null;
+      delete updateData.billToId;
+    }
+    if ("shipToId" in updateData) {
+      updateData.ship_to_id = updateData.shipToId || null;
+      delete updateData.shipToId;
+    }
+
     const invoice = await Invoice.findByPk(id);
 
     if (!invoice) {
@@ -3177,6 +3403,9 @@ export const updateInvoice = async (req, res) => {
         rate: item.rate,
         uoM: item.uoM,
         unitPrice: item.unitPrice,
+        itemCode: item.itemCode,
+        units: item.units,
+        courierCharges: item.courierCharges,
         totalValues: item.totalValues,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
@@ -3253,6 +3482,9 @@ export const updateInvoice = async (req, res) => {
         rate: item.rate,
         uoM: item.uoM,
         unitPrice: item.unitPrice,
+        itemCode: item.itemCode,
+        units: item.units,
+        courierCharges: item.courierCharges,
         totalValues: item.totalValues,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
@@ -3393,6 +3625,9 @@ export const deleteInvoice = async (req, res) => {
         rate: item.rate,
         uoM: item.uoM,
         unitPrice: item.unitPrice,
+        itemCode: item.itemCode,
+        units: item.units,
+        courierCharges: item.courierCharges,
         totalValues: item.totalValues,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
@@ -3600,6 +3835,9 @@ export const recoverInvoice = async (req, res) => {
         rate: item.rate,
         uoM: item.uoM,
         unitPrice: item.unitPrice,
+        itemCode: item.itemCode,
+        units: item.units,
+        courierCharges: item.courierCharges,
         totalValues: item.totalValues,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
@@ -4357,30 +4595,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // oldValues (before submission)
       {
@@ -4419,30 +4657,30 @@ export const submitSavedInvoice = async (req, res) => {
         // Complete Invoice Items with All Details
         invoice_items: invoice.InvoiceItems
           ? invoice.InvoiceItems.map((item) => ({
-              id: item.id,
-              product_name: item.name,
-              hsCode: item.hsCode,
-              productDescription: item.productDescription,
-              quantity: item.quantity,
-              rate: item.rate,
-              uoM: item.uoM,
-              unitPrice: item.unitPrice,
-              totalValues: item.totalValues,
-              valueSalesExcludingST: item.valueSalesExcludingST,
-              fixedNotifiedValueOrRetailPrice:
-                item.fixedNotifiedValueOrRetailPrice,
-              salesTaxApplicable: item.salesTaxApplicable,
-              salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
-              extraTax: item.extraTax,
-              furtherTax: item.furtherTax,
-              sroScheduleNo: item.sroScheduleNo,
-              fedPayable: item.fedPayable,
-              advanceIncomeTax: item.advanceIncomeTax,
-              discount: item.discount,
-              saleType: item.saleType,
-              sroItemSerialNo: item.sroItemSerialNo,
-              billOfLadingUoM: item.billOfLadingUoM,
-            }))
+            id: item.id,
+            product_name: item.name,
+            hsCode: item.hsCode,
+            productDescription: item.productDescription,
+            quantity: item.quantity,
+            rate: item.rate,
+            uoM: item.uoM,
+            unitPrice: item.unitPrice,
+            totalValues: item.totalValues,
+            valueSalesExcludingST: item.valueSalesExcludingST,
+            fixedNotifiedValueOrRetailPrice:
+              item.fixedNotifiedValueOrRetailPrice,
+            salesTaxApplicable: item.salesTaxApplicable,
+            salesTaxWithheldAtSource: item.salesTaxWithheldAtSource,
+            extraTax: item.extraTax,
+            furtherTax: item.furtherTax,
+            sroScheduleNo: item.sroScheduleNo,
+            fedPayable: item.fedPayable,
+            advanceIncomeTax: item.advanceIncomeTax,
+            discount: item.discount,
+            saleType: item.saleType,
+            sroItemSerialNo: item.sroItemSerialNo,
+            billOfLadingUoM: item.billOfLadingUoM,
+          }))
           : [],
       }, // newValues (after submission)
       {
@@ -4532,13 +4770,13 @@ export const bulkCreateInvoices = async (req, res) => {
       totalInvoices: invoices.length,
       sampleInvoice: invoices[0]
         ? {
-            invoiceType: invoices[0].invoiceType,
-            invoiceDate: invoices[0].invoiceDate,
-            companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
-            internalInvoiceNo: invoices[0].internalInvoiceNo,
-            buyerBusinessName: invoices[0].buyerBusinessName,
-            itemsCount: invoices[0].items?.length || 0,
-          }
+          invoiceType: invoices[0].invoiceType,
+          invoiceDate: invoices[0].invoiceDate,
+          companyInvoiceRefNo: invoices[0].companyInvoiceRefNo,
+          internalInvoiceNo: invoices[0].internalInvoiceNo,
+          buyerBusinessName: invoices[0].buyerBusinessName,
+          itemsCount: invoices[0].items?.length || 0,
+        }
         : null,
       sampleInternalInvoiceNo: invoices[0]?.internalInvoiceNo,
       hasInternalInvoiceNo: !!invoices[0]?.internalInvoiceNo,
@@ -4562,15 +4800,15 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingBuyers =
       uniqueBuyerNTNs.length > 0
         ? await Buyer.findAll({
-            where: { buyerNTNCNIC: uniqueBuyerNTNs },
-            attributes: [
-              "buyerNTNCNIC",
-              "buyerBusinessName",
-              "buyerProvince",
-              "buyerAddress",
-              "buyerRegistrationType",
-            ],
-          })
+          where: { buyerNTNCNIC: uniqueBuyerNTNs },
+          attributes: [
+            "buyerNTNCNIC",
+            "buyerBusinessName",
+            "buyerProvince",
+            "buyerAddress",
+            "buyerRegistrationType",
+          ],
+        })
         : [];
 
     // DEBUG: Also check total buyers in database
@@ -4622,13 +4860,13 @@ export const bulkCreateInvoices = async (req, res) => {
     const existingProducts =
       uniqueProductNames.length > 0
         ? await Product.findAll({
-            where: {
-              name: {
-                [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
-              },
+          where: {
+            name: {
+              [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
             },
-            attributes: ["id", "name", "description", "hsCode", "uom"],
-          })
+          },
+          attributes: ["id", "name", "description", "hsCode", "uom"],
+        })
         : [];
 
     // Create lookup maps for O(1) access - case insensitive
@@ -4665,9 +4903,9 @@ export const bulkCreateInvoices = async (req, res) => {
             [Invoice.sequelize.Sequelize.Op.like]: "INV-%",
           },
         },
-          order: [
-        [Invoice.sequelize.Sequelize.literal("CAST(SUBSTRING(system_invoice_id, 5) AS UNSIGNED)"), "DESC"]
-      ],
+        order: [
+          [Invoice.sequelize.Sequelize.literal("CAST(SUBSTRING(system_invoice_id, 5) AS UNSIGNED)"), "DESC"]
+        ],
         attributes: ["system_invoice_id"],
       });
 
@@ -6747,16 +6985,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
         provinceMap = Array.isArray(provinces)
           ? provinces.reduce((acc, p) => {
-              const desc =
-                p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
+            const desc =
+              p.stateProvinceDesc || p.STATEPROVINCEDESC || p.desc || "";
 
-              const code =
-                p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
+            const code =
+              p.stateProvinceCode || p.STATEPROVINCECODE || p.code || "";
 
-              if (desc && code) acc[desc.toUpperCase()] = code;
+            if (desc && code) acc[desc.toUpperCase()] = code;
 
-              return acc;
-            }, {})
+            return acc;
+          }, {})
           : {};
 
         const tenantProvince = (
@@ -6980,10 +7218,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                      id: rateId ? String(rateId) : null,
+                    id: rateId ? String(rateId) : null,
 
-                      desc: String(rateDesc).trim(),
-                    }
+                    desc: String(rateDesc).trim(),
+                  }
                   : null;
               })
 
@@ -7049,10 +7287,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
                 return rateDesc
                   ? {
-                      id: rateId ? String(rateId) : null,
+                    id: rateId ? String(rateId) : null,
 
-                      desc: String(rateDesc).trim(),
-                    }
+                    desc: String(rateDesc).trim(),
+                  }
                   : null;
               })
 
@@ -8039,17 +8277,17 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
 
       // item_sroItemSerialNo dropdown
       template.getCell(r, headerIndex("item_sroItemSerialNo")).dataValidation =
-        {
-          type: "list",
-          allowBlank: true,
-          formulae: [
-            `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
-          ],
-          showErrorMessage: true,
-          errorStyle: "warning",
-          errorTitle: "Invalid SRO Item",
-          error: "Select a valid SRO Item from the dropdown list.",
-        };
+      {
+        type: "list",
+        allowBlank: true,
+        formulae: [
+          `$${getColLetter(allSROItemCol)}$${allSROItemRange.startRow}:$${getColLetter(allSROItemCol)}$${allSROItemRange.endRow}`,
+        ],
+        showErrorMessage: true,
+        errorStyle: "warning",
+        errorTitle: "Invalid SRO Item",
+        error: "Select a valid SRO Item from the dropdown list.",
+      };
 
       // item_uoM dropdown
       template.getCell(r, headerIndex("item_uoM")).dataValidation = {
@@ -8113,16 +8351,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       };
 
       template.getCell(r, headerIndex("item_advanceIncomeTax")).dataValidation =
-        {
-          type: "decimal",
-          operator: "greaterThanOrEqual",
-          formulae: [0],
-          allowBlank: true,
-          showErrorMessage: true,
-          errorStyle: "warning",
-          errorTitle: "Invalid Advance Income Tax",
-          error: "Advance Income Tax must be a positive number.",
-        };
+      {
+        type: "decimal",
+        operator: "greaterThanOrEqual",
+        formulae: [0],
+        allowBlank: true,
+        showErrorMessage: true,
+        errorStyle: "warning",
+        errorTitle: "Invalid Advance Income Tax",
+        error: "Advance Income Tax must be a positive number.",
+      };
 
       // Auto-populate Sales Type based on Transaction Type selection
       const transctypeColLetter = getColLetter(headerIndex("transctypeId"));
@@ -8429,6 +8667,10 @@ export const bulkPrintInvoices = async (req, res) => {
           tenant.sellerFullNTN ||
           tenant.seller_full_ntn ||
           plainInvoice.seller_full_ntn;
+        plainInvoice.telNo = tenant.telNo || tenant.tel_no || plainInvoice.telNo;
+        plainInvoice.mobNo = tenant.mobNo || tenant.mob_no || plainInvoice.mobNo;
+        plainInvoice.strn = tenant.strn || plainInvoice.strn;
+        plainInvoice.email = tenant.email || plainInvoice.email;
 
         return {
           ...plainInvoice,
