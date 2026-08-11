@@ -130,6 +130,10 @@ export const createInvoiceItemModel = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: true,
       },
+      qtyForInternal: {
+        type: DataTypes.DECIMAL(20, 2),
+        allowNull: true,
+      },
       vat18: {
         type: DataTypes.BOOLEAN,
         allowNull: false,

@@ -238,6 +238,7 @@ export default function CreateInvoice() {
         retailPrice: "0", // User input field
         itemCode: "",
         units: "",
+        qtyForInternal: "",
         courierCharges: "0",
         totalValues: "0",
         valueSalesExcludingST: "0",
@@ -1287,6 +1288,7 @@ export default function CreateInvoice() {
               retailPrice: "0", // User input field
               itemCode: "",
               units: "",
+              qtyForInternal: "",
               courierCharges: "0",
               totalValues: "0",
               valueSalesExcludingST: "0",
@@ -1341,6 +1343,7 @@ export default function CreateInvoice() {
               item.retailPrice || item.fixedNotifiedValueOrRetailPrice || "0",
             itemCode: item.item_code || item.itemCode || "",
             units: item.units || "",
+            qtyForInternal: item.qtyForInternal !== undefined && item.qtyForInternal !== null ? String(item.qtyForInternal) : "",
             courierCharges: item.courier_charges !== undefined
               ? String(item.courier_charges)
               : item.courierCharges || "0",
@@ -2560,6 +2563,7 @@ export default function CreateInvoice() {
       productId: selectedProductIdByItem[0], // Store product ID for editing
     };
 
+    console.log("📦 addNewItem - captured itemCode:", itemToAdd.itemCode, "| units:", itemToAdd.units);
     console.log("Adding item with buyer and product info:", {
       buyerId: selectedBuyerId,
       buyerNTN: formData.buyerNTNCNIC,
@@ -2626,6 +2630,7 @@ export default function CreateInvoice() {
           retailPrice: "0", // User input field
           itemCode: "",
           units: "",
+          qtyForInternal: "",
           courierCharges: "0",
           totalValues: "0",
           valueSalesExcludingST: "0",
@@ -3315,6 +3320,10 @@ export default function CreateInvoice() {
         fedPayable: Number(Number(item.fedPayable || 0).toFixed(2)),
         discount: Number(Number(item.discount || 0).toFixed(2)),
         advanceIncomeTax: Number(Number(item.advanceIncomeTax || 0).toFixed(2)), // Keep in database
+        // Explicitly carry itemCode and units so they are never lost
+        itemCode: item.itemCode || null,
+        units: item.units || null,
+        courierCharges: item.courierCharges || null,
       }));
 
       const backendData = {
@@ -3335,7 +3344,7 @@ export default function CreateInvoice() {
       );
       console.log(
         "Items being saved:",
-        payload.items.map((item) => ({ name: item.name, hsCode: item.hsCode })),
+        payload.items.map((item) => ({ name: item.name, hsCode: item.hsCode, itemCode: item.itemCode, units: item.units })),
       );
       const response = await api.post(
         `/tenant/${selectedTenant.tenant_id}/invoices/save`,
@@ -3708,6 +3717,10 @@ export default function CreateInvoice() {
           advanceIncomeTax: Number(
             Number(item.advanceIncomeTax || 0).toFixed(2),
           ), // Keep in database
+          // Explicitly carry itemCode and units so they are never lost
+          itemCode: item.itemCode || null,
+          units: item.units || null,
+          courierCharges: item.courierCharges || null,
         }));
 
         const backendData = {
@@ -3733,6 +3746,8 @@ export default function CreateInvoice() {
           payload.items.map((item) => ({
             name: item.name,
             hsCode: item.hsCode,
+            itemCode: item.itemCode,
+            units: item.units,
           })),
         );
         const response = await api.post(
@@ -4212,6 +4227,10 @@ export default function CreateInvoice() {
           advanceIncomeTax: Number(
             Number(item.advanceIncomeTax || 0).toFixed(2),
           ), // Keep in database
+          // Explicitly carry itemCode and units so they are never lost
+          itemCode: item.itemCode || null,
+          units: item.units || null,
+          courierCharges: item.courierCharges || null,
         };
       });
 
@@ -6117,7 +6136,7 @@ export default function CreateInvoice() {
                 <TextField
                   fullWidth
                   size="small"
-                  label="Qty"
+                  label="Qty in KGS (For FBR)"
                   type="text"
                   value={
                     item.quantity === "0.00"
@@ -6141,6 +6160,33 @@ export default function CreateInvoice() {
                       // Don't parse to float and back to string - preserve the original decimal places
                       if (cleanValue && cleanValue !== "") {
                         handleItemChange(index, "quantity", cleanValue);
+                      }
+                    }
+                  }}
+                  variant="outlined"
+                />
+
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Qty (For Internal Use)"
+                  type="text"
+                  value={item.qtyForInternal || ""}
+                  onChange={(e) => {
+                    const newValue = handleFloatingNumberInput(
+                      e.target.value,
+                      true,
+                    );
+                    if (newValue !== null) {
+                      handleItemChange(index, "qtyForInternal", newValue);
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value;
+                    if (value) {
+                      const cleanVal = value.replace(/,/g, "");
+                      if (cleanVal && cleanVal !== "") {
+                        handleItemChange(index, "qtyForInternal", cleanVal);
                       }
                     }
                   }}
@@ -6706,6 +6752,9 @@ export default function CreateInvoice() {
                         Quantity
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                        Qty (Internal)
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
                         Unit Cost
                       </TableCell>
                       <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
@@ -6755,6 +6804,9 @@ export default function CreateInvoice() {
 
                         <TableCell sx={{ fontSize: "0.875rem" }}>
                           {formatQuantityWithCommas(item.quantity)}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.875rem" }}>
+                          {item.qtyForInternal ? formatQuantityWithCommas(item.qtyForInternal) : "-"}
                         </TableCell>
                         <TableCell sx={{ fontSize: "0.875rem" }}>
                           {formatNumberWithCommas(item.unitPrice)}

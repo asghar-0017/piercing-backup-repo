@@ -224,6 +224,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   const [uploadResults, setUploadResults] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [totalRowsInFile, setTotalRowsInFile] = useState(0);
+  // BillTo / ShipTo lookup lists (fetched once when dialog opens)
+  const [billToRecords, setBillToRecords] = useState([]);
+  const [shipToRecords, setShipToRecords] = useState([]);
 
   useEffect(() => {
     console.log("uploadResults state changed:", uploadResults);
@@ -275,6 +278,25 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     };
   }, [cleanup]);
 
+  // Fetch BillTo and ShipTo records when the dialog opens and a tenant is selected
+  useEffect(() => {
+    if (!isOpen || !selectedTenant) return;
+    const tenantId = selectedTenant.tenant_id;
+    const fetchBillShip = async () => {
+      try {
+        const [billRes, shipRes] = await Promise.all([
+          api.get(`/tenant/${tenantId}/bill-to?limit=All`),
+          api.get(`/tenant/${tenantId}/ship-to?limit=All`),
+        ]);
+        setBillToRecords(billRes.data?.data || []);
+        setShipToRecords(shipRes.data?.data || []);
+      } catch (err) {
+        console.warn("Could not fetch Bill To / Ship To records:", err);
+      }
+    };
+    fetchBillShip();
+  }, [isOpen, selectedTenant]);
+
   // Expected columns for invoice data (including buyer details) - now optional
   const expectedColumns = [
     // Invoice details
@@ -282,6 +304,19 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "invoiceDate",
     "invoiceRefNo",
     "companyInvoiceRefNo",
+    // Extra invoice-level fields
+    "custAccountNo",
+    "custLpoNo",
+    "lpoDate",
+    "deliveryNoteNo",
+    "sp",
+    "productOrigin",
+    "productCertifiedBy",
+    "paymentTerms",
+    "paymentDue",
+    "group",
+    "billToName",
+    "shipToName",
     // Buyer details (only NTN/CNIC kept)
     "buyerNTNCNIC",
     // Transaction and item details
@@ -295,6 +330,13 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "item_productName",
     "item_valueSalesExcludingST",
     "item_quantity",
+    "item_qtyForInternal",
+    "item_itemCode",
+    "item_units",
+    "item_courierCharges",
+    "item_vat",
+    "item_vat18Amount",
+    "item_vat25Amount",
     "item_unitPrice",
     "item_salesTaxApplicable",
     "item_salesTaxWithheldAtSource",
@@ -337,6 +379,19 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Company Invoice Ref No": "companyInvoiceRefNo",
     "Buyer NTN/CNIC": "buyerNTNCNIC",
     "Transaction Type": "transctypeId",
+    // New invoice-level columns
+    "CUST. A/C NO": "custAccountNo",
+    "CUST. LPO NO": "custLpoNo",
+    "LPO DATE": "lpoDate",
+    "DEL. NOTE NO": "deliveryNoteNo",
+    SP: "sp",
+    "PRODUCT ORIGIN": "productOrigin",
+    "PRODUCT CERTIFIED BY": "productCertifiedBy",
+    "PAYMENT TERMS": "paymentTerms",
+    "PAYMENT DUE": "paymentDue",
+    GROUP: "group",
+    "BILL TO": "billToName",
+    "SHIP TO": "shipToName",
     Rate: "item_rate",
     "SRO Schedule No": "item_sroScheduleNo",
     "SRO Item No": "item_sroItemSerialNo",
@@ -345,7 +400,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Unit Of Measurement": "item_uoM",
     "Product Name": "item_productName",
     "Value Sales (Excl ST)": "item_valueSalesExcludingST",
+    "Quantity in KGS (For FBR)": "item_quantity",
     Quantity: "item_quantity",
+    "Qty (For Internal Use)": "item_qtyForInternal",
+    "Item Code": "item_itemCode",
+    Units: "item_units",
+    "Courier Charges": "item_courierCharges",
+    VAT: "item_vat",
+    "Calculated VAT 18%": "item_vat18Amount",
+    "Calculated VAT 25%": "item_vat25Amount",
     "Unit Cost": "item_unitPrice",
     "Sales Tax Applicable": "item_salesTaxApplicable",
     "ST Withheld at Source": "item_salesTaxWithheldAtSource",
@@ -366,12 +429,37 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     buyer_ntn: "buyerNTNCNIC",
     transaction_type: "transctypeId",
     transctype_id: "transctypeId",
+    cust_ac_no: "custAccountNo",
+    cust_lpo_no: "custLpoNo",
+    lpo_date: "lpoDate",
+    del_note_no: "deliveryNoteNo",
+    sp: "sp",
+    product_origin: "productOrigin",
+    product_certified_by: "productCertifiedBy",
+    payment_terms: "paymentTerms",
+    payment_due: "paymentDue",
+    group: "group",
+    bill_to: "billToName",
+    ship_to: "shipToName",
     product_name: "item_productName",
     hs_code: "item_hsCode",
     hscode: "item_hsCode",
     quantity: "item_quantity",
     unit_price: "item_unitPrice",
     unit_cost: "item_unitPrice",
+    qty_for_internal: "item_qtyForInternal",
+    qty_internal: "item_qtyForInternal",
+    item_code: "item_itemCode",
+    units: "item_units",
+    courier_charges: "item_courierCharges",
+    couriercharges: "item_courierCharges",
+    vat: "item_vat",
+    calculated_vat_18: "item_vat18Amount",
+    calculated_vat_25: "item_vat25Amount",
+    vat_18: "item_vat18Amount",
+    vat_25: "item_vat25Amount",
+    vat18amount: "item_vat18Amount",
+    vat25amount: "item_vat25Amount",
     total_values: "item_totalValues",
     value_sales_excluding_st: "item_valueSalesExcludingST",
     sales_tax_applicable: "item_salesTaxApplicable",
@@ -412,6 +500,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       "ST Withheld": "item_salesTaxWithheldAtSource",
       "FED Payab": "item_fedPayable",
       "Total Valu": "item_totalValues",
+      "Qty (For I": "item_qtyForInternal",
+      "Courier Ch": "item_courierCharges",
     };
 
     if (partialMatches[header]) {
@@ -1401,19 +1491,54 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       if (isAlreadyGrouped) {
         // Data is already grouped by worker, use it directly
         console.log("🔍 Using already-grouped invoices from worker");
-        invoicesToUpload = previewData.map((invoice) => ({
-          ...invoice,
-          sourceInvoiceNo: invoice.companyInvoiceRefNo,
-          // Ensure seller details are populated from selected tenant
-          sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
-          sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
-          sellerBusinessName: getSellerDetail(
-            selectedTenant,
-            "sellerBusinessName",
-          ),
-          sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
-          sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
-        }));
+
+        // Build name→id lookup maps for Bill To and Ship To
+        const billToByName = {};
+        billToRecords.forEach((r) => {
+          if (r.name) billToByName[r.name.trim().toLowerCase()] = r;
+        });
+        const shipToByName = {};
+        shipToRecords.forEach((r) => {
+          if (r.name) shipToByName[r.name.trim().toLowerCase()] = r;
+        });
+
+        invoicesToUpload = previewData.map((invoice) => {
+          // Resolve Bill To name → id
+          const billToMatch = invoice.billToName
+            ? billToByName[String(invoice.billToName).trim().toLowerCase()]
+            : null;
+          const shipToMatch = invoice.shipToName
+            ? shipToByName[String(invoice.shipToName).trim().toLowerCase()]
+            : null;
+
+          return {
+            ...invoice,
+            sourceInvoiceNo: invoice.companyInvoiceRefNo,
+            // Extra invoice-level fields (already set by worker)
+            custAccountNo: invoice.custAccountNo || "",
+            custLpoNo: invoice.custLpoNo || "",
+            lpoDate: invoice.lpoDate || "",
+            deliveryNoteNo: invoice.deliveryNoteNo || "",
+            sp: invoice.sp || "",
+            productOrigin: invoice.productOrigin || "",
+            productCertifiedBy: invoice.productCertifiedBy || "",
+            paymentTerms: invoice.paymentTerms || "",
+            paymentDue: invoice.paymentDue || "",
+            group: invoice.group || "",
+            // Resolve Bill To / Ship To names to IDs
+            billToId: billToMatch ? billToMatch.id : invoice.billToId || null,
+            shipToId: shipToMatch ? shipToMatch.id : invoice.shipToId || null,
+            // Ensure seller details are populated from selected tenant
+            sellerNTNCNIC: getSellerDetail(selectedTenant, "sellerNTNCNIC"),
+            sellerFullNTN: getSellerDetail(selectedTenant, "sellerFullNTN"),
+            sellerBusinessName: getSellerDetail(
+              selectedTenant,
+              "sellerBusinessName",
+            ),
+            sellerProvince: getSellerDetail(selectedTenant, "sellerProvince"),
+            sellerAddress: getSellerDetail(selectedTenant, "sellerAddress"),
+          };
+        });
       } else {
         // Data is individual rows, need to group them
         console.log("🔍 Grouping individual rows");
@@ -1594,6 +1719,34 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               // Buyer details
               buyerNTNCNIC: cleanedItem.buyerNTNCNIC,
               transctypeId: cleanedItem.transctypeId,
+              // Extra invoice-level fields
+              custAccountNo: cleanedItem.custAccountNo || "",
+              custLpoNo: cleanedItem.custLpoNo || "",
+              lpoDate: cleanedItem.lpoDate || "",
+              deliveryNoteNo: cleanedItem.deliveryNoteNo || "",
+              sp: cleanedItem.sp || "",
+              productOrigin: cleanedItem.productOrigin || "",
+              productCertifiedBy: cleanedItem.productCertifiedBy || "",
+              paymentTerms: cleanedItem.paymentTerms || "",
+              paymentDue: cleanedItem.paymentDue || "",
+              group: cleanedItem.group || "",
+              // Resolve Bill To / Ship To names to IDs
+              billToId: (() => {
+                const name = String(cleanedItem.billToName || "").trim().toLowerCase();
+                if (!name) return null;
+                const match = billToRecords.find(
+                  (r) => r.name && r.name.trim().toLowerCase() === name,
+                );
+                return match ? match.id : null;
+              })(),
+              shipToId: (() => {
+                const name = String(cleanedItem.shipToName || "").trim().toLowerCase();
+                if (!name) return null;
+                const match = shipToRecords.find(
+                  (r) => r.name && r.name.trim().toLowerCase() === name,
+                );
+                return match ? match.id : null;
+              })(),
               items: [cleanedItem],
               _row: index + 1, // Track the first row for this invoice
             });
@@ -1653,6 +1806,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       });
 
       // Use calculated statuses from previewData if available, otherwise recalculate
+      // Build a map of companyInvoiceRefNo → resolved invoice (with billToId/shipToId)
+      // so we don't lose them when filtering by previewData status
+      const resolvedInvoiceMap = new Map(
+        invoicesToUpload.map((inv) => [
+          String(inv.companyInvoiceRefNo || inv._row || "").trim(),
+          inv,
+        ]),
+      );
+
       const invoicesWithStatus = previewData.map((inv) => {
         // If it's already an invoice object with status, use it
         if (inv._status) return inv;
@@ -1671,7 +1833,20 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             error: invoice._details,
           });
         } else if (invoice._status === "ready") {
-          finalInvoicesToUpload.push(invoice);
+          // Merge resolved billToId/shipToId back from invoicesToUpload
+          const key = String(
+            invoice.companyInvoiceRefNo || invoice._row || "",
+          ).trim();
+          const resolved = resolvedInvoiceMap.get(key);
+          finalInvoicesToUpload.push(
+            resolved
+              ? {
+                  ...invoice,
+                  billToId: resolved.billToId ?? invoice.billToId ?? null,
+                  shipToId: resolved.shipToId ?? invoice.shipToId ?? null,
+                }
+              : invoice,
+          );
         }
       });
 
@@ -2337,7 +2512,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           )}
 
           {/* Download Template Button - Download from Public Folder */}
-          <Box sx={{ mb: 2 }}>
+           <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
               onClick={async () => {
@@ -2391,11 +2566,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 ? "Downloading..."
                 : "Download Excel Template"}
             </Button>
-          </Box>
+          </Box> 
 
           {/* COMMENTED OUT: Backend Template Generation Code - Preserved for Future Use */}
-          {/*
-          <Box sx={{ mb: 2 }}>
+       
+          {/* <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
               onClick={async () => {
@@ -2459,7 +2634,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 ? "Downloading..."
                 : "Download Excel Template (Backend)"}
             </Button>
-          </Box> */}
+          </Box>  */}
 
           {/* File Processing Progress */}
           {isProcessing && (

@@ -472,6 +472,8 @@ export const createInvoice = catchAsync(async (req, res, next) => {
           name: item.name,
           item_productName: item.item_productName,
           hsCode: item.hsCode,
+          itemCode: item.itemCode,
+          units: item.units,
         });
 
         // Helper function to convert empty strings to null
@@ -573,6 +575,7 @@ export const createInvoice = catchAsync(async (req, res, next) => {
           vat18: !!(item.vat18 === true || item.vat18 === "true" || item.vat18 === 1 || item.vat18 === "1"),
           vat25: !!(item.vat25 === true || item.vat25 === "true" || item.vat25 === 1 || item.vat25 === "1"),
           vatAmount: 0,
+          qtyForInternal: cleanNumericValue(item.qtyForInternal),
         };
 
         const salesExclST = cleanNumericValue(item.valueSalesExcludingST) || 0;
@@ -813,6 +816,15 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
 export const saveInvoice = catchAsync(async (req, res, next) => {
   const { Invoice, InvoiceItem } = req.tenantModels;
+
+  // Debug: Log incoming items to check itemCode/units
+  console.log("📥 saveInvoice received items:", JSON.stringify(
+    (req.body.items || []).map(item => ({
+      name: item.name,
+      itemCode: item.itemCode,
+      units: item.units,
+    }))
+  ));
 
   const {
     id,
@@ -1077,6 +1089,13 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
     if (items && Array.isArray(items) && items.length > 0) {
       const invoiceItems = items.map((item) => {
+        // Debug: Log itemCode and units incoming values
+        console.log("🔍 saveInvoice item debug:", {
+          name: item.name,
+          itemCode: item.itemCode,
+          units: item.units,
+        });
+
         const cleanValue = (value) => {
           if (
             value === "" ||
@@ -1172,6 +1191,7 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
           vat18: !!(item.vat18 === true || item.vat18 === "true" || item.vat18 === 1 || item.vat18 === "1"),
           vat25: !!(item.vat25 === true || item.vat25 === "true" || item.vat25 === 1 || item.vat25 === "1"),
           vatAmount: 0,
+          qtyForInternal: cleanNumericValue(item.qtyForInternal),
         };
 
         const salesExclST = cleanNumericValue(item.valueSalesExcludingST) || 0;
@@ -1328,6 +1348,15 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
 export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
   const { Invoice, InvoiceItem } = req.tenantModels;
+
+  // Debug: Log incoming items to check itemCode/units
+  console.log("📥 saveAndValidateInvoice received items:", JSON.stringify(
+    (req.body.items || []).map(item => ({
+      name: item.name,
+      itemCode: item.itemCode,
+      units: item.units,
+    }))
+  ));
 
   const {
     id,
@@ -1731,6 +1760,7 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
           vat18: !!(item.vat18 === true || item.vat18 === "true" || item.vat18 === 1 || item.vat18 === "1"),
           vat25: !!(item.vat25 === true || item.vat25 === "true" || item.vat25 === 1 || item.vat25 === "1"),
           vatAmount: 0,
+          qtyForInternal: cleanNumericValue(item.qtyForInternal),
         };
 
         const salesExclST = cleanNumericValue(item.valueSalesExcludingST) || 0;
@@ -4823,6 +4853,60 @@ export const bulkCreateInvoices = async (req, res) => {
     console.log(
       `🔍 Found ${existingBuyers.length} existing buyers in database`,
     );
+
+    // Batch fetch BillTo and ShipTo records for name→id lookup
+    const { BillToShipTo } = req.tenantModels;
+    const uniqueBillToNames = [
+      ...new Set(
+        invoices
+          .map((inv) => String(inv.billToName || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+    const uniqueShipToNames = [
+      ...new Set(
+        invoices
+          .map((inv) => String(inv.shipToName || "").trim())
+          .filter(Boolean),
+      ),
+    ];
+
+    const [billToRecords, shipToRecords] = await Promise.all([
+      uniqueBillToNames.length > 0
+        ? BillToShipTo.findAll({
+            where: {
+              type: "BILL_TO",
+              name: {
+                [Invoice.sequelize.Sequelize.Op.in]: uniqueBillToNames,
+              },
+            },
+            attributes: ["id", "name", "address", "contactPerson", "contactNo", "ntn", "cnic", "refNo", "strn"],
+          })
+        : Promise.resolve([]),
+      uniqueShipToNames.length > 0
+        ? BillToShipTo.findAll({
+            where: {
+              type: "SHIP_TO",
+              name: {
+                [Invoice.sequelize.Sequelize.Op.in]: uniqueShipToNames,
+              },
+            },
+            attributes: ["id", "name", "address", "contactPerson", "contactNo", "ntn", "cnic"],
+          })
+        : Promise.resolve([]),
+    ]);
+
+    // Build case-insensitive name → record maps
+    const billToByName = new Map();
+    billToRecords.forEach((r) => {
+      billToByName.set(r.name.trim().toLowerCase(), r);
+    });
+    const shipToByName = new Map();
+    shipToRecords.forEach((r) => {
+      shipToByName.set(r.name.trim().toLowerCase(), r);
+    });
+
+    console.log(`🔍 Found ${billToRecords.length} Bill To records, ${shipToRecords.length} Ship To records`);
     console.log(
       `🔍 Buyer NTNs in database:`,
       existingBuyers.map((b) => b.buyerNTNCNIC),
@@ -5416,7 +5500,7 @@ export const bulkCreateInvoices = async (req, res) => {
 
         // Prepare invoice data for batch insert
         const invoiceRecord = {
-          invoice_number: `DRAFT_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 5)}`,
+          invoice_number: await generateShortInvoiceId(Invoice, "DRAFT"),
           system_invoice_id: systemInvoiceId,
           invoiceType: String(invoiceData.invoiceType || "").trim(),
           invoiceDate: String(invoiceData.invoiceDate || "").trim(),
@@ -5441,6 +5525,27 @@ export const bulkCreateInvoices = async (req, res) => {
           status: "draft",
           fbr_invoice_number: null,
           sourceInvoiceNo: sourceInvoiceNo,
+          // Extra invoice-level fields from Excel
+          custAccountNo: String(invoiceData.custAccountNo || "").trim() || null,
+          custLpoNo: String(invoiceData.custLpoNo || "").trim() || null,
+          lpoDate: String(invoiceData.lpoDate || "").trim() || null,
+          deliveryNoteNo: String(invoiceData.deliveryNoteNo || "").trim() || null,
+          sp: String(invoiceData.sp || "").trim() || null,
+          productOrigin: String(invoiceData.productOrigin || "").trim() || null,
+          productCertifiedBy: String(invoiceData.productCertifiedBy || "").trim() || null,
+          paymentTerms: String(invoiceData.paymentTerms || "").trim() || null,
+          paymentDue: String(invoiceData.paymentDue || "").trim() || null,
+          group: String(invoiceData.group || "").trim() || null,
+          // Bill To / Ship To resolved IDs (name→id done on frontend)
+          // Backend also resolves by name as fallback
+          bill_to_id: invoiceData.billToId ||
+            (invoiceData.billToName
+              ? (billToByName.get(String(invoiceData.billToName).trim().toLowerCase())?.id || null)
+              : null),
+          ship_to_id: invoiceData.shipToId ||
+            (invoiceData.shipToName
+              ? (shipToByName.get(String(invoiceData.shipToName).trim().toLowerCase())?.id || null)
+              : null),
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:
@@ -5596,6 +5701,16 @@ export const bulkCreateInvoices = async (req, res) => {
                 "Goods at standard rate (default)",
               sroItemSerialNo: itemData.item_sroItemSerialNo?.trim() || null,
               transctypeId: itemData.transctypeId?.trim() || null,
+              // New fields: Qty for Internal, Item Code, Units, Courier Charges, VAT
+              qtyForInternal: parseFloat(itemData.item_qtyForInternal || itemData.qtyForInternal) || null,
+              itemCode: String(itemData.item_itemCode || itemData.itemCode || "").trim() || null,
+              units: String(itemData.item_units || itemData.units || "").trim() || null,
+              courierCharges: parseFloat(itemData.item_courierCharges || itemData.courierCharges) || 0,
+              vat18: !!(itemData.vat18 === true || itemData.vat18 === "true" || itemData.vat18 === 1),
+              vat25: !!(itemData.vat25 === true || itemData.vat25 === "true" || itemData.vat25 === 1),
+              vat18Amount: parseFloat(itemData.item_vat18Amount || itemData.vat18Amount) || 0,
+              vat25Amount: parseFloat(itemData.item_vat25Amount || itemData.vat25Amount) || 0,
+              vatAmount: (parseFloat(itemData.item_vat18Amount || itemData.vat18Amount) || 0) + (parseFloat(itemData.item_vat25Amount || itemData.vat25Amount) || 0),
               created_at: new Date(),
               updated_at: new Date(),
             };
@@ -7962,6 +8077,19 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "invoiceDate",
       "invoiceRefNo",
       "companyInvoiceRefNo",
+      // Extra invoice-level fields
+      "custAccountNo",
+      "custLpoNo",
+      "lpoDate",
+      "deliveryNoteNo",
+      "sp",
+      "productOrigin",
+      "productCertifiedBy",
+      "paymentTerms",
+      "paymentDue",
+      "group",
+      "billToName",
+      "shipToName",
       // Buyer details (only NTN/CNIC kept)
       "buyerNTNCNIC",
       // Transaction and item details
@@ -7974,6 +8102,13 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "item_productName",
       "item_valueSalesExcludingST",
       "item_quantity",
+      "item_qtyForInternal",
+      "item_itemCode",
+      "item_units",
+      "item_courierCharges",
+      "item_vat",
+      "item_vat18Amount",
+      "item_vat25Amount",
       "item_unitPrice",
       "item_salesTaxApplicable",
       "item_salesTaxWithheldAtSource",
@@ -7991,6 +8126,19 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       invoiceDate: "Invoice Date",
       invoiceRefNo: "DN Invoice Ref No",
       companyInvoiceRefNo: "Company Invoice Ref No",
+      // Extra invoice-level fields
+      custAccountNo: "CUST. A/C NO",
+      custLpoNo: "CUST. LPO NO",
+      lpoDate: "LPO DATE",
+      deliveryNoteNo: "DEL. NOTE NO",
+      sp: "SP",
+      productOrigin: "PRODUCT ORIGIN",
+      productCertifiedBy: "PRODUCT CERTIFIED BY",
+      paymentTerms: "PAYMENT TERMS",
+      paymentDue: "PAYMENT DUE",
+      group: "GROUP",
+      billToName: "BILL TO",
+      shipToName: "SHIP TO",
       buyerNTNCNIC: "Buyer NTN/CNIC",
       transctypeId: "Transaction Type",
       item_rate: "Rate",
@@ -8000,7 +8148,14 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       item_uoM: "Unit Of Measurement",
       item_productName: "Product Name",
       item_valueSalesExcludingST: "Value Sales (Excl ST)",
-      item_quantity: "Quantity",
+      item_quantity: "Quantity in KGS (For FBR)",
+      item_qtyForInternal: "Qty (For Internal Use)",
+      item_itemCode: "Item Code",
+      item_units: "Units",
+      item_courierCharges: "Courier Charges",
+      item_vat: "VAT",
+      item_vat18Amount: "Calculated VAT 18%",
+      item_vat25Amount: "Calculated VAT 25%",
       item_unitPrice: "Unit Cost",
       item_salesTaxApplicable: "Sales Tax Applicable",
       item_salesTaxWithheldAtSource: "ST Withheld at Source",
@@ -8070,6 +8225,33 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       col.numFmt = "@";
       col.alignment = { horizontal: "left" };
       if (!col.width || col.width < 18) col.width = 20;
+    }
+
+    // VAT column formatting: percentage format so 18% stores as 0.18 and formula comparison works
+    const vatColIdx = columns.indexOf("item_vat") + 1;
+    if (vatColIdx > 0) {
+      const col = template.getColumn(vatColIdx);
+      col.numFmt = "0%";
+      col.alignment = { horizontal: "center" };
+      if (!col.width || col.width < 12) col.width = 12;
+    }
+
+    // Calculated VAT 18% column: read-only appearance, numeric format
+    const vat18ColIdx = columns.indexOf("item_vat18Amount") + 1;
+    if (vat18ColIdx > 0) {
+      const col = template.getColumn(vat18ColIdx);
+      col.numFmt = "0.00";
+      col.alignment = { horizontal: "right" };
+      if (!col.width || col.width < 20) col.width = 20;
+    }
+
+    // Calculated VAT 25% column: read-only appearance, numeric format
+    const vat25ColIdx = columns.indexOf("item_vat25Amount") + 1;
+    if (vat25ColIdx > 0) {
+      const col = template.getColumn(vat25ColIdx);
+      col.numFmt = "0.00";
+      col.alignment = { horizontal: "right" };
+      if (!col.width || col.width < 20) col.width = 20;
     }
 
     // Transaction Type formatting: Treat as text to preserve format
@@ -8313,6 +8495,45 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         errorTitle: "Invalid Quantity",
         error: "Quantity must be a positive number.",
       };
+
+      // VAT dropdown: 18% or 25%
+      if (headerIndex("item_vat") > 0) {
+        template.getCell(r, headerIndex("item_vat")).dataValidation = {
+          type: "list",
+          allowBlank: true,
+          formulae: ['"18%,25%"'],
+          showErrorMessage: true,
+          errorStyle: "warning",
+          errorTitle: "Invalid VAT",
+          error: 'Select 18% or 25% from the dropdown.',
+        };
+      }
+
+      // Calculated VAT 18% formula: =(valueSalesExcludingST + salesTaxApplicable)*0.18 when VAT=18%
+      if (headerIndex("item_vat18Amount") > 0 && headerIndex("item_vat") > 0) {
+        const vatColL = getColLetter(headerIndex("item_vat"));
+        const vsColL = getColLetter(headerIndex("item_valueSalesExcludingST"));
+        const stColL = getColLetter(headerIndex("item_salesTaxApplicable"));
+        const vat18Cell = template.getCell(r, headerIndex("item_vat18Amount"));
+        vat18Cell.value = {
+          formula: `IF(${vatColL}${r}=18%,ROUND((${vsColL}${r}+${stColL}${r})*0.18,2),"")`,
+          result: "",
+        };
+        vat18Cell.style = { ...vat18Cell.style, numFmt: "0.00" };
+      }
+
+      // Calculated VAT 25% formula
+      if (headerIndex("item_vat25Amount") > 0 && headerIndex("item_vat") > 0) {
+        const vatColL = getColLetter(headerIndex("item_vat"));
+        const vsColL = getColLetter(headerIndex("item_valueSalesExcludingST"));
+        const stColL = getColLetter(headerIndex("item_salesTaxApplicable"));
+        const vat25Cell = template.getCell(r, headerIndex("item_vat25Amount"));
+        vat25Cell.value = {
+          formula: `IF(${vatColL}${r}=25%,ROUND((${vsColL}${r}+${stColL}${r})*0.25,2),"")`,
+          result: "",
+        };
+        vat25Cell.style = { ...vat25Cell.style, numFmt: "0.00" };
+      }
 
       template.getCell(
         r,

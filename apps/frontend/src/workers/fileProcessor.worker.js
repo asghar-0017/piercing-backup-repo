@@ -268,6 +268,18 @@ class FileProcessor {
       "Buyer Address": "buyerAddress",
       "Buyer Registration Type": "buyerRegistrationType",
       "Transaction Type": "transctypeId",
+      "CUST. A/C NO": "custAccountNo",
+      "CUST. LPO NO": "custLpoNo",
+      "LPO DATE": "lpoDate",
+      "DEL. NOTE NO": "deliveryNoteNo",
+      SP: "sp",
+      "PRODUCT ORIGIN": "productOrigin",
+      "PRODUCT CERTIFIED BY": "productCertifiedBy",
+      "PAYMENT TERMS": "paymentTerms",
+      "PAYMENT DUE": "paymentDue",
+      GROUP: "group",
+      "BILL TO": "billToName",
+      "SHIP TO": "shipToName",
       Rate: "item_rate",
       "SRO Schedule No": "item_sroScheduleNo",
       "SRO Item No": "item_sroItemSerialNo",
@@ -277,7 +289,15 @@ class FileProcessor {
       "Product Name": "item_productName",
       "Product Description": "item_productDescription",
       "Value Sales (Excl ST)": "item_valueSalesExcludingST",
+      "Quantity in KGS (For FBR)": "item_quantity",
       Quantity: "item_quantity",
+      "Qty (For Internal Use)": "item_qtyForInternal",
+      "Item Code": "item_itemCode",
+      Units: "item_units",
+      "Courier Charges": "item_courierCharges",
+      VAT: "item_vat",
+      "Calculated VAT 18%": "item_vat18Amount",
+      "Calculated VAT 25%": "item_vat25Amount",
       "Unit Cost": "item_unitPrice",
       "Sales Tax Applicable": "item_salesTaxApplicable",
       "ST Withheld at Source": "item_salesTaxWithheldAtSource",
@@ -303,6 +323,18 @@ class FileProcessor {
       buyer_registration_type: "buyerRegistrationType",
       transaction_type: "transctypeId",
       transctype_id: "transctypeId",
+      cust_ac_no: "custAccountNo",
+      cust_lpo_no: "custLpoNo",
+      lpo_date: "lpoDate",
+      del_note_no: "deliveryNoteNo",
+      sp: "sp",
+      product_origin: "productOrigin",
+      product_certified_by: "productCertifiedBy",
+      payment_terms: "paymentTerms",
+      payment_due: "paymentDue",
+      group: "group",
+      bill_to: "billToName",
+      ship_to: "shipToName",
       product_name: "item_productName",
       product_description: "item_productDescription",
       hs_code: "item_hsCode",
@@ -310,6 +342,19 @@ class FileProcessor {
       quantity: "item_quantity",
       unit_price: "item_unitPrice",
       unit_cost: "item_unitPrice",
+      qty_for_internal: "item_qtyForInternal",
+      qty_internal: "item_qtyForInternal",
+      item_code: "item_itemCode",
+      units: "item_units",
+      courier_charges: "item_courierCharges",
+      couriercharges: "item_courierCharges",
+      vat: "item_vat",
+      calculated_vat_18: "item_vat18Amount",
+      calculated_vat_25: "item_vat25Amount",
+      vat_18: "item_vat18Amount",
+      vat_25: "item_vat25Amount",
+      vat18amount: "item_vat18Amount",
+      vat25amount: "item_vat25Amount",
       total_values: "item_totalValues",
       value_sales_excluding_st: "item_valueSalesExcludingST",
       sales_tax_applicable: "item_salesTaxApplicable",
@@ -353,6 +398,10 @@ class FileProcessor {
       "ST Withheld": "item_salesTaxWithheldAtSource",
       "FED Payab": "item_fedPayable",
       "Total Valu": "item_totalValues",
+      "Qty (For I": "item_qtyForInternal",
+      "Item Code": "item_itemCode",
+      "Courier Ch": "item_courierCharges",
+      "Calculated": "item_vat18Amount",
     };
 
     if (partialMatches[headerStr]) {
@@ -684,6 +733,24 @@ class FileProcessor {
               item.transaction_type ||
               item.transctype_id ||
               "",
+            // Invoice-level extra fields
+            custAccountNo: item.custAccountNo || item.cust_ac_no || "",
+            custLpoNo: item.custLpoNo || item.cust_lpo_no || "",
+            lpoDate:
+              this.convertExcelDateToYYYYMMDD(item.lpoDate || item.lpo_date) ||
+              "",
+            deliveryNoteNo: item.deliveryNoteNo || item.del_note_no || "",
+            sp: item.sp || "",
+            productOrigin: item.productOrigin || item.product_origin || "",
+            productCertifiedBy:
+              item.productCertifiedBy || item.product_certified_by || "",
+            paymentTerms: item.paymentTerms || item.payment_terms || "",
+            paymentDue: item.paymentDue || item.payment_due || "",
+            group: item.group || "",
+            // Bill To / Ship To — store the name typed by the user; the
+            // frontend will resolve the name → id before submitting.
+            billToName: item.billToName || item.bill_to || "",
+            shipToName: item.shipToName || item.ship_to || "",
             items: [this.cleanItemData(item, index)],
           });
         }
@@ -790,6 +857,10 @@ class FileProcessor {
       "item_advanceIncomeTax",
       "item_discount",
       "item_rate",
+      "item_qtyForInternal",
+      "item_courierCharges",
+      "item_vat18Amount",
+      "item_vat25Amount",
     ];
 
     numericFields.forEach((field) => {
@@ -843,6 +914,12 @@ class FileProcessor {
       item_saleType: "saleType",
       item_sroScheduleNo: "sroScheduleNo",
       item_sroItemSerialNo: "sroItemSerialNo",
+      item_qtyForInternal: "qtyForInternal",
+      item_itemCode: "itemCode",
+      item_units: "units",
+      item_courierCharges: "courierCharges",
+      item_vat18Amount: "vat18Amount",
+      item_vat25Amount: "vat25Amount",
     };
 
     // Create both mapped and original field names for backend compatibility
@@ -863,6 +940,46 @@ class FileProcessor {
 
     // Add row tracking
     cleaned._row = index + 1;
+
+    // Handle VAT dropdown field: 0.18 (18%) -> vat18=true, 0.25 (25%) -> vat25=true
+    // Excel stores 18% as 0.18 when the cell is formatted as percentage
+    const vatRaw = String(cleaned.item_vat || cleaned.vat || "").trim().toLowerCase();
+    const vatNum = parseFloat(vatRaw);
+    const is18 = vatRaw.includes("18") || Math.abs(vatNum - 0.18) < 0.001;
+    const is25 = vatRaw.includes("25") || Math.abs(vatNum - 0.25) < 0.001;
+    if (is18) {
+      cleaned.vat18 = true;
+      cleaned.vat25 = false;
+      // Recalculate VAT amounts based on current values
+      const salesExcl = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
+      const salesTax = parseFloat(cleaned.salesTaxApplicable || cleaned.item_salesTaxApplicable || 0) || 0;
+      cleaned.vat18Amount = Math.round((salesExcl + salesTax) * 0.18 * 100) / 100;
+      cleaned.item_vat18Amount = cleaned.vat18Amount;
+      cleaned.vat25Amount = 0;
+      cleaned.item_vat25Amount = 0;
+    } else if (is25) {
+      cleaned.vat25 = true;
+      cleaned.vat18 = false;
+      const salesExcl = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
+      const salesTax = parseFloat(cleaned.salesTaxApplicable || cleaned.item_salesTaxApplicable || 0) || 0;
+      cleaned.vat25Amount = Math.round((salesExcl + salesTax) * 0.25 * 100) / 100;
+      cleaned.item_vat25Amount = cleaned.vat25Amount;
+      cleaned.vat18Amount = 0;
+      cleaned.item_vat18Amount = 0;
+    } else {
+      cleaned.vat18 = cleaned.vat18 || false;
+      cleaned.vat25 = cleaned.vat25 || false;
+    }
+
+    // Recalculate totalValues to include courierCharges + VAT amounts
+    const baseTotal = parseFloat(cleaned.totalValues || cleaned.item_totalValues || 0) || 0;
+    const courier = parseFloat(cleaned.courierCharges || cleaned.item_courierCharges || 0) || 0;
+    const vatAmt = (parseFloat(cleaned.vat18Amount || 0) || 0) + (parseFloat(cleaned.vat25Amount || 0) || 0);
+    if (courier > 0 || vatAmt > 0) {
+      const recalcTotal = Math.round((baseTotal + courier + vatAmt) * 100) / 100;
+      cleaned.totalValues = recalcTotal;
+      cleaned.item_totalValues = recalcTotal;
+    }
 
     return cleaned;
   }
