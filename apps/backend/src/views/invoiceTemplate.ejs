@@ -363,10 +363,11 @@
       <table class="items-table">
         <thead>
           <tr class="bg-gray">
-            <th style="width: 5%;" class="text-center">SR #</th>
-            <th style="width: 15%;">ITEM CODE</th>
-            <th style="width: 45%;">DESCRIPTION</th>
-            <th style="width: 8%;" class="text-center">UNITS</th>
+            <th style="width: 4%;" class="text-center">SR #</th>
+            <th style="width: 13%;">ITEM CODE</th>
+            <th style="width: 11%;">HS CODE</th>
+            <th style="width: 38%;">DESCRIPTION</th>
+            <th style="width: 7%;" class="text-center">UNITS</th>
             <th style="width: 5%;" class="text-center">QTY</th>
             <th style="width: 11%;" class="text-right">RATE</th>
             <th style="width: 11%;" class="text-right">Amount</th>
@@ -384,6 +385,9 @@
               </td>
               <td>
                 <%= item.itemCode || '' %>
+              </td>
+              <td>
+                <%= item.hsCode || item.pctCode || '' %>
               </td>
               <td>
                 <%= item.productDescription || item.name || '' %>
@@ -404,12 +408,12 @@
             </tr>
             <% }); } else { %>
               <tr>
-                <td colspan="7" class="text-center">No items found</td>
+                <td colspan="8" class="text-center">No items found</td>
               </tr>
               <% } %>
 
                 <tr class="total-row">
-                  <td colspan="3" class="text-right bold" style="padding-right: 15px;">Total</td>
+                  <td colspan="4" class="text-right bold" style="padding-right: 15px;">Total</td>
                   <td></td>
                   <td class="text-center bold">
                     <%= totalQty %>
