@@ -54,6 +54,10 @@ export const createInvoiceItemModel = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: true,
       },
+      uoMForInternal: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+      },
       quantity: {
         type: DataTypes.DECIMAL(20, 2),
         allowNull: true,

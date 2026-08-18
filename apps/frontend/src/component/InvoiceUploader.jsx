@@ -398,6 +398,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Sale Type": "item_saleType",
     "HS Code": "item_hsCode",
     "Unit Of Measurement": "item_uoM",
+    "Unit Of Measurement for (FBR)": "item_uoM",
+    "Unit of Measurement for (FBR)": "item_uoM",
+    "Unit Of Measurement for (Internal)": "item_uoMForInternal",
+    "Unit of Measurement for (Internal)": "item_uoMForInternal",
+    "UoM (For Internal Use)": "item_uoMForInternal",
     "Product Name": "item_productName",
     "Value Sales (Excl ST)": "item_valueSalesExcludingST",
     "Quantity in KGS (For FBR)": "item_quantity",
@@ -469,6 +474,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     fed_payable: "item_fedPayable",
     discount: "item_discount",
     unit_of_measurement: "item_uoM",
+    unit_of_measurement_for_fbr: "item_uoM",
+    unit_of_measurement_for_internal: "item_uoMForInternal",
+    uom_for_internal: "item_uoMForInternal",
+    uom_internal: "item_uoMForInternal",
     uom: "item_uoM",
     rate: "item_rate",
     sro_schedule_no: "item_sroScheduleNo",
@@ -495,6 +504,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       "SRO Item": "item_sroItemSerialNo",
       "Product Na": "item_productName",
       "Value Sale": "item_valueSalesExcludingST",
+      "Unit Of Measurement for (FBR)": "item_uoM",
+      "Unit Of Measurement for (Internal)": "item_uoMForInternal",
+      "Unit Of Measurement for (F": "item_uoM",
+      "Unit Of Measurement for (I": "item_uoMForInternal",
       "Unit Of Me": "item_uoM",
       "Sales Tax": "item_salesTaxApplicable",
       "ST Withheld": "item_salesTaxWithheldAtSource",
@@ -1841,10 +1854,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           finalInvoicesToUpload.push(
             resolved
               ? {
-                  ...invoice,
-                  billToId: resolved.billToId ?? invoice.billToId ?? null,
-                  shipToId: resolved.shipToId ?? invoice.shipToId ?? null,
-                }
+                ...invoice,
+                billToId: resolved.billToId ?? invoice.billToId ?? null,
+                shipToId: resolved.shipToId ?? invoice.shipToId ?? null,
+              }
               : invoice,
           );
         }
@@ -2032,31 +2045,31 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               failedInvoices:
                 duplicateErrors.length > 0
                   ? duplicateErrors.map((e, idx) => ({
-                      row: e.row || idx + 1,
-                      invoiceNumber: `Invoice ${e.row || idx + 1}`,
+                    row: e.row || idx + 1,
+                    invoiceNumber: `Invoice ${e.row || idx + 1}`,
+                    buyerName: "N/A",
+                    error:
+                      e.error ||
+                      "Duplicate Company Invoice Reference Number found in system.",
+                    status: "failed",
+                  }))
+                  : [
+                    {
+                      row: 1,
+                      invoiceNumber: "Invoice",
                       buyerName: "N/A",
                       error:
-                        e.error ||
+                        errorData?.message ||
                         "Duplicate Company Invoice Reference Number found in system.",
                       status: "failed",
-                    }))
-                  : [
-                      {
-                        row: 1,
-                        invoiceNumber: "Invoice",
-                        buyerName: "N/A",
-                        error:
-                          errorData?.message ||
-                          "Duplicate Company Invoice Reference Number found in system.",
-                        status: "failed",
-                      },
-                    ],
+                    },
+                  ],
             };
             setUploadResults(detailedResults);
             setShowResults(true);
             toast.error(
               errorData?.message ||
-                "Upload rejected: Duplicate Company Invoice Reference Number found in system.",
+              "Upload rejected: Duplicate Company Invoice Reference Number found in system.",
               { autoClose: 8000 },
             );
           } else if (
@@ -2512,7 +2525,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           )}
 
           {/* Download Template Button - Download from Public Folder */}
-           <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
               onClick={async () => {
@@ -2566,10 +2579,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 ? "Downloading..."
                 : "Download Excel Template"}
             </Button>
-          </Box> 
+          </Box>
 
           {/* COMMENTED OUT: Backend Template Generation Code - Preserved for Future Use */}
-       
+
           {/* <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
@@ -2634,7 +2647,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 ? "Downloading..."
                 : "Download Excel Template (Backend)"}
             </Button>
-          </Box>  */}
+          </Box> */}
 
           {/* File Processing Progress */}
           {isProcessing && (
@@ -3178,29 +3191,29 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           {uploading
             ? "Uploading..."
             : uploadResults &&
-                uploadResults.summary &&
-                uploadResults.summary.successful > 0
+              uploadResults.summary &&
+              uploadResults.summary.successful > 0
               ? `Upload Again (${(() => {
-                  const uniqueInvoices = new Set();
-                  previewData.forEach((row) => {
-                    const companyInvoiceRefNo =
-                      row.companyInvoiceRefNo?.trim() ||
-                      `row_${row._row || "unknown"}`;
-                    uniqueInvoices.add(companyInvoiceRefNo);
-                  });
-                  return uniqueInvoices.size;
-                })()} Invoices)`
+                const uniqueInvoices = new Set();
+                previewData.forEach((row) => {
+                  const companyInvoiceRefNo =
+                    row.companyInvoiceRefNo?.trim() ||
+                    `row_${row._row || "unknown"}`;
+                  uniqueInvoices.add(companyInvoiceRefNo);
+                });
+                return uniqueInvoices.size;
+              })()} Invoices)`
               : (() => {
-                  // Count unique invoices after grouping by companyInvoiceRefNo
-                  const uniqueInvoices = new Set();
-                  previewData.forEach((row) => {
-                    const companyInvoiceRefNo =
-                      row.companyInvoiceRefNo?.trim() ||
-                      `row_${row._row || "unknown"}`;
-                    uniqueInvoices.add(companyInvoiceRefNo);
-                  });
-                  return `Upload ${uniqueInvoices.size} Invoices as Drafts`;
-                })()}
+                // Count unique invoices after grouping by companyInvoiceRefNo
+                const uniqueInvoices = new Set();
+                previewData.forEach((row) => {
+                  const companyInvoiceRefNo =
+                    row.companyInvoiceRefNo?.trim() ||
+                    `row_${row._row || "unknown"}`;
+                  uniqueInvoices.add(companyInvoiceRefNo);
+                });
+                return `Upload ${uniqueInvoices.size} Invoices as Drafts`;
+              })()}
         </Button>
       </DialogActions>
     </Dialog>

@@ -225,8 +225,9 @@
           <td style="width: 49.3%; padding: 0; vertical-align: top;">
             <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
               <tr class="bg-gray" style="border-bottom: 1px solid #000;">
-                <td style="font-weight: bold; padding: 4px 6px; height: 16px; white-space: nowrap;">INVOICE NO : <%= invoice.invoice_number
-                    || '' %> &nbsp;&nbsp;&nbsp;&nbsp; GST Ref : <%= invoice.companyInvoiceRefNo || '' %>
+                <td style="font-weight: bold; padding: 4px 6px; height: 16px; white-space: nowrap;">INVOICE NO : <%=
+                    invoice.invoice_number || '' %> &nbsp;&nbsp;&nbsp;&nbsp; GST Ref : <%= invoice.companyInvoiceRefNo
+                      || '' %>
                 </td>
               </tr>
               <tr class="bg-gray" style="border-bottom: 1px solid #000;">
@@ -250,12 +251,12 @@
                         NTN &nbsp;&nbsp; <%= invoice.ShipTo.ntn || '' %>
                     </div>
                     <% } else { %>
-                      <div class="bold">HERITAGE JEWELLERY</div>
-                      <div>Shop no 67, second floor, Dolman Mall Phase 6 DHA Lahore</div>
+                      <div class="bold"></div>
+                      <div></div>
                       <br>
-                      <div>Contact Person : &nbsp;&nbsp; Mustafa</div>
+                      <div>Contact Person : &nbsp;&nbsp; </div>
                       <div>Contact No :</div>
-                      <div>CNIC &nbsp; 42301-3271072-1 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN</div>
+                      <div>CNIC &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN</div>
                       <% } %>
                 </td>
               </tr>
@@ -291,10 +292,10 @@
                     <div>STRN : &nbsp;&nbsp; <%= invoice.BillTo.strn || '' %>
                     </div>
                     <% } else { %>
-                      <div class="bold">HERITAGE JEWELLERY</div>
-                      <div>Dolman Mall Phase 6 DHA Lahore</div>
+                      <div class="bold"></div>
+                      <div></div>
                       <br><br>
-                      <div>Ref No 42301-3271072-1
+                      <div>Ref No
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                         NTN</div>
                       <div>STRN :</div>
@@ -366,8 +367,9 @@
             <th style="width: 4%;" class="text-center">SR #</th>
             <th style="width: 13%;">ITEM CODE</th>
             <th style="width: 11%;">HS CODE</th>
-            <th style="width: 38%;">DESCRIPTION</th>
+            <th style="width: 33%;">DESCRIPTION</th>
             <th style="width: 7%;" class="text-center">UNITS</th>
+            <th style="width: 5%;" class="text-center">UoM</th>
             <th style="width: 5%;" class="text-center">QTY</th>
             <th style="width: 11%;" class="text-right">RATE</th>
             <th style="width: 11%;" class="text-right">Amount</th>
@@ -396,7 +398,10 @@
                 <%= item.units || '' %>
               </td>
               <td class="text-center">
-                <%= item.quantity || 0 %>
+                <%= item.uoMForInternal || 0 %>
+              </td>
+              <td class="text-center">
+                <%= item.qtyForInternal || 0 %>
               </td>
               <td class="text-right">
                 <%= item.rate || '' %>
@@ -580,35 +585,42 @@
       <div class="text-center bold" style="margin-top: 10px; font-size: 10.5px; font-family: Arial, sans-serif;">
         "This is Computer Genereted Invoice"
       </div>
-      <% if ((typeof showFbrLogo !== 'undefined' && showFbrLogo) || (typeof showQRCode !== 'undefined' && showQRCode)) { %>
-      <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
-        <tr>
-          <td style="width: 50%; text-align: left; vertical-align: middle;">
-            <% if (typeof showFbrLogo !== 'undefined' && showFbrLogo && typeof companyLogoBase64 !== 'undefined') { %>
-              <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo" style="max-width: 100px; height: auto;">
-            <% } %>
-          </td>
-          <td style="width: 50%; text-align: right; vertical-align: middle;">
-            <% if (typeof showQRCode !== 'undefined' && showQRCode && typeof qrData !== 'undefined') { %>
-              <img src="<%= qrData %>" alt="QR Code" style="max-width: 100px; height: auto;">
-            <% } %>
-          </td>
-        </tr>
-      </table>
-      <% } else { %>
-      <div></div>
-      <% } %>
-
-      <div class="footer-meta">
-        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
-        <table style="margin: 0; font-size: 9px;">
+      <% if ((typeof showFbrLogo !=='undefined' && showFbrLogo) || (typeof showQRCode !=='undefined' && showQRCode)) {
+        %>
+        <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
           <tr>
-            <td><strong>User name :</strong> <%= invoice.created_by_name || 'System' %></td>
-            <td class="text-center"><strong>Print Date & Time :</strong> <%= new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '') %></td>
-            <td class="text-right"><strong>Page :</strong> 1 / 2</td>
+            <td style="width: 50%; text-align: left; vertical-align: middle;">
+              <% if (typeof showFbrLogo !=='undefined' && showFbrLogo && typeof companyLogoBase64 !=='undefined' ) { %>
+                <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo"
+                  style="max-width: 100px; height: auto;">
+                <% } %>
+            </td>
+            <td style="width: 50%; text-align: right; vertical-align: middle;">
+              <% if (typeof showQRCode !=='undefined' && showQRCode && typeof qrData !=='undefined' ) { %>
+                <img src="<%= qrData %>" alt="QR Code" style="max-width: 100px; height: auto;">
+                <% } %>
+            </td>
           </tr>
         </table>
-      </div>
+        <% } else { %>
+          <div></div>
+          <% } %>
+
+            <div class="footer-meta">
+              <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
+              <table style="margin: 0; font-size: 9px;">
+                <tr>
+                  <td><strong>User name :</strong>
+                    <%= invoice.created_by_name || 'System' %>
+                  </td>
+                  <td class="text-center"><strong>Print Date & Time :</strong>
+                    <%= new Date().toLocaleString('en-GB', { day: '2-digit' , month: '2-digit' , year: 'numeric' ,
+                      hour: '2-digit' , minute: '2-digit' , second: '2-digit' , hour12: false }).replace(',', '' ) %>
+                  </td>
+                  <td class="text-right"><strong>Page :</strong> 1 / 2</td>
+                </tr>
+              </table>
+            </div>
     </div>
 
     <div class="page">
@@ -663,8 +675,13 @@
         <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
         <table style="margin: 0; font-size: 9px;">
           <tr>
-            <td><strong>User name :</strong> <%= invoice.created_by_name || 'System' %></td>
-            <td class="text-center"><strong>Print Date & Time :</strong> <%= new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(',', '') %></td>
+            <td><strong>User name :</strong>
+              <%= invoice.created_by_name || 'System' %>
+            </td>
+            <td class="text-center"><strong>Print Date & Time :</strong>
+              <%= new Date().toLocaleString('en-GB', { day: '2-digit' , month: '2-digit' , year: 'numeric' ,
+                hour: '2-digit' , minute: '2-digit' , second: '2-digit' , hour12: false }).replace(',', '' ) %>
+            </td>
             <td class="text-right"><strong>Page :</strong> 2 / 2</td>
           </tr>
         </table>

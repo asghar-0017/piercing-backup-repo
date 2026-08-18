@@ -534,6 +534,8 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
           uoM: cleanValue(item.uoM),
 
+          uoMForInternal: cleanValue(item.uoMForInternal),
+
           quantity: cleanNumericValue(item.quantity),
 
           unitPrice: cleanNumericValue(item.unitPrice),
@@ -1150,6 +1152,8 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           uoM: cleanValue(item.uoM),
 
+          uoMForInternal: cleanValue(item.uoMForInternal),
+
           quantity: cleanNumericValue(item.quantity),
 
           unitPrice: cleanNumericValue(item.unitPrice),
@@ -1718,6 +1722,8 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
           rate: cleanValue(item.rate),
 
           uoM: cleanValue(item.uoM),
+
+          uoMForInternal: cleanValue(item.uoMForInternal),
 
           quantity: cleanNumericValue(item.quantity),
 
@@ -5701,8 +5707,9 @@ export const bulkCreateInvoices = async (req, res) => {
                 "Goods at standard rate (default)",
               sroItemSerialNo: itemData.item_sroItemSerialNo?.trim() || null,
               transctypeId: itemData.transctypeId?.trim() || null,
-              // New fields: Qty for Internal, Item Code, Units, Courier Charges, VAT
+              // New fields: Qty for Internal, UoM for Internal, Item Code, Units, Courier Charges, VAT
               qtyForInternal: parseFloat(itemData.item_qtyForInternal || itemData.qtyForInternal) || null,
+              uoMForInternal: String(itemData.item_uoMForInternal || itemData.uoMForInternal || "").trim() || null,
               itemCode: String(itemData.item_itemCode || itemData.itemCode || "").trim() || null,
               units: String(itemData.item_units || itemData.units || "").trim() || null,
               courierCharges: parseFloat(itemData.item_courierCharges || itemData.courierCharges) || 0,
@@ -8099,6 +8106,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "item_sroItemSerialNo",
       "item_saleType",
       "item_uoM",
+      "item_uoMForInternal",
       "item_productName",
       "item_valueSalesExcludingST",
       "item_quantity",
@@ -8145,7 +8153,8 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       item_sroScheduleNo: "SRO Schedule No",
       item_sroItemSerialNo: "SRO Item No",
       item_saleType: "Sale Type",
-      item_uoM: "Unit Of Measurement",
+      item_uoM: "Unit Of Measurement for (FBR)",
+      item_uoMForInternal: "Unit Of Measurement for (Internal)",
       item_productName: "Product Name",
       item_valueSalesExcludingST: "Value Sales (Excl ST)",
       item_quantity: "Quantity in KGS (For FBR)",
@@ -8206,7 +8215,16 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       const col = template.getColumn(uoMIdx);
       col.numFmt = "@";
       col.alignment = { horizontal: "left" };
-      if (!col.width || col.width < 18) col.width = 20;
+      if (!col.width || col.width < 18) col.width = 25;
+    }
+
+    // UoM for Internal formatting: Treat as text to preserve unit format
+    const uoMForInternalIdx = columns.indexOf("item_uoMForInternal") + 1;
+    if (uoMForInternalIdx > 0) {
+      const col = template.getColumn(uoMForInternalIdx);
+      col.numFmt = "@";
+      col.alignment = { horizontal: "left" };
+      if (!col.width || col.width < 18) col.width = 25;
     }
 
     // SRO Item Serial No formatting: Treat as text to preserve format

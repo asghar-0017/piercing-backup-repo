@@ -248,6 +248,7 @@ export default function CreateInvoice() {
         sroItemSerialNo: "",
         billOfLadingUoM: "",
         uoM: "",
+        uoMForInternal: "",
         saleType: "",
         isSROScheduleEnabled: false,
         isSROItemEnabled: false,
@@ -1298,6 +1299,7 @@ export default function CreateInvoice() {
               sroItemSerialNo: "",
               billOfLadingUoM: "",
               uoM: "",
+              uoMForInternal: "",
               saleType: "",
               isSROScheduleEnabled: false,
               isSROItemEnabled: false,
@@ -1355,6 +1357,7 @@ export default function CreateInvoice() {
             sroItemSerialNo: item.sroItemSerialNo || "",
             billOfLadingUoM: item.billOfLadingUoM || "",
             uoM: item.uoM || "",
+            uoMForInternal: item.uoMForInternal || "",
             saleType: item.saleType || "",
             isSROScheduleEnabled: item.rate ? true : false,
             isSROItemEnabled: item.sroScheduleNo ? true : false,
@@ -2640,6 +2643,7 @@ export default function CreateInvoice() {
           sroItemSerialNo: "",
           billOfLadingUoM: "",
           uoM: "",
+          uoMForInternal: "",
           extraTax: "",
           furtherTax: "0",
           fedPayable: "0",
@@ -2783,6 +2787,7 @@ export default function CreateInvoice() {
             hsCode: itemToEdit.hsCode || "",
             billOfLadingUoM: itemToEdit.billOfLadingUoM || "",
             uoM: itemToEdit.uoM || "",
+            uoMForInternal: itemToEdit.uoMForInternal || "",
             quantity: itemToEdit.quantity || "",
             rate: itemToEdit.rate || "",
           },
@@ -3098,6 +3103,7 @@ export default function CreateInvoice() {
               sroItemSerialNo: "",
               billOfLadingUoM: "",
               uoM: "",
+              uoMForInternal: "",
               extraTax: "",
               furtherTax: "0",
               fedPayable: "0",
@@ -4394,6 +4400,7 @@ export default function CreateInvoice() {
           sroItemSerialNo: "",
           billOfLadingUoM: "",
           uoM: "",
+          uoMForInternal: "",
           saleType: "",
           isSROScheduleEnabled: false,
           isSROItemEnabled: false,
@@ -5961,9 +5968,9 @@ export default function CreateInvoice() {
                       }
                     />
 
-                    {/* UoM Dropdown */}
+                    {/* UoM Dropdown (For FBR) */}
                     <FormControl fullWidth size="small">
-                      <InputLabel>UoM</InputLabel>
+                      <InputLabel>UoM for FBR</InputLabel>
                       <Select
                         value={formData.items[index]?.uoM || ""}
                         onChange={(e) => {
@@ -5977,7 +5984,7 @@ export default function CreateInvoice() {
                             );
                           }
                         }}
-                        label="UoM"
+                        label="UoM for FBR"
                         endAdornment={
                           loadingUom[index] ? (
                             <CircularProgress size={16} sx={{ mr: 1 }} />
@@ -6007,6 +6014,19 @@ export default function CreateInvoice() {
                         )}
                       </Select>
                     </FormControl>
+
+                    {/* UoM for Internal Input Field */}
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="UoM for Internal"
+                      type="text"
+                      value={formData.items[index]?.uoMForInternal || ""}
+                      onChange={(e) =>
+                        handleItemChange(index, "uoMForInternal", e.target.value)
+                      }
+                      variant="outlined"
+                    />
                   </Box>
                 </Box>
               </Box>
@@ -6747,6 +6767,12 @@ export default function CreateInvoice() {
                       <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
                         Rate
                       </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                        UoM (FBR)
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                        UoM (Internal)
+                      </TableCell>
 
                       <TableCell sx={{ fontWeight: 700, fontSize: "0.875rem" }}>
                         Quantity
@@ -6800,6 +6826,12 @@ export default function CreateInvoice() {
                         </TableCell>
                         <TableCell sx={{ fontSize: "0.875rem" }}>
                           {item.rate}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.875rem" }}>
+                          {item.uoM || "-"}
+                        </TableCell>
+                        <TableCell sx={{ fontSize: "0.875rem" }}>
+                          {item.uoMForInternal || "-"}
                         </TableCell>
 
                         <TableCell sx={{ fontSize: "0.875rem" }}>

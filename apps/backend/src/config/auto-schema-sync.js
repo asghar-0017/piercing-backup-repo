@@ -457,6 +457,12 @@ class AutoSchemaSync {
         type: "DECIMAL(20,2)",
         allowNull: true,
       },
+      {
+        table: "invoice_items",
+        column: "uoMForInternal",
+        type: "VARCHAR(50)",
+        allowNull: true,
+      },
     ];
 
     for (const {
