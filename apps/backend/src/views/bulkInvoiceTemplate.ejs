@@ -55,26 +55,153 @@
       page-break-inside: auto;
     }
 
-    table td, table th { word-break: break-word; }
-    /* column widths */
-    table td:nth-child(1), table th:nth-child(1){ width: 1%; min-width: 1%; max-width: 1%; }
-    table td:nth-child(2), table th:nth-child(2){ width: 7%; min-width: 7%; max-width: 7%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(3), table th:nth-child(3){ width: 6%; min-width: 6%; max-width: 6%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(4), table th:nth-child(4){ width: 15%; min-width: 15%; max-width: 15%; text-align: left; white-space: normal; overflow-wrap: anywhere; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(5), table th:nth-child(5){ width: 5%; min-width: 5%; max-width: 5%; }
-    table td:nth-child(6), table th:nth-child(6){ width: 7%; min-width: 7%; max-width: 7%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(7), table th:nth-child(7){ width: 7%; min-width: 7%; max-width: 7%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(8), table th:nth-child(8){ width: 4%; min-width: 4%; max-width: 4%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(9), table th:nth-child(9){ width: 5%; min-width: 5%; max-width: 5%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(10), table th:nth-child(10){ width: 4%; min-width: 4%; max-width: 4%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(11), table th:nth-child(11){ width: 5%; min-width: 5%; max-width: 5%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(12), table th:nth-child(12){ width: 4%; min-width: 4%; max-width: 4%; }
-    table td:nth-child(13), table th:nth-child(13){ width: 7%; min-width: 7%; max-width: 7%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(14), table th:nth-child(14){ width: 4%; min-width: 4%; max-width: 4%; }
-    table td:nth-child(15), table th:nth-child(15){ width: 6%; min-width: 6%; max-width: 6%; padding-left: 2px; padding-right: 2px; }
-    table td:nth-child(16), table th:nth-child(16){ width: 7%; min-width: 7%; max-width: 7%; padding-left: 2px; padding-right: 2px; }
+    table td,
+    table th {
+      word-break: break-word;
+    }
 
-    th, td {
+    /* column widths */
+    table td:nth-child(1),
+    table th:nth-child(1) {
+      width: 1%;
+      min-width: 1%;
+      max-width: 1%;
+    }
+
+    table td:nth-child(2),
+    table th:nth-child(2) {
+      width: 7%;
+      min-width: 7%;
+      max-width: 7%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(3),
+    table th:nth-child(3) {
+      width: 6%;
+      min-width: 6%;
+      max-width: 6%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(4),
+    table th:nth-child(4) {
+      width: 15%;
+      min-width: 15%;
+      max-width: 15%;
+      text-align: left;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(5),
+    table th:nth-child(5) {
+      width: 5%;
+      min-width: 5%;
+      max-width: 5%;
+    }
+
+    table td:nth-child(6),
+    table th:nth-child(6) {
+      width: 7%;
+      min-width: 7%;
+      max-width: 7%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(7),
+    table th:nth-child(7) {
+      width: 7%;
+      min-width: 7%;
+      max-width: 7%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(8),
+    table th:nth-child(8) {
+      width: 4%;
+      min-width: 4%;
+      max-width: 4%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(9),
+    table th:nth-child(9) {
+      width: 5%;
+      min-width: 5%;
+      max-width: 5%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(10),
+    table th:nth-child(10) {
+      width: 4%;
+      min-width: 4%;
+      max-width: 4%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(11),
+    table th:nth-child(11) {
+      width: 5%;
+      min-width: 5%;
+      max-width: 5%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(12),
+    table th:nth-child(12) {
+      width: 4%;
+      min-width: 4%;
+      max-width: 4%;
+    }
+
+    table td:nth-child(13),
+    table th:nth-child(13) {
+      width: 7%;
+      min-width: 7%;
+      max-width: 7%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(14),
+    table th:nth-child(14) {
+      width: 4%;
+      min-width: 4%;
+      max-width: 4%;
+    }
+
+    table td:nth-child(15),
+    table th:nth-child(15) {
+      width: 6%;
+      min-width: 6%;
+      max-width: 6%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    table td:nth-child(16),
+    table th:nth-child(16) {
+      width: 7%;
+      min-width: 7%;
+      max-width: 7%;
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
+    th,
+    td {
       border: 1px solid #157492;
       font-size: 8px;
       text-align: center;
@@ -120,13 +247,24 @@
       overflow: visible;
     }
 
-    .qr-left, .qr-right {
+    .qr-left,
+    .qr-right {
       display: inline-block;
       vertical-align: middle;
     }
 
-    .qr-left { float: left; max-width: 50%; width: 90px; height: 90px; }
-    .qr-right { float: right; max-width: 50%; text-align: right; }
+    .qr-left {
+      float: left;
+      max-width: 50%;
+      width: 90px;
+      height: 90px;
+    }
+
+    .qr-right {
+      float: right;
+      max-width: 50%;
+      text-align: right;
+    }
 
     .fbr-logo {
       max-width: 140px;
@@ -134,7 +272,8 @@
       display: block;
     }
 
-    .qr-box img, .qr-image {
+    .qr-box img,
+    .qr-image {
       display: block;
       max-width: 100%;
       height: auto;
@@ -146,9 +285,17 @@
       clear: both;
     }
 
-    thead { display: table-header-group; }
-    tfoot { display: table-footer-group; }
-    tbody { display: table-row-group; }
+    thead {
+      display: table-header-group;
+    }
+
+    tfoot {
+      display: table-footer-group;
+    }
+
+    tbody {
+      display: table-row-group;
+    }
 
     tbody tr {
       page-break-inside: avoid;
@@ -171,7 +318,8 @@
         page-break-inside: auto;
       }
 
-      th, td {
+      th,
+      td {
         padding: 3px 4px;
         font-size: 7px;
       }
@@ -181,161 +329,224 @@
         font-size: 10px;
       }
 
-      .summary-box p { font-size: 10px; }
-      .total-in-words { font-size: 10px; }
+      .summary-box p {
+        font-size: 10px;
+      }
+
+      .total-in-words {
+        font-size: 10px;
+      }
     }
   </style>
 </head>
 
 <body>
-  <%
-    // Helper function to format numbers with commas
-    function formatNumber(num) {
-      if (num === null || num === undefined || isNaN(num)) return '0.00';
-      return parseFloat(num).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-    }
-  %>
+  <% // Helper function to format numbers with commas function formatNumber(num) { if (num===null || num===undefined ||
+    isNaN(num)) return '0.00' ; return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 2,
+    maximumFractionDigits: 2 }); } %>
 
-  <% invoices.forEach((invoice, index) => { %>
-    <div class="invoice-container">
-      <div class="header">
-        <div style="flex: 1;"></div>
-        <h2 style="position: absolute; left: 50%; transform: translateX(-50%); margin-top: 50px;">Sales Tax Invoice</h2>
-      </div>
+    <% invoices.forEach((invoice, index)=> { %>
+      <div class="invoice-container">
+        <div class="header">
+          <div style="flex: 1;"></div>
+          <h2 style="position: absolute; left: 50%; transform: translateX(-50%); margin-top: 50px;">Sales Tax Invoice
+          </h2>
+        </div>
 
-      <div class="flex-row">
-        <div class="invoice-info">
-          <p><strong>Invoice #:</strong> <%= invoice.invoice_number %></p>
-          <% if (invoice.fbr_invoice_number && invoice.fbr_invoice_number !== invoice.invoice_number) { %>
-            <p style="font-size: 10px; color: #666; font-style: italic;"><strong>FBR #:</strong> <%= invoice.fbr_invoice_number %></p>
-          <% } %>
-          <% if (invoice.companyInvoiceRefNo) { %>
-            <p style="font-size: 10px; color: #666; font-style: italic;"><strong>Company Invoice Ref No:</strong> <%= invoice.companyInvoiceRefNo %></p>
-          <% } %>
+        <div class="flex-row">
+          <div class="invoice-info">
+            <p><strong>Invoice #:</strong>
+              <%= invoice.invoice_number %>
+            </p>
+            <% if (invoice.fbr_invoice_number && invoice.fbr_invoice_number !==invoice.invoice_number) { %>
+              <p style="font-size: 10px; color: #666; font-style: italic;"><strong>FBR #:</strong>
+                <%= invoice.fbr_invoice_number %>
+              </p>
+              <% } %>
+                <% if (invoice.companyInvoiceRefNo) { %>
+                  <p style="font-size: 10px; color: #666; font-style: italic;"><strong>Company Invoice Ref No:</strong>
+                    <%= invoice.companyInvoiceRefNo %>
+                  </p>
+                  <% } %>
+          </div>
+          <div class="invoice-info" style="text-align: right;">
+            <p><strong>Date:</strong>
+              <%= invoice.invoiceDate %>
+            </p>
+          </div>
         </div>
-        <div class="invoice-info" style="text-align: right;">
-          <p><strong>Date:</strong> <%= invoice.invoiceDate %></p>
-        </div>
-      </div>
 
-      <div class="flex-row">
-        <div class="buyer-info">
-          <p><strong>Buyer:</strong></p>
-          <p><%= invoice.buyerBusinessName %></p>
-          <p><%= invoice.buyerAddress %></p>
-          <p>REGION: <%= invoice.buyerProvince %></p>
-          <p>CNIC/NTN: <%= invoice.buyerNTNCNIC %></p>
-          <p>TYPE: <%= invoice.buyerRegistrationType %></p>
+        <div class="flex-row">
+          <div class="buyer-info">
+            <p><strong>Buyer:</strong></p>
+            <p>
+              <%= invoice.buyerBusinessName %>
+            </p>
+            <p>
+              <%= invoice.buyerAddress %>
+            </p>
+            <p>REGION: <%= invoice.buyerProvince %>
+            </p>
+            <p>CNIC/NTN: <%= invoice.buyerNTNCNIC %>
+            </p>
+            <p>TYPE: <%= invoice.buyerRegistrationType %>
+            </p>
+          </div>
+          <div class="seller-info" style="text-align: right;">
+            <p><strong>Seller:</strong></p>
+            <p>
+              <%= invoice.sellerBusinessName %>
+            </p>
+            <p style="max-width: 250px; margin-left: auto;">
+              <%= invoice.sellerAddress %><br />
+                <%= invoice.sellerCity %>
+            </p>
+            <p>CNIC/NTN: <%= invoice.seller_full_ntn || invoice.sellerFullNTN || invoice.sellerNTNCNIC %>
+            </p>
+          </div>
         </div>
-        <div class="seller-info" style="text-align: right;">
-          <p><strong>Seller:</strong></p>
-          <p><%= invoice.sellerBusinessName %></p>
-          <p style="max-width: 250px; margin-left: auto;">
-            <%= invoice.sellerAddress %><br/>
-            <%= invoice.sellerCity %>
-          </p>
-          <p>CNIC/NTN: <%= invoice.seller_full_ntn || invoice.sellerFullNTN || invoice.sellerNTNCNIC %></p>
-        </div>
-      </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th></th>
-            <th>HS Code</th>
-            <th>UOM</th>
-            <th>Product Description</th>
-            <th>Qty</th>
-            <th>Unit Price</th>
-            <th>Amount</th>
-            <th>Rate</th>
-            <th>Sales Tax</th>
-            <th>Extra Tax</th>
-            <th>Further Tax</th>
-            <th>FED</th>
-            <th>Advance Income Tax</th>
-            <th>Discount (%)</th>
-            <th>Sales Tax Withheld</th>
-            <th>Total (incl. Tax)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (invoice.items && invoice.items.length > 0) { %>
-            <% invoice.items.forEach((item, idx)=> { %>
-              <tr>
-                <td><%= idx + 1 %></td>
-                <td><%= item.hsCode %></td>
-                <td><%= item.uoM || item.uom || '-' %></td>
-                <td style="text-align:left;"><%= item.productDescription || 'N/A' %></td>
-                <td><%= item.quantity %></td>
-                <td><%= formatNumber(item.unitPrice) %></td>
-                <td><%= formatNumber(item.valueSalesExcludingST) %></td>
-                <td><%= item.rate %></td>
-                <td><%= formatNumber(item.salesTaxApplicable) %></td>
-                <td><%= formatNumber(item.extraTax) %></td>
-                <td><%= formatNumber(item.furtherTax) %></td>
-                <td><%= formatNumber(item.fedPayable) %></td>
-                <td><%= formatNumber(item.advanceIncomeTax) %></td>
-                <td><%= formatNumber(item.discount) %></td>
-                <td><%= formatNumber(item.salesTaxWithheldAtSource) %></td>
-                <td><%= formatNumber(item.totalValues) %></td>
-              </tr>
-            <% }); %>
-          <% } else { %>
+        <table>
+          <thead>
             <tr>
-              <td colspan="16" style="text-align: center;">No items found</td>
+              <th></th>
+              <th>HS Code</th>
+              <th>UOM</th>
+              <th>Product Description</th>
+              <th>Qty</th>
+              <th>Unit Price</th>
+              <th>Amount</th>
+              <th>Rate</th>
+              <th>Sales Tax</th>
+              <th>Extra Tax</th>
+              <th>Further Tax</th>
+              <th>FED</th>
+              <th>Advance Income Tax</th>
+              <th>Discount (%)</th>
+              <th>Sales Tax Withheld</th>
+              <th>Total (incl. Tax)</th>
             </tr>
-          <% } %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <% if (invoice.items && invoice.items.length> 0) { %>
+              <% invoice.items.forEach((item, idx)=> { %>
+                <tr>
+                  <td>
+                    <%= idx + 1 %>
+                  </td>
+                  <td>
+                    <%= item.hsCode %>
+                  </td>
+                  <td>
+                    <%= item.uoM || item.uom || '-' %>
+                  </td>
+                  <td style="text-align:left;">
+                    <%= item.productDescription || 'N/A' %>
+                  </td>
+                  <td>
+                    <%= item.quantity %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.unitPrice) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.valueSalesExcludingST) %>
+                  </td>
+                  <td>
+                    <%= item.rate %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.salesTaxApplicable) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.extraTax) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.furtherTax) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.fedPayable) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.advanceIncomeTax) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.discount) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.salesTaxWithheldAtSource) %>
+                  </td>
+                  <td>
+                    <%= formatNumber(item.totalValues) %>
+                  </td>
+                </tr>
+                <% }); %>
+                  <% } else { %>
+                    <tr>
+                      <td colspan="16" style="text-align: center;">No items found</td>
+                    </tr>
+                    <% } %>
+          </tbody>
+        </table>
 
-      <% 
-        const subTotal = invoice.items ? invoice.items.reduce((sum, i)=> sum + parseFloat(i.valueSalesExcludingST || 0), 0) : 0;
-        const gst = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxApplicable || 0), 0) : 0;
-        const further = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.furtherTax || 0), 0) : 0;
-        const extra = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.extraTax || 0), 0) : 0;
-        const fed = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.fedPayable || 0), 0) : 0;
-        const advanceIncomeTax = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.advanceIncomeTax || 0), 0) : 0;
-        const dis = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.discount || 0), 0) : 0;
-        const withheld = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxWithheldAtSource || 0), 0) : 0;
-        const grandTotal = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.totalValues || 0), 0) : 0;
-      %>
+        <% const subTotal=invoice.items ? invoice.items.reduce((sum, i)=> sum + parseFloat(i.valueSalesExcludingST ||
+          0), 0) : 0;
+          const gst = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxApplicable || 0), 0) :
+          0;
+          const further = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.furtherTax || 0), 0) : 0;
+          const extra = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.extraTax || 0), 0) : 0;
+          const fed = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.fedPayable || 0), 0) : 0;
+          const advanceIncomeTax = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.advanceIncomeTax
+          || 0), 0) : 0;
+          const dis = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.discount || 0), 0) : 0;
+          const withheld = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxWithheldAtSource
+          || 0), 0) : 0;
+          const grandTotal = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.totalValues || 0), 0) :
+          0;
+          %>
 
-      <div class="summary-box">
-        <p>Sub Total (Excl. Tax): <%= formatNumber(subTotal) %></p>
-        <p>Sales Tax (GST): <%= formatNumber(gst) %></p>
-        <p>Further Tax: <%= formatNumber(further) %></p>
-        <p>Extra Tax: <%= formatNumber(extra) %></p>
-        <p>FED Payable: <%= formatNumber(fed) %></p>
-        <p>Advance Income Tax: <%= formatNumber(advanceIncomeTax) %></p>
-        <p>Discount: <%= formatNumber(dis) %></p>
-        <p>Sales Tax Withheld: <%= formatNumber(withheld) %></p>
-        <p><strong>Grand Total (Incl. All Taxes): Rs. <%= formatNumber(grandTotal) %></strong></p>
+          <div class="summary-box">
+            <p>Sub Total (Excl. Tax): <%= formatNumber(subTotal) %>
+            </p>
+            <p>Sales Tax (GST): <%= formatNumber(gst) %>
+            </p>
+            <p>Further Tax: <%= formatNumber(further) %>
+            </p>
+            <p>Extra Tax: <%= formatNumber(extra) %>
+            </p>
+            <p>FED Payable: <%= formatNumber(fed) %>
+            </p>
+            <p>Advance Income Tax: <%= formatNumber(advanceIncomeTax) %>
+            </p>
+            <p>Discount: <%= formatNumber(dis) %>
+            </p>
+            <p>Sales Tax Withheld: <%= formatNumber(withheld) %>
+            </p>
+            <p><strong>Grand Total (Incl. All Taxes): Rs. <%= formatNumber(grandTotal) %></strong></p>
+          </div>
+
+          <div class="total-in-words">
+            <p>Total in words:<br />
+              <%= convertToWords(grandTotal) %>
+            </p>
+          </div>
+
+          <div class="qr-box">
+            <div class="qr-left">
+              <% if (invoice.status==="posted" ) { %>
+                <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo" class="fbr-logo" />
+                <% } %>
+            </div>
+            <div class="qr-right">
+              <% if (invoice.status==="posted" ) { %>
+                <img src="<%= invoice.qrData %>" alt="QR Code" class="qr-image" />
+                <% } %>
+            </div>
+          </div>
+
+          <div class="clear"></div>
       </div>
-
-      <div class="total-in-words">
-        <p>Total in words:<br/> <%= convertToWords(grandTotal) %></p>
-      </div>
-
-      <div class="qr-box">
-        <div class="qr-left">
-          <% if (invoice.status === "posted") { %>
-            <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo" class="fbr-logo" />
-          <% } %>
-        </div>
-        <div class="qr-right">
-          <% if (invoice.status === "posted") { %>
-            <img src="<%= invoice.qrData %>" alt="QR Code" class="qr-image" />
-          <% } %>
-        </div>
-      </div>
-
-      <div class="clear"></div>
-    </div>
-  <% }); %>
+      <% }); %>
 </body>
 
 </html>

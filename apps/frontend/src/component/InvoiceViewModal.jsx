@@ -453,7 +453,7 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                       p: 1,
                     }}
                   >
-                    Amount
+                    Rate
                   </TableCell>
                   <TableCell
                     sx={{
@@ -465,7 +465,7 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                       p: 1,
                     }}
                   >
-                    Rate
+                    Tax Rate (%)
                   </TableCell>
                   <TableCell
                     sx={{
