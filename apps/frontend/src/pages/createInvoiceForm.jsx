@@ -39,6 +39,7 @@ import {
   Stack,
   Checkbox,
   FormControlLabel,
+  Chip,
 } from "@mui/material";
 import {
   Business,
@@ -369,30 +370,60 @@ export default function CreateInvoice() {
   }, [selectedTenant]);
 
   useEffect(() => {
-    if (formData.billToId && billToOptions.length > 0) {
-      const found = billToOptions.find(b => String(b.id) === String(formData.billToId));
-      if (found) {
-        setSelectedBillTo(found);
-        setBillToInputValue(found.name);
+    if (formData.billToId) {
+      const foundInBill = billToOptions.find(b => String(b.id) === String(formData.billToId));
+      if (foundInBill) {
+        setSelectedBillTo(foundInBill);
+        setBillToInputValue(foundInBill.name);
+      } else {
+        const foundInBuyer = buyers.find(b => `buyer_${b.id}` === String(formData.billToId) || String(b.id) === String(formData.billToId));
+        if (foundInBuyer) {
+          const bOpt = {
+            id: `buyer_${foundInBuyer.id}`,
+            buyerId: foundInBuyer.id,
+            name: foundInBuyer.buyerBusinessName || "",
+            address: foundInBuyer.buyerAddress || "",
+            ntn: foundInBuyer.buyerNTNCNIC || "",
+            isBuyer: true,
+            rawBuyer: foundInBuyer,
+          };
+          setSelectedBillTo(bOpt);
+          setBillToInputValue(bOpt.name);
+        }
       }
     } else if (!formData.billToId) {
       setSelectedBillTo(null);
       setBillToInputValue("");
     }
-  }, [formData.billToId, billToOptions]);
+  }, [formData.billToId, billToOptions, buyers]);
 
   useEffect(() => {
-    if (formData.shipToId && shipToOptions.length > 0) {
-      const found = shipToOptions.find(s => String(s.id) === String(formData.shipToId));
-      if (found) {
-        setSelectedShipTo(found);
-        setShipToInputValue(found.name);
+    if (formData.shipToId) {
+      const foundInShip = shipToOptions.find(s => String(s.id) === String(formData.shipToId));
+      if (foundInShip) {
+        setSelectedShipTo(foundInShip);
+        setShipToInputValue(foundInShip.name);
+      } else {
+        const foundInBuyer = buyers.find(b => `buyer_${b.id}` === String(formData.shipToId) || String(b.id) === String(formData.shipToId));
+        if (foundInBuyer) {
+          const bOpt = {
+            id: `buyer_${foundInBuyer.id}`,
+            buyerId: foundInBuyer.id,
+            name: foundInBuyer.buyerBusinessName || "",
+            address: foundInBuyer.buyerAddress || "",
+            ntn: foundInBuyer.buyerNTNCNIC || "",
+            isBuyer: true,
+            rawBuyer: foundInBuyer,
+          };
+          setSelectedShipTo(bOpt);
+          setShipToInputValue(bOpt.name);
+        }
       }
     } else if (!formData.shipToId) {
       setSelectedShipTo(null);
       setShipToInputValue("");
     }
-  }, [formData.shipToId, shipToOptions]);
+  }, [formData.shipToId, shipToOptions, buyers]);
 
   // Bill To & Ship To Creation Form States & Handlers
   const [shipToForm, setShipToForm] = useState({
@@ -2001,19 +2032,28 @@ export default function CreateInvoice() {
         }
 
         setLoadingBuyers(true);
-        const response = await api.get(
-          `/tenant/${selectedTenant.tenant_id}/buyers`,
-          {
-            params: { page, limit: 25, search: search || undefined },
-          },
-        );
+        let response = null;
+        if (!search && page === 1) {
+          response = await api.get(
+            `/tenant/${selectedTenant.tenant_id}/buyers/all`
+          ).catch(() => null);
+        }
 
-        if (response.data.success) {
+        if (!response || !response.data || !response.data.success) {
+          response = await api.get(
+            `/tenant/${selectedTenant.tenant_id}/buyers`,
+            {
+              params: { page, limit: 1000, search: search || undefined },
+            },
+          );
+        }
+
+        if (response.data && response.data.success) {
           const rows = response.data.data?.buyers || [];
           const pagination = response.data.data?.pagination || {};
           setBuyers((prev) => (append ? [...prev, ...rows] : rows));
           setBuyerHasMore(
-            (pagination.current_page || page) < (pagination.total_pages || 1),
+            pagination.total_pages ? (pagination.current_page || page) < pagination.total_pages : false
           );
           setBuyerPage(pagination.current_page || page);
         } else {
@@ -4910,14 +4950,34 @@ export default function CreateInvoice() {
               size="small"
               options={(() => {
                 const opts = [{ id: "__add__", name: "+ Add Bill To" }];
-                if (selectedBillTo) {
-                  opts.push(selectedBillTo);
-                }
+                
+                // Include registered Buyers formatted for Bill To selection
+                buyers.forEach((b) => {
+                  const bOpt = {
+                    id: `buyer_${b.id}`,
+                    buyerId: b.id,
+                    name: b.buyerBusinessName || "",
+                    address: b.buyerAddress || "",
+                    ntn: b.buyerNTNCNIC || "",
+                    isBuyer: true,
+                    rawBuyer: b,
+                  };
+                  if (!selectedBillTo || String(bOpt.id) !== String(selectedBillTo.id)) {
+                    opts.push(bOpt);
+                  }
+                });
+
+                // Include custom Bill To options
                 billToOptions.forEach((o) => {
                   if (!selectedBillTo || String(o.id) !== String(selectedBillTo.id)) {
                     opts.push(o);
                   }
                 });
+
+                if (selectedBillTo) {
+                  opts.splice(1, 0, selectedBillTo);
+                }
+
                 return opts;
               })()}
               getOptionLabel={(option) => option.name || ""}
@@ -4962,9 +5022,20 @@ export default function CreateInvoice() {
                 return (
                   <li key={key} {...rest}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {option.name}
-                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {option.name}
+                        </Typography>
+                        {option.isBuyer && (
+                          <Chip
+                            label="Buyer"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: "0.6rem", fontWeight: 700 }}
+                          />
+                        )}
+                      </Box>
                       <Typography variant="caption" color="text.secondary">
                         {option.address}
                       </Typography>
@@ -4980,14 +5051,34 @@ export default function CreateInvoice() {
               size="small"
               options={(() => {
                 const opts = [{ id: "__add__", name: "+ Add Ship To" }];
-                if (selectedShipTo) {
-                  opts.push(selectedShipTo);
-                }
+
+                // Include registered Buyers formatted for Ship To selection
+                buyers.forEach((b) => {
+                  const bOpt = {
+                    id: `buyer_${b.id}`,
+                    buyerId: b.id,
+                    name: b.buyerBusinessName || "",
+                    address: b.buyerAddress || "",
+                    ntn: b.buyerNTNCNIC || "",
+                    isBuyer: true,
+                    rawBuyer: b,
+                  };
+                  if (!selectedShipTo || String(bOpt.id) !== String(selectedShipTo.id)) {
+                    opts.push(bOpt);
+                  }
+                });
+
+                // Include custom Ship To options
                 shipToOptions.forEach((o) => {
                   if (!selectedShipTo || String(o.id) !== String(selectedShipTo.id)) {
                     opts.push(o);
                   }
                 });
+
+                if (selectedShipTo) {
+                  opts.splice(1, 0, selectedShipTo);
+                }
+
                 return opts;
               })()}
               getOptionLabel={(option) => option.name || ""}
@@ -5032,9 +5123,20 @@ export default function CreateInvoice() {
                 return (
                   <li key={key} {...rest}>
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {option.name}
-                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {option.name}
+                        </Typography>
+                        {option.isBuyer && (
+                          <Chip
+                            label="Buyer"
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: "0.6rem", fontWeight: 700 }}
+                          />
+                        )}
+                      </Box>
                       <Typography variant="caption" color="text.secondary">
                         {option.address}
                       </Typography>

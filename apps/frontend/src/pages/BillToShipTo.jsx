@@ -25,6 +25,7 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Chip,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import SentimentDissatisfiedIcon from "@mui/icons-material/SentimentDissatisfied";
@@ -59,6 +60,10 @@ export default function BillToShipTo() {
   const [billToPage, setBillToPage] = useState(1);
   const [billToRowsPerPage, setBillToRowsPerPage] = useState(10);
   const [billToLoading, setBillToLoading] = useState(false);
+
+  // --- BUYERS State ---
+  const [buyersData, setBuyersData] = useState([]);
+  const [buyersLoading, setBuyersLoading] = useState(false);
 
   // --- Modal States ---
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -134,11 +139,29 @@ export default function BillToShipTo() {
     }
   };
 
+  const fetchBuyers = async (tenantId) => {
+    setBuyersLoading(true);
+    try {
+      const response = await api.get(`/tenant/${tenantId}/buyers/all`).catch(() => null);
+      if (response && response.data && response.data.success) {
+        setBuyersData(response.data.data.buyers || []);
+      } else {
+        setBuyersData([]);
+      }
+    } catch (error) {
+      console.error(error);
+      setBuyersData([]);
+    } finally {
+      setBuyersLoading(false);
+    }
+  };
+
   // Fetch when selected tenant changes
   useEffect(() => {
     if (selectedTenant) {
       fetchShipTo(selectedTenant.tenant_id);
       fetchBillTo(selectedTenant.tenant_id);
+      fetchBuyers(selectedTenant.tenant_id);
     }
   }, [selectedTenant]);
 
@@ -225,6 +248,48 @@ export default function BillToShipTo() {
     setModalError("");
   };
 
+  // --- Combine Buyers with Ship To & Bill To ---
+  const combinedShipToData = React.useMemo(() => {
+    const buyerShipToRecords = buyersData.map((b) => ({
+      id: `buyer_ship_${b.id}`,
+      name: b.buyerBusinessName || "N/A",
+      address: b.buyerAddress || "N/A",
+      contactPerson: b.buyerProvince ? `Province: ${b.buyerProvince}` : "-",
+      contactNo: b.buyerPhoneNumber || "-",
+      cnic: b.buyerNTNCNIC && b.buyerNTNCNIC.length === 13 ? b.buyerNTNCNIC : "-",
+      ntn: b.buyerNTNCNIC || "-",
+      isBuyer: true,
+      rawBuyer: b,
+    }));
+
+    const formattedShipTo = shipToData.map((s) => ({
+      ...s,
+      isBuyer: false,
+    }));
+
+    return [...buyerShipToRecords, ...formattedShipTo];
+  }, [buyersData, shipToData]);
+
+  const combinedBillToData = React.useMemo(() => {
+    const buyerBillToRecords = buyersData.map((b) => ({
+      id: `buyer_bill_${b.id}`,
+      name: b.buyerBusinessName || "N/A",
+      address: b.buyerAddress || "N/A",
+      refNo: b.buyerRegistrationType || b.buyerNTNCNIC || "-",
+      ntn: b.buyerNTNCNIC || "-",
+      strn: "-",
+      isBuyer: true,
+      rawBuyer: b,
+    }));
+
+    const formattedBillTo = billToData.map((b) => ({
+      ...b,
+      isBuyer: false,
+    }));
+
+    return [...buyerBillToRecords, ...formattedBillTo];
+  }, [buyersData, billToData]);
+
   // --- Save / Update Handler ---
   const handleSave = async (e) => {
     e.preventDefault();
@@ -232,6 +297,38 @@ export default function BillToShipTo() {
 
     const tenantId = selectedTenant?.tenant_id;
     if (!tenantId) return;
+
+    if (editingRecord && editingRecord.isBuyer) {
+      if (modalType === "SHIP" && !validateShipForm()) return;
+      if (modalType === "BILL" && !validateBillForm()) return;
+      setIsSubmitting(true);
+      try {
+        const buyerPayload = {
+          buyerBusinessName: modalType === "SHIP" ? shipForm.name : billForm.name,
+          buyerAddress: modalType === "SHIP" ? shipForm.address : billForm.address,
+          buyerNTNCNIC: modalType === "SHIP" ? shipForm.ntn : billForm.ntn,
+          ...(modalType === "SHIP" && shipForm.contactNo && { buyerPhoneNumber: shipForm.contactNo }),
+        };
+
+        const response = await api.put(
+          `/tenant/${tenantId}/buyers/${editingRecord.rawBuyer.id}`,
+          buyerPayload
+        );
+
+        if (response && response.data && response.data.success) {
+          toast.success("Buyer updated successfully!");
+          fetchBuyers(tenantId);
+          handleCloseModal();
+        } else {
+          toast.error(response?.data?.message || "Failed to update buyer.");
+        }
+      } catch (error) {
+        setModalError(error.message || "An error occurred while saving buyer.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     if (modalType === "SHIP") {
       if (!validateShipForm()) return;
@@ -333,9 +430,38 @@ export default function BillToShipTo() {
   };
 
   // --- Delete Handler ---
-  const handleDelete = async (type, recordId) => {
+  const handleDelete = async (type, recordId, item = null) => {
     const tenantId = selectedTenant?.tenant_id;
     if (!tenantId) return;
+
+    if (item && item.isBuyer) {
+      const result = await Swal.fire({
+        title: "Delete Buyer Record?",
+        text: `This buyer "${item.name}" is part of the Buyers registry. Are you sure you want to delete this buyer?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes, delete buyer!",
+        cancelButtonText: "Cancel",
+        reverseButtons: true,
+      });
+
+      if (result.isConfirmed) {
+        try {
+          const response = await api.delete(`/tenant/${tenantId}/buyers/${item.rawBuyer.id}`);
+          if (response && response.data && response.data.success) {
+            toast.success("Buyer deleted successfully!");
+            fetchBuyers(tenantId);
+          } else {
+            toast.error(response?.data?.message || "Failed to delete buyer.");
+          }
+        } catch (error) {
+          toast.error("Error deleting buyer record.");
+        }
+      }
+      return;
+    }
 
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -409,7 +535,7 @@ export default function BillToShipTo() {
 
   // --- Filtering & Paginations ---
   // Ship To Filtering
-  const filteredShipTo = shipToData.filter((item) => {
+  const filteredShipTo = combinedShipToData.filter((item) => {
     const term = shipToSearch.trim().toLowerCase();
     if (!term) return true;
     return (
@@ -428,7 +554,7 @@ export default function BillToShipTo() {
     : filteredShipTo.slice((shipToPage - 1) * shipToRowsPerPage, shipToPage * shipToRowsPerPage);
 
   // Bill To Filtering
-  const filteredBillTo = billToData.filter((item) => {
+  const filteredBillTo = combinedBillToData.filter((item) => {
     const term = billToSearch.trim().toLowerCase();
     if (!term) return true;
     return (
@@ -543,7 +669,7 @@ export default function BillToShipTo() {
           </Box>
 
           {/* Table Area */}
-          {shipToLoading ? (
+          {shipToLoading || buyersLoading ? (
             <TablePlaceholder columnsCount={8} />
           ) : paginatedShipTo.length === 0 ? (
             <EmptyState message="No Ship To records found" />
@@ -566,7 +692,20 @@ export default function BillToShipTo() {
                         <TableCell sx={{ fontWeight: 700 }}>
                           {shipToRowsPerPage === "All" ? index + 1 : (shipToPage - 1) * shipToRowsPerPage + index + 1}
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>{item.name}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <span>{item.name}</span>
+                            {item.isBuyer && (
+                              <Chip
+                                label="Buyer"
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
                         <TableCell>{item.address}</TableCell>
                         <TableCell>{item.contactPerson}</TableCell>
                         <TableCell>{item.contactNo}</TableCell>
@@ -586,7 +725,7 @@ export default function BillToShipTo() {
                               variant="outlined"
                               color="error"
                               size="small"
-                              onClick={() => handleDelete("SHIP", item.id)}
+                              onClick={() => handleDelete("SHIP", item.id, item)}
                               sx={{ py: 0.2, px: 1, minWidth: "auto", fontSize: 11 }}
                             >
                               Delete
@@ -674,7 +813,7 @@ export default function BillToShipTo() {
           </Box>
 
           {/* Table Area */}
-          {billToLoading ? (
+          {billToLoading || buyersLoading ? (
             <TablePlaceholder columnsCount={7} />
           ) : paginatedBillTo.length === 0 ? (
             <EmptyState message="No Bill To records found" />
@@ -697,7 +836,20 @@ export default function BillToShipTo() {
                         <TableCell sx={{ fontWeight: 700 }}>
                           {billToRowsPerPage === "All" ? index + 1 : (billToPage - 1) * billToRowsPerPage + index + 1}
                         </TableCell>
-                        <TableCell sx={{ fontWeight: 600 }}>{item.name}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <span>{item.name}</span>
+                            {item.isBuyer && (
+                              <Chip
+                                label="Buyer"
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                              />
+                            )}
+                          </Box>
+                        </TableCell>
                         <TableCell>{item.address}</TableCell>
                         <TableCell>{item.refNo}</TableCell>
                         <TableCell>{item.ntn}</TableCell>
@@ -716,7 +868,7 @@ export default function BillToShipTo() {
                               variant="outlined"
                               color="error"
                               size="small"
-                              onClick={() => handleDelete("BILL", item.id)}
+                              onClick={() => handleDelete("BILL", item.id, item)}
                               sx={{ py: 0.2, px: 1, minWidth: "auto", fontSize: 11 }}
                             >
                               Delete
