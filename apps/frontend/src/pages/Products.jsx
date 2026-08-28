@@ -108,6 +108,7 @@ const Products = () => {
           {
             name: productData.name,
             description: productData.description,
+            weight: productData.weight,
             hsCode: productData.hsCode,
             uom: productData.uoM,
           }
@@ -160,6 +161,7 @@ const Products = () => {
               {
                 name: productData.name,
                 description: productData.description,
+                weight: productData.weight,
                 hsCode: productData.hsCode,
                 uom: productData.uoM,
                 updatePostedInvoices: true,
@@ -219,6 +221,7 @@ const Products = () => {
           {
             name: productData.name,
             description: productData.description,
+            weight: productData.weight,
             hsCode: productData.hsCode,
             uom: productData.uoM,
           }
@@ -302,6 +305,7 @@ const Products = () => {
           products: productsData.map(product => ({
             name: product.productName || product.name,
             description: product.productDescription || product.description,
+            weight: product.weight,
             hsCode: product.hsCode,
             uom: product.uom,
           }))

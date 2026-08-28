@@ -239,6 +239,7 @@ export default function CreateInvoice() {
         retailPrice: "0", // User input field
         itemCode: "",
         units: "",
+        weight: "",
         qtyForInternal: "",
         courierCharges: "0",
         totalValues: "0",
@@ -322,6 +323,99 @@ export default function CreateInvoice() {
   const [selectedShipTo, setSelectedShipTo] = useState(null);
   const [isShipToModalOpen, setIsShipToModalOpen] = useState(false);
   const [shipToInputValue, setShipToInputValue] = useState("");
+
+  // Memoized combined options for maximum performance
+  const billToCombinedOptions = React.useMemo(() => {
+    const opts = [{ id: "__add__", name: "+ Add Bill To" }];
+
+    buyers.forEach((b) => {
+      opts.push({
+        id: `buyer_${b.id}`,
+        buyerId: b.id,
+        name: b.buyerBusinessName || "",
+        address: b.buyerAddress || "",
+        ntn: b.buyerNTNCNIC || "",
+        isBuyer: true,
+        rawBuyer: b,
+      });
+    });
+
+    billToOptions.forEach((o) => {
+      opts.push(o);
+    });
+
+    return opts;
+  }, [buyers, billToOptions]);
+
+  const shipToCombinedOptions = React.useMemo(() => {
+    const opts = [{ id: "__add__", name: "+ Add Ship To" }];
+
+    buyers.forEach((b) => {
+      opts.push({
+        id: `buyer_${b.id}`,
+        buyerId: b.id,
+        name: b.buyerBusinessName || "",
+        address: b.buyerAddress || "",
+        ntn: b.buyerNTNCNIC || "",
+        isBuyer: true,
+        rawBuyer: b,
+      });
+    });
+
+    shipToOptions.forEach((o) => {
+      opts.push(o);
+    });
+
+    return opts;
+  }, [buyers, shipToOptions]);
+
+  const customFilterBillToOptions = React.useCallback((options, state) => {
+    const inputValue = (state.inputValue || "").trim().toLowerCase();
+    const results = [options[0]]; // Always keep "+ Add Bill To" at position 0
+
+    let count = 0;
+    for (let i = 1; i < options.length; i++) {
+      const opt = options[i];
+      if (!inputValue) {
+        results.push(opt);
+        count++;
+      } else {
+        const nameMatch = opt.name && opt.name.toLowerCase().includes(inputValue);
+        const ntnMatch = opt.ntn && opt.ntn.toLowerCase().includes(inputValue);
+        const addrMatch = opt.address && opt.address.toLowerCase().includes(inputValue);
+        if (nameMatch || ntnMatch || addrMatch) {
+          results.push(opt);
+          count++;
+        }
+      }
+      if (count >= 50) break; // Limit rendering to 50 items for instant 0ms response!
+    }
+    return results;
+  }, []);
+
+  const customFilterShipToOptions = React.useCallback((options, state) => {
+    const inputValue = (state.inputValue || "").trim().toLowerCase();
+    const results = [options[0]]; // Always keep "+ Add Ship To" at position 0
+
+    let count = 0;
+    for (let i = 1; i < options.length; i++) {
+      const opt = options[i];
+      if (!inputValue) {
+        results.push(opt);
+        count++;
+      } else {
+        const nameMatch = opt.name && opt.name.toLowerCase().includes(inputValue);
+        const ntnMatch = opt.ntn && opt.ntn.toLowerCase().includes(inputValue);
+        const addrMatch = opt.address && opt.address.toLowerCase().includes(inputValue);
+        if (nameMatch || ntnMatch || addrMatch) {
+          results.push(opt);
+          count++;
+        }
+      }
+      if (count >= 50) break; // Limit rendering to 50 items for instant 0ms response!
+    }
+    return results;
+  }, []);
 
   const fetchShipTo = async (searchVal = "") => {
     if (!selectedTenant) return;
@@ -424,6 +518,151 @@ export default function CreateInvoice() {
       setShipToInputValue("");
     }
   }, [formData.shipToId, shipToOptions, buyers]);
+
+  const handleSelectBillTo = async (newValue) => {
+    if (!newValue) {
+      setSelectedBillTo(null);
+      setBillToInputValue("");
+      handleChange("billToId", "");
+      return;
+    }
+
+    if (newValue.id === "__add__") {
+      setIsBillToModalOpen(true);
+      return;
+    }
+
+    if (newValue.isBuyer) {
+      const rawB = newValue.rawBuyer || newValue;
+      const bName = rawB.buyerBusinessName || newValue.name || "";
+      const bAddress = rawB.buyerAddress || newValue.address || "";
+      const bNtn = rawB.buyerNTNCNIC || newValue.ntn || "";
+
+      // Check if a BillTo record already exists for this buyer in billToOptions
+      const existing = billToOptions.find(
+        (o) =>
+          (bNtn && o.ntn === bNtn) ||
+          (o.name && o.name.toLowerCase() === bName.toLowerCase())
+      );
+
+      if (existing) {
+        setSelectedBillTo(existing);
+        setBillToInputValue(existing.name || bName);
+        handleChange("billToId", existing.id);
+      } else if (selectedTenant) {
+        try {
+          const payload = {
+            name: bName,
+            address: bAddress || "N/A",
+            refNo: rawB.buyerRegistrationType || bNtn || "BUYER",
+            ntn: bNtn,
+            strn: "",
+          };
+          const res = await api.post(
+            `/tenant/${selectedTenant.tenant_id}/bill-to`,
+            payload
+          );
+          if (res.data && res.data.success && res.data.data) {
+            const newRecord = res.data.data;
+            setBillToOptions((prev) => [newRecord, ...prev]);
+            setSelectedBillTo(newRecord);
+            setBillToInputValue(newRecord.name || bName);
+            handleChange("billToId", newRecord.id);
+          } else {
+            setSelectedBillTo(newValue);
+            setBillToInputValue(bName);
+            handleChange("billToId", newValue.id);
+          }
+        } catch (err) {
+          console.error("Error auto-creating Bill To record for buyer:", err);
+          setSelectedBillTo(newValue);
+          setBillToInputValue(bName);
+          handleChange("billToId", newValue.id);
+        }
+      } else {
+        setSelectedBillTo(newValue);
+        setBillToInputValue(bName);
+        handleChange("billToId", newValue.id);
+      }
+    } else {
+      setSelectedBillTo(newValue);
+      setBillToInputValue(newValue.name || "");
+      handleChange("billToId", newValue.id);
+    }
+  };
+
+  const handleSelectShipTo = async (newValue) => {
+    if (!newValue) {
+      setSelectedShipTo(null);
+      setShipToInputValue("");
+      handleChange("shipToId", "");
+      return;
+    }
+
+    if (newValue.id === "__add__") {
+      setIsShipToModalOpen(true);
+      return;
+    }
+
+    if (newValue.isBuyer) {
+      const rawB = newValue.rawBuyer || newValue;
+      const bName = rawB.buyerBusinessName || newValue.name || "";
+      const bAddress = rawB.buyerAddress || newValue.address || "";
+      const bNtn = rawB.buyerNTNCNIC || newValue.ntn || "";
+
+      // Check if a ShipTo record already exists for this buyer in shipToOptions
+      const existing = shipToOptions.find(
+        (o) =>
+          (bNtn && o.ntn === bNtn) ||
+          (o.name && o.name.toLowerCase() === bName.toLowerCase())
+      );
+
+      if (existing) {
+        setSelectedShipTo(existing);
+        setShipToInputValue(existing.name || bName);
+        handleChange("shipToId", existing.id);
+      } else if (selectedTenant) {
+        try {
+          const payload = {
+            name: bName,
+            address: bAddress || "N/A",
+            contactPerson: "",
+            contactNo: rawB.buyerPhoneNumber || "",
+            cnic: bNtn && bNtn.length === 13 ? bNtn : "",
+            ntn: bNtn,
+          };
+          const res = await api.post(
+            `/tenant/${selectedTenant.tenant_id}/ship-to`,
+            payload
+          );
+          if (res.data && res.data.success && res.data.data) {
+            const newRecord = res.data.data;
+            setShipToOptions((prev) => [newRecord, ...prev]);
+            setSelectedShipTo(newRecord);
+            setShipToInputValue(newRecord.name || bName);
+            handleChange("shipToId", newRecord.id);
+          } else {
+            setSelectedShipTo(newValue);
+            setShipToInputValue(bName);
+            handleChange("shipToId", newValue.id);
+          }
+        } catch (err) {
+          console.error("Error auto-creating Ship To record for buyer:", err);
+          setSelectedShipTo(newValue);
+          setShipToInputValue(bName);
+          handleChange("shipToId", newValue.id);
+        }
+      } else {
+        setSelectedShipTo(newValue);
+        setShipToInputValue(bName);
+        handleChange("shipToId", newValue.id);
+      }
+    } else {
+      setSelectedShipTo(newValue);
+      setShipToInputValue(newValue.name || "");
+      handleChange("shipToId", newValue.id);
+    }
+  };
 
   // Bill To & Ship To Creation Form States & Handlers
   const [shipToForm, setShipToForm] = useState({
@@ -1376,6 +1615,7 @@ export default function CreateInvoice() {
               item.retailPrice || item.fixedNotifiedValueOrRetailPrice || "0",
             itemCode: item.item_code || item.itemCode || "",
             units: item.units || "",
+            weight: item.weight !== undefined && item.weight !== null ? String(item.weight) : "",
             qtyForInternal: item.qtyForInternal !== undefined && item.qtyForInternal !== null ? String(item.qtyForInternal) : "",
             courierCharges: item.courier_charges !== undefined
               ? String(item.courier_charges)
@@ -1764,8 +2004,11 @@ export default function CreateInvoice() {
           const valueSales = parseFloat(
             parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
           );
-          const quantity = parseFloat(item.quantity || 0);
-          const unitCost = quantity > 0 ? valueSales / quantity : 0;
+          const qtyForUnitCost =
+            parseFloat(item.qtyForInternal || 0) > 0
+              ? parseFloat(item.qtyForInternal)
+              : parseFloat(item.quantity || 0);
+          const unitCost = qtyForUnitCost > 0 ? valueSales / qtyForUnitCost : 0;
           return {
             ...item,
             unitPrice: unitCost.toFixed(2),
@@ -2405,6 +2648,37 @@ export default function CreateInvoice() {
         }
       }
 
+      // Auto-calculate quantity (Qty in KGS / For FBR) when qtyForInternal or product weight changes
+      if (field === "qtyForInternal" || field === "weight") {
+        const prodId = selectedProductIdByItem[index];
+        const selectedProd = products.find(
+          (p) => String(p.id) === String(prodId)
+        );
+        const weightVal =
+          field === "weight"
+            ? value
+            : item.weight !== undefined && item.weight !== ""
+            ? item.weight
+            : selectedProd?.weight !== undefined && selectedProd?.weight !== null
+            ? String(selectedProd.weight)
+            : "";
+
+        const qtyInternalVal =
+          field === "qtyForInternal" ? value : item.qtyForInternal;
+
+        const wNum = parseFloat(weightVal);
+        const qIntNum = parseFloat(qtyInternalVal);
+
+        if (!isNaN(wNum) && !isNaN(qIntNum) && wNum > 0 && qIntNum > 0) {
+          const calcQty = wNum * qIntNum;
+          item.quantity = Number.isInteger(calcQty)
+            ? calcQty.toString()
+            : calcQty.toFixed(2);
+        } else if (field === "qtyForInternal" && (value === "" || qIntNum === 0)) {
+          item.quantity = "";
+        }
+      }
+
       // Handle SRO reset logic
       if (field === "rate" && value) {
         item.isSROScheduleEnabled = true;
@@ -2431,10 +2705,13 @@ export default function CreateInvoice() {
         const valueSales = parseFloat(
           parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
         );
-        const quantity = parseFloat(item.quantity || 0);
+        const qtyForUnitCost =
+          parseFloat(item.qtyForInternal || 0) > 0
+            ? parseFloat(item.qtyForInternal)
+            : parseFloat(item.quantity || 0);
 
-        // Calculate unit cost: Value Sales (Excl ST) ÷ Quantity
-        const unitCost = quantity > 0 ? valueSales / quantity : 0;
+        // Calculate unit cost: Value Sales (Excl ST) ÷ Qty (For Internal Use)
+        const unitCost = qtyForUnitCost > 0 ? valueSales / qtyForUnitCost : 0;
         item.unitPrice = unitCost.toFixed(2);
 
         // Ensure unit cost is always calculated when retail price or quantity changes
@@ -2488,8 +2765,11 @@ export default function CreateInvoice() {
         const valueSales = parseFloat(
           parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
         );
-        const quantity = parseFloat(item.quantity || 0);
-        const unitCost = quantity > 0 ? valueSales / quantity : 0;
+        const qtyForUnitCost =
+          parseFloat(item.qtyForInternal || 0) > 0
+            ? parseFloat(item.qtyForInternal)
+            : parseFloat(item.quantity || 0);
+        const unitCost = qtyForUnitCost > 0 ? valueSales / qtyForUnitCost : 0;
         item.unitPrice = unitCost.toFixed(2);
 
         // Only calculate sales tax if not manually entered
@@ -2551,7 +2831,10 @@ export default function CreateInvoice() {
       item.vatAmount = vat18Amt + vat25Amt;
 
       if (!item.isTotalValuesManual) {
-        const qty = parseFloat(item.quantity || 0);
+        const qtyForTotal =
+          parseFloat(item.qtyForInternal || 0) > 0
+            ? parseFloat(item.qtyForInternal)
+            : parseFloat(item.quantity || 0);
         const unitCostForTotal = parseFloat(item.unitPrice || 0);
         const courierForTotal = parseFloat(item.courierCharges || 0);
         const salesTaxApp = parseFloat(item.salesTaxApplicable || 0);
@@ -2563,7 +2846,7 @@ export default function CreateInvoice() {
 
         const rowLineTotal = Number(
           (
-            (qty * unitCostForTotal) +
+            (qtyForTotal * unitCostForTotal) +
             courierForTotal +
             salesTaxApp +
             salesTaxWithheld +
@@ -2673,6 +2956,7 @@ export default function CreateInvoice() {
           retailPrice: "0", // User input field
           itemCode: "",
           units: "",
+          weight: "",
           qtyForInternal: "",
           courierCharges: "0",
           totalValues: "0",
@@ -4948,55 +5232,16 @@ export default function CreateInvoice() {
             <Autocomplete
               fullWidth
               size="small"
-              options={(() => {
-                const opts = [{ id: "__add__", name: "+ Add Bill To" }];
-                
-                // Include registered Buyers formatted for Bill To selection
-                buyers.forEach((b) => {
-                  const bOpt = {
-                    id: `buyer_${b.id}`,
-                    buyerId: b.id,
-                    name: b.buyerBusinessName || "",
-                    address: b.buyerAddress || "",
-                    ntn: b.buyerNTNCNIC || "",
-                    isBuyer: true,
-                    rawBuyer: b,
-                  };
-                  if (!selectedBillTo || String(bOpt.id) !== String(selectedBillTo.id)) {
-                    opts.push(bOpt);
-                  }
-                });
-
-                // Include custom Bill To options
-                billToOptions.forEach((o) => {
-                  if (!selectedBillTo || String(o.id) !== String(selectedBillTo.id)) {
-                    opts.push(o);
-                  }
-                });
-
-                if (selectedBillTo) {
-                  opts.splice(1, 0, selectedBillTo);
-                }
-
-                return opts;
-              })()}
+              options={billToCombinedOptions}
+              filterOptions={customFilterBillToOptions}
               getOptionLabel={(option) => option.name || ""}
               value={selectedBillTo}
               inputValue={billToInputValue}
-              onInputChange={(event, newValue, reason) => {
+              onInputChange={(event, newValue) => {
                 setBillToInputValue(newValue);
-                if (reason === "input") {
-                  setBillToSearch(newValue);
-                  fetchBillTo(newValue);
-                }
               }}
               onChange={(event, newValue) => {
-                if (newValue?.id === "__add__") {
-                  setIsBillToModalOpen(true);
-                  return;
-                }
-                setSelectedBillTo(newValue);
-                handleChange("billToId", newValue?.id || "");
+                handleSelectBillTo(newValue);
               }}
               renderInput={(params) => (
                 <TextField
@@ -5049,55 +5294,16 @@ export default function CreateInvoice() {
             <Autocomplete
               fullWidth
               size="small"
-              options={(() => {
-                const opts = [{ id: "__add__", name: "+ Add Ship To" }];
-
-                // Include registered Buyers formatted for Ship To selection
-                buyers.forEach((b) => {
-                  const bOpt = {
-                    id: `buyer_${b.id}`,
-                    buyerId: b.id,
-                    name: b.buyerBusinessName || "",
-                    address: b.buyerAddress || "",
-                    ntn: b.buyerNTNCNIC || "",
-                    isBuyer: true,
-                    rawBuyer: b,
-                  };
-                  if (!selectedShipTo || String(bOpt.id) !== String(selectedShipTo.id)) {
-                    opts.push(bOpt);
-                  }
-                });
-
-                // Include custom Ship To options
-                shipToOptions.forEach((o) => {
-                  if (!selectedShipTo || String(o.id) !== String(selectedShipTo.id)) {
-                    opts.push(o);
-                  }
-                });
-
-                if (selectedShipTo) {
-                  opts.splice(1, 0, selectedShipTo);
-                }
-
-                return opts;
-              })()}
+              options={shipToCombinedOptions}
+              filterOptions={customFilterShipToOptions}
               getOptionLabel={(option) => option.name || ""}
               value={selectedShipTo}
               inputValue={shipToInputValue}
-              onInputChange={(event, newValue, reason) => {
+              onInputChange={(event, newValue) => {
                 setShipToInputValue(newValue);
-                if (reason === "input") {
-                  setShipToSearch(newValue);
-                  fetchShipTo(newValue);
-                }
               }}
               onChange={(event, newValue) => {
-                if (newValue?.id === "__add__") {
-                  setIsShipToModalOpen(true);
-                  return;
-                }
-                setSelectedShipTo(newValue);
-                handleChange("shipToId", newValue?.id || "");
+                handleSelectShipTo(newValue);
               }}
               renderInput={(params) => (
                 <TextField
@@ -5365,6 +5571,23 @@ export default function CreateInvoice() {
                     ? `${newValue.buyerBusinessName} (${newValue.buyerNTNCNIC})`
                     : "";
                   setBuyerInputValue(label);
+
+                  const buyerOpt = {
+                    id: `buyer_${newValue.id}`,
+                    buyerId: newValue.id,
+                    name: newValue.buyerBusinessName || "",
+                    address: newValue.buyerAddress || "",
+                    ntn: newValue.buyerNTNCNIC || "",
+                    isBuyer: true,
+                    rawBuyer: newValue,
+                  };
+
+                  if (!selectedBillTo) {
+                    handleSelectBillTo(buyerOpt);
+                  }
+                  if (!selectedShipTo) {
+                    handleSelectShipTo(buyerOpt);
+                  }
                 }}
                 renderInput={(params) => (
                   <TextField
@@ -6029,11 +6252,19 @@ export default function CreateInvoice() {
                             "productDescription",
                             newVal.description || "",
                           );
+                          handleItemChange(
+                            index,
+                            "weight",
+                            newVal.weight !== undefined && newVal.weight !== null
+                              ? String(newVal.weight)
+                              : "",
+                          );
                         } else {
                           // Clear product fields if selection is cleared
                           handleItemChange(index, "name", "");
                           handleItemChange(index, "hsCode", "");
                           handleItemChange(index, "productDescription", "");
+                          handleItemChange(index, "weight", "");
                         }
                       }}
                       renderInput={(params) => (

@@ -29,6 +29,7 @@ export const listProducts = async (req, res) => {
       where[Op.or] = [
         { name: { [Op.like]: like } },
         { description: { [Op.like]: like } },
+        { weight: { [Op.like]: like } },
         { hsCode: { [Op.like]: like } },
         { uom: { [Op.like]: like } },
       ];
@@ -75,6 +76,7 @@ export const getAllProductsWithoutPagination = async (req, res) => {
       whereClause[req.tenantDb.Sequelize.Op.or] = [
         { name: { [req.tenantDb.Sequelize.Op.like]: `%${search}%` } },
         { description: { [req.tenantDb.Sequelize.Op.like]: `%${search}%` } },
+        { weight: { [req.tenantDb.Sequelize.Op.like]: `%${search}%` } },
         { hsCode: { [req.tenantDb.Sequelize.Op.like]: `%${search}%` } },
         { uom: { [req.tenantDb.Sequelize.Op.like]: `%${search}%` } },
       ];
@@ -105,7 +107,7 @@ export const getAllProductsWithoutPagination = async (req, res) => {
 export const createProduct = async (req, res) => {
   try {
     const { Product } = req.tenantModels;
-    const { name, description, hsCode, uom } = req.body;
+    const { name, description, weight, hsCode, uom } = req.body;
 
     // Validate required fields
     if (!name)
@@ -123,6 +125,7 @@ export const createProduct = async (req, res) => {
     const product = await Product.create({
       name,
       description,
+      weight,
       hsCode: hsCode.trim(),
       uom,
       created_by_user_id: req.user?.userId || req.user?.id || null,
@@ -143,6 +146,7 @@ export const createProduct = async (req, res) => {
         id: product.id,
         name: product.name,
         description: product.description,
+        weight: product.weight,
         hsCode: product.hsCode,
         uom: product.uom,
         created_by_user_id: product.created_by_user_id,
@@ -188,7 +192,7 @@ export const updateProduct = async (req, res) => {
   try {
     const { Product } = req.tenantModels;
     const { id } = req.params;
-    const { name, description, hsCode, uom } = req.body;
+    const { name, description, weight, hsCode, uom } = req.body;
 
     const product = await Product.findByPk(id);
     if (!product) {
@@ -269,6 +273,7 @@ export const updateProduct = async (req, res) => {
       id: product.id,
       name: product.name,
       description: product.description,
+      weight: product.weight,
       hsCode: product.hsCode,
       uom: product.uom,
     };
@@ -278,7 +283,7 @@ export const updateProduct = async (req, res) => {
 
     console.log(`[Product Controller] About to update product ID ${product.id}`);
     console.log(`[Product Controller] Old values:`, oldValues);
-    console.log(`[Product Controller] New values:`, { name, description, hsCode, uom });
+    console.log(`[Product Controller] New values:`, { name, description, weight, hsCode, uom });
 
     // Update product - this will trigger the afterUpdate hook
     // Note: individualHooks must be true for afterUpdate to fire
@@ -291,6 +296,7 @@ export const updateProduct = async (req, res) => {
       await product.update({
         name,
         description,
+        weight,
         hsCode,
         uom,
       }, {
@@ -436,6 +442,7 @@ export const updateProduct = async (req, res) => {
         id: product.id,
         name: product.name,
         description: product.description,
+        weight: product.weight,
         hsCode: product.hsCode,
         uom: product.uom,
       }, // newValues
@@ -531,6 +538,7 @@ export const checkExistingProducts = async (req, res) => {
           product.description ||
           product.productDescription ||
           product.ProductDescription,
+        weight: product.weight || product.Weight,
         hsCode: product.hsCode || product.HSCode || product.hs_code,
         uom: product.uom || product.UOM || product.unitOfMeasure,
       }))
@@ -551,7 +559,7 @@ export const checkExistingProducts = async (req, res) => {
       where: {
         name: { [Op.in]: names },
       },
-      attributes: ["id", "name", "hsCode", "description", "uom"],
+      attributes: ["id", "name", "hsCode", "description", "weight", "uom"],
     });
 
     // Create lookup map for O(1) performance
@@ -700,6 +708,7 @@ export const bulkCreateProducts = async (req, res) => {
       const chunkData = chunk.map((product) => ({
         name: product.name,
         description: product.description || product.productDescription || null,
+        weight: product.weight || null,
         hsCode: product.hsCode,
         uom: product.uom,
         createdAt: new Date(),

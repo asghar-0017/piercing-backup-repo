@@ -22,7 +22,6 @@ import RegisterUser from "../pages/RegisterUser";
 import { RegisteredUsers } from "../pages/RegisteredUsers";
 import Buyers from "../pages/Buyers";
 import Products from "../pages/Products";
-import BillToShipTo from "../pages/BillToShipTo";
 import TenantManagement from "../pages/TenantManagement";
 import UserManagement from "../pages/UserManagement";
 import SalesReport from "../pages/SalesReport";
@@ -114,14 +113,6 @@ const AppRouter = () => {
                   element={
                     <PermissionRoute permission="product.view">
                       <Products />
-                    </PermissionRoute>
-                  } 
-                />
-                <Route 
-                  path="bill-to-ship-to" 
-                  element={
-                    <PermissionRoute permission="buyer.view">
-                      <BillToShipTo />
                     </PermissionRoute>
                   } 
                 />

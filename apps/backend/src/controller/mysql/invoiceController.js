@@ -1923,7 +1923,7 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
 export const getAllInvoices = async (req, res) => {
   try {
-    const { Invoice, InvoiceItem } = req.tenantModels;
+    const { Invoice, InvoiceItem, BillToShipTo } = req.tenantModels;
 
     const {
       page = 1,
@@ -2760,6 +2760,16 @@ export const getAllInvoices = async (req, res) => {
           as: "InvoiceItems",
           required: false,
         },
+        {
+          model: BillToShipTo,
+          as: "BillTo",
+          required: false,
+        },
+        {
+          model: BillToShipTo,
+          as: "ShipTo",
+          required: false,
+        },
       ],
 
       // Fix incorrect counts and pagination when using includes
@@ -2845,6 +2855,18 @@ export const getAllInvoices = async (req, res) => {
         sourceInvoiceNo: plainInvoice.sourceInvoiceNo,
 
         fbr_invoice_number: plainInvoice.fbr_invoice_number,
+
+        billToId: plainInvoice.bill_to_id || null,
+
+        shipToId: plainInvoice.ship_to_id || null,
+
+        billToName: plainInvoice.BillTo?.name || plainInvoice.billToName || "",
+
+        shipToName: plainInvoice.ShipTo?.name || plainInvoice.shipToName || "",
+
+        BillTo: plainInvoice.BillTo || null,
+
+        ShipTo: plainInvoice.ShipTo || null,
 
         items: (plainInvoice.InvoiceItems || []).map((item) => ({
           ...item,
@@ -4822,22 +4844,34 @@ export const bulkCreateInvoices = async (req, res) => {
     // PHASE 1: Data Preparation & Validation (Parallel)
     const validationStart = process.hrtime.bigint();
 
-    // Extract unique buyer NTN/CNIC for batch validation
-    const uniqueBuyerNTNs = [
+    // Extract all unique NTNs and names (buyerNTNCNIC, billToNTN/Name, shipToNTN/Name) for batch fetching Buyers
+    const allTargetNTNs = [
       ...new Set(
         invoices
-          .map((inv) => inv.buyerNTNCNIC)
-          .filter((ntn) => ntn && ntn.trim()),
+          .flatMap((inv) => [
+            inv.buyerNTNCNIC,
+            inv.billToNTN,
+            inv.billToName,
+            inv.shipToNTN,
+            inv.shipToName,
+          ])
+          .filter((val) => val && String(val).trim()),
       ),
     ];
 
     // Batch fetch existing buyers to avoid individual queries
-    console.log(`🔍 DEBUG: About to query buyers with NTNs:`, uniqueBuyerNTNs);
+    console.log(`🔍 DEBUG: Querying buyers with target NTNs/Names:`, allTargetNTNs);
     const existingBuyers =
-      uniqueBuyerNTNs.length > 0
+      allTargetNTNs.length > 0
         ? await Buyer.findAll({
-          where: { buyerNTNCNIC: uniqueBuyerNTNs },
+          where: {
+            [Invoice.sequelize.Sequelize.Op.or]: [
+              { buyerNTNCNIC: allTargetNTNs },
+              { buyerBusinessName: allTargetNTNs },
+            ],
+          },
           attributes: [
+            "id",
             "buyerNTNCNIC",
             "buyerBusinessName",
             "buyerProvince",
@@ -4847,84 +4881,104 @@ export const bulkCreateInvoices = async (req, res) => {
         })
         : [];
 
-    // DEBUG: Also check total buyers in database
-    const totalBuyersInDb = await Buyer.count();
-    console.log(`🔍 DEBUG: Total buyers in database: ${totalBuyersInDb}`);
+    // Create lookup helper for Buyers by NTN or Name
+    const findBuyerByNtnOrName = (inputVal) => {
+      if (!inputVal || existingBuyers.length === 0) return null;
+      const raw = String(inputVal).trim().toLowerCase();
+      if (!raw) return null;
+      const clean = raw.replace(/[^a-zA-Z0-9]/g, "");
 
-    // Create lookup maps for O(1) access
-    const existingBuyerMap = new Map(
-      existingBuyers.map((buyer) => [buyer.buyerNTNCNIC, buyer]),
-    );
+      // 1. Match by buyerNTNCNIC
+      let found = existingBuyers.find(
+        (b) =>
+          b.buyerNTNCNIC &&
+          (String(b.buyerNTNCNIC).trim().toLowerCase() === raw ||
+            String(b.buyerNTNCNIC).replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === clean),
+      );
+      if (found) return found;
+
+      // 2. Match by buyerBusinessName
+      found = existingBuyers.find(
+        (b) =>
+          b.buyerBusinessName &&
+          String(b.buyerBusinessName).trim().toLowerCase() === raw,
+      );
+      return found || null;
+    };
+
+    // Lookup map for O(1) NTN validation
+    const existingBuyerMap = new Map();
+    existingBuyers.forEach((buyer) => {
+      if (buyer.buyerNTNCNIC) {
+        const raw = buyer.buyerNTNCNIC.trim();
+        const clean = raw.replace(/[^a-zA-Z0-9]/g, "");
+        existingBuyerMap.set(raw, buyer);
+        existingBuyerMap.set(clean, buyer);
+      }
+    });
 
     console.log(
-      `🔍 Found ${existingBuyers.length} existing buyers in database`,
+      `🔍 Found ${existingBuyers.length} matching buyers in database`,
     );
 
-    // Batch fetch BillTo and ShipTo records for name→id lookup
+    // Batch fetch BillTo and ShipTo records for NTN/CNIC/name→id lookup
     const { BillToShipTo } = req.tenantModels;
-    const uniqueBillToNames = [
-      ...new Set(
-        invoices
-          .map((inv) => String(inv.billToName || "").trim())
-          .filter(Boolean),
-      ),
-    ];
-    const uniqueShipToNames = [
-      ...new Set(
-        invoices
-          .map((inv) => String(inv.shipToName || "").trim())
-          .filter(Boolean),
-      ),
-    ];
-
     const [billToRecords, shipToRecords] = await Promise.all([
-      uniqueBillToNames.length > 0
-        ? BillToShipTo.findAll({
-            where: {
-              type: "BILL_TO",
-              name: {
-                [Invoice.sequelize.Sequelize.Op.in]: uniqueBillToNames,
-              },
-            },
-            attributes: ["id", "name", "address", "contactPerson", "contactNo", "ntn", "cnic", "refNo", "strn"],
-          })
-        : Promise.resolve([]),
-      uniqueShipToNames.length > 0
-        ? BillToShipTo.findAll({
-            where: {
-              type: "SHIP_TO",
-              name: {
-                [Invoice.sequelize.Sequelize.Op.in]: uniqueShipToNames,
-              },
-            },
-            attributes: ["id", "name", "address", "contactPerson", "contactNo", "ntn", "cnic"],
-          })
-        : Promise.resolve([]),
+      BillToShipTo.findAll({
+        where: { type: "BILL_TO" },
+        attributes: ["id", "name", "address", "contactPerson", "contactNo", "ntn", "cnic", "refNo", "strn"],
+      }),
+      BillToShipTo.findAll({
+        where: { type: "SHIP_TO" },
+        attributes: ["id", "name", "address", "contactPerson", "contactNo", "ntn", "cnic"],
+      }),
     ]);
 
-    // Build case-insensitive name → record maps
-    const billToByName = new Map();
-    billToRecords.forEach((r) => {
-      billToByName.set(r.name.trim().toLowerCase(), r);
-    });
-    const shipToByName = new Map();
-    shipToRecords.forEach((r) => {
-      shipToByName.set(r.name.trim().toLowerCase(), r);
-    });
+    const findBillToShipToRecordInBackend = (inputVal, records) => {
+      if (!inputVal || !records || records.length === 0) return null;
+      const raw = String(inputVal).trim().toLowerCase();
+      if (!raw) return null;
+      const clean = raw.replace(/[^a-zA-Z0-9]/g, "");
+
+      // 1. Match by NTN
+      let found = records.find(
+        (r) =>
+          r.ntn &&
+          (String(r.ntn).trim().toLowerCase() === raw ||
+            String(r.ntn).replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === clean),
+      );
+      if (found) return found;
+
+      // 2. Match by CNIC
+      found = records.find(
+        (r) =>
+          r.cnic &&
+          (String(r.cnic).trim().toLowerCase() === raw ||
+            String(r.cnic).replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === clean),
+      );
+      if (found) return found;
+
+      // 3. Match by Name
+      found = records.find(
+        (r) => r.name && String(r.name).trim().toLowerCase() === raw,
+      );
+      if (found) return found;
+
+      // 4. Match by Ref No or STRN
+      found = records.find(
+        (r) =>
+          (r.refNo && String(r.refNo).trim().toLowerCase() === raw) ||
+          (r.strn && String(r.strn).trim().toLowerCase() === raw),
+      );
+      return found || null;
+    };
 
     console.log(`🔍 Found ${billToRecords.length} Bill To records, ${shipToRecords.length} Ship To records`);
     console.log(
       `🔍 Buyer NTNs in database:`,
       existingBuyers.map((b) => b.buyerNTNCNIC),
     );
-    console.log(`🔍 Buyer NTNs from CSV:`, uniqueBuyerNTNs);
-    console.log(`🔍 DEBUG: uniqueBuyerNTNs length: ${uniqueBuyerNTNs.length}`);
-    console.log(`🔍 DEBUG: uniqueBuyerNTNs values:`, uniqueBuyerNTNs);
-    console.log(`🔍 DEBUG: existingBuyerMap size: ${existingBuyerMap.size}`);
-    console.log(
-      `🔍 DEBUG: existingBuyerMap keys:`,
-      Array.from(existingBuyerMap.keys()),
-    );
+    console.log(`🔍 Target NTNs/Names from CSV:`, allTargetNTNs);
 
     // Extract unique product names for batch validation
     const uniqueProductNames = [
@@ -5505,6 +5559,112 @@ export const bulkCreateInvoices = async (req, res) => {
         const sourceInvoiceNo = invoiceData.sourceInvoiceNo || invoiceData.companyInvoiceRefNo;
 
         // Prepare invoice data for batch insert
+        // Resolve or auto-create Bill To record in DB
+        let resolvedBillToId = invoiceData.billToId ||
+          findBillToShipToRecordInBackend(invoiceData.billToName || invoiceData.billToNTN, billToRecords)?.id || null;
+
+        if (!resolvedBillToId && (invoiceData.billToName || invoiceData.billToNTN || invoiceData.buyerNTNCNIC)) {
+          const targetVal = invoiceData.billToName || invoiceData.billToNTN || invoiceData.buyerNTNCNIC;
+          const matchedBuyer = findBuyerByNtnOrName(targetVal);
+
+          if (matchedBuyer) {
+            const existingBillTo = findBillToShipToRecordInBackend(matchedBuyer.buyerNTNCNIC || matchedBuyer.buyerBusinessName, billToRecords);
+            if (existingBillTo) {
+              resolvedBillToId = existingBillTo.id;
+            } else {
+              try {
+                const createdBillTo = await BillToShipTo.create({
+                  type: "BILL_TO",
+                  name: matchedBuyer.buyerBusinessName || `Bill To (${targetVal})`,
+                  address: matchedBuyer.buyerAddress || invoiceData.buyerAddress || "N/A",
+                  ntn: matchedBuyer.buyerNTNCNIC || targetVal,
+                  cnic: matchedBuyer.buyerNTNCNIC && String(matchedBuyer.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? matchedBuyer.buyerNTNCNIC : null,
+                });
+                resolvedBillToId = createdBillTo.id;
+                billToRecords.push(createdBillTo);
+                console.log(`✅ Auto-created Bill To record from Buyer data (ID: ${createdBillTo.id}, Name: "${createdBillTo.name}", NTN: "${createdBillTo.ntn}")`);
+              } catch (err) {
+                console.error("Error creating Bill To from Buyer:", err.message);
+              }
+            }
+          } else {
+            try {
+              const rawVal = String(targetVal).trim();
+              const isNtn = /^[0-9\-]{7,15}$/.test(rawVal);
+              const newName = isNtn
+                ? (invoiceData.buyerBusinessName || `Bill To (${rawVal})`)
+                : (invoiceData.billToName || invoiceData.buyerBusinessName || "Bill To Record");
+              const newNtn = isNtn ? rawVal : (invoiceData.billToNTN || invoiceData.buyerNTNCNIC || null);
+
+              const createdBillTo = await BillToShipTo.create({
+                type: "BILL_TO",
+                name: newName,
+                address: invoiceData.buyerAddress || "N/A",
+                ntn: newNtn,
+                cnic: invoiceData.buyerNTNCNIC && String(invoiceData.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? invoiceData.buyerNTNCNIC : null,
+              });
+              resolvedBillToId = createdBillTo.id;
+              billToRecords.push(createdBillTo);
+              console.log(`✅ Auto-created Bill To record from raw input (ID: ${createdBillTo.id}, Name: "${newName}", NTN: "${newNtn}")`);
+            } catch (err) {
+              console.error("Error auto-creating Bill To record:", err.message);
+            }
+          }
+        }
+
+        // Resolve or auto-create Ship To record in DB
+        let resolvedShipToId = invoiceData.shipToId ||
+          findBillToShipToRecordInBackend(invoiceData.shipToName || invoiceData.shipToNTN, shipToRecords)?.id || null;
+
+        if (!resolvedShipToId && (invoiceData.shipToName || invoiceData.shipToNTN || invoiceData.buyerNTNCNIC)) {
+          const targetVal = invoiceData.shipToName || invoiceData.shipToNTN || invoiceData.buyerNTNCNIC;
+          const matchedBuyer = findBuyerByNtnOrName(targetVal);
+
+          if (matchedBuyer) {
+            const existingShipTo = findBillToShipToRecordInBackend(matchedBuyer.buyerNTNCNIC || matchedBuyer.buyerBusinessName, shipToRecords);
+            if (existingShipTo) {
+              resolvedShipToId = existingShipTo.id;
+            } else {
+              try {
+                const createdShipTo = await BillToShipTo.create({
+                  type: "SHIP_TO",
+                  name: matchedBuyer.buyerBusinessName || `Ship To (${targetVal})`,
+                  address: matchedBuyer.buyerAddress || invoiceData.buyerAddress || "N/A",
+                  ntn: matchedBuyer.buyerNTNCNIC || targetVal,
+                  cnic: matchedBuyer.buyerNTNCNIC && String(matchedBuyer.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? matchedBuyer.buyerNTNCNIC : null,
+                });
+                resolvedShipToId = createdShipTo.id;
+                shipToRecords.push(createdShipTo);
+                console.log(`✅ Auto-created Ship To record from Buyer data (ID: ${createdShipTo.id}, Name: "${createdShipTo.name}", NTN: "${createdShipTo.ntn}")`);
+              } catch (err) {
+                console.error("Error creating Ship To from Buyer:", err.message);
+              }
+            }
+          } else {
+            try {
+              const rawVal = String(targetVal).trim();
+              const isNtn = /^[0-9\-]{7,15}$/.test(rawVal);
+              const newName = isNtn
+                ? (invoiceData.buyerBusinessName || `Ship To (${rawVal})`)
+                : (invoiceData.shipToName || invoiceData.buyerBusinessName || "Ship To Record");
+              const newNtn = isNtn ? rawVal : (invoiceData.shipToNTN || invoiceData.buyerNTNCNIC || null);
+
+              const createdShipTo = await BillToShipTo.create({
+                type: "SHIP_TO",
+                name: newName,
+                address: invoiceData.buyerAddress || "N/A",
+                ntn: newNtn,
+                cnic: invoiceData.buyerNTNCNIC && String(invoiceData.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? invoiceData.buyerNTNCNIC : null,
+              });
+              resolvedShipToId = createdShipTo.id;
+              shipToRecords.push(createdShipTo);
+              console.log(`✅ Auto-created Ship To record from raw input (ID: ${createdShipTo.id}, Name: "${newName}", NTN: "${newNtn}")`);
+            } catch (err) {
+              console.error("Error auto-creating Ship To record:", err.message);
+            }
+          }
+        }
+
         const invoiceRecord = {
           invoice_number: await generateShortInvoiceId(Invoice, "DRAFT"),
           system_invoice_id: systemInvoiceId,
@@ -5542,16 +5702,9 @@ export const bulkCreateInvoices = async (req, res) => {
           paymentTerms: String(invoiceData.paymentTerms || "").trim() || null,
           paymentDue: String(invoiceData.paymentDue || "").trim() || null,
           group: String(invoiceData.group || "").trim() || null,
-          // Bill To / Ship To resolved IDs (name→id done on frontend)
-          // Backend also resolves by name as fallback
-          bill_to_id: invoiceData.billToId ||
-            (invoiceData.billToName
-              ? (billToByName.get(String(invoiceData.billToName).trim().toLowerCase())?.id || null)
-              : null),
-          ship_to_id: invoiceData.shipToId ||
-            (invoiceData.shipToName
-              ? (shipToByName.get(String(invoiceData.shipToName).trim().toLowerCase())?.id || null)
-              : null),
+          // Bill To / Ship To resolved IDs (name→id done on frontend / backend auto-created)
+          bill_to_id: resolvedBillToId,
+          ship_to_id: resolvedShipToId,
           created_by_user_id: req.user?.userId || req.user?.id || null,
           created_by_email: req.user?.email || null,
           created_by_name:

@@ -129,7 +129,6 @@ export default function Sidebar({ onLogout }) {
     { name: "Invoice List", href: "/your-invoices", icon: <BsFileTextFill />, permission: "invoice.view" },
     { name: "Buyers", href: "/buyers", icon: <FaWallet />, permission: "buyer.view" },
     { name: "Products", href: "/products", icon: <InboxIcon />, permission: "product.view" },
-    { name: "Bill To & Ship To", href: "/bill-to-ship-to", icon: <FaWallet />, permission: "buyer.view" },
     { name: "User Management", href: "/user-management", icon: <FaUsers />, permission: "read_user" },
     { name: "Audit Management", href: "/audit-management", icon: <FaClipboardList />, permission: "audit.view" },
     { 

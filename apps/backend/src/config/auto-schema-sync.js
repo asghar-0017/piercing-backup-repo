@@ -314,9 +314,14 @@ class AutoSchemaSync {
       }
     }
   }
-
   async applySchemaPatches(sequelize, databaseType) {
     const patches = [
+      {
+        table: "products",
+        column: "weight",
+        type: "VARCHAR(100)",
+        allowNull: true,
+      },
       {
         table: "buyers",
         column: "buyerCity",

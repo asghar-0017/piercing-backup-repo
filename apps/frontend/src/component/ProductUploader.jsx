@@ -74,6 +74,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   const expectedColumns = [
     "productName",
     "productDescription",
+    "weight",
     "hsCode",
     "uom",
   ];
@@ -82,6 +83,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   const displayToInternalHeaderMap = {
     "Product Name": "productName",
     "Product Description": "productDescription",
+    "Weight": "weight",
     "HS Code": "hsCode",
     "Unit Of Measurement": "uom",
   };
@@ -99,6 +101,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       const visualHeaders = [
         "Product Name",
         "Product Description",
+        "Weight",
         "HS Code",
         "Unit Of Measurement",
       ];

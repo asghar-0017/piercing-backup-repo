@@ -1505,24 +1505,56 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         // Data is already grouped by worker, use it directly
         console.log("🔍 Using already-grouped invoices from worker");
 
-        // Build name→id lookup maps for Bill To and Ship To
-        const billToByName = {};
-        billToRecords.forEach((r) => {
-          if (r.name) billToByName[r.name.trim().toLowerCase()] = r;
-        });
-        const shipToByName = {};
-        shipToRecords.forEach((r) => {
-          if (r.name) shipToByName[r.name.trim().toLowerCase()] = r;
-        });
+        // Helper function for O(1) or smart lookup by NTN, CNIC, Name, STRN, RefNo
+        const findBillToShipToRecord = (inputVal, records) => {
+          if (!inputVal || !records || records.length === 0) return null;
+          const raw = String(inputVal).trim().toLowerCase();
+          if (!raw) return null;
+          const clean = raw.replace(/[^a-zA-Z0-9]/g, "");
+
+          // 1. Match by NTN
+          let found = records.find(
+            (r) =>
+              r.ntn &&
+              (String(r.ntn).trim().toLowerCase() === raw ||
+                String(r.ntn).replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === clean),
+          );
+          if (found) return found;
+
+          // 2. Match by CNIC
+          found = records.find(
+            (r) =>
+              r.cnic &&
+              (String(r.cnic).trim().toLowerCase() === raw ||
+                String(r.cnic).replace(/[^a-zA-Z0-9]/g, "").toLowerCase() === clean),
+          );
+          if (found) return found;
+
+          // 3. Match by Name
+          found = records.find(
+            (r) => r.name && String(r.name).trim().toLowerCase() === raw,
+          );
+          if (found) return found;
+
+          // 4. Match by Ref No or STRN
+          found = records.find(
+            (r) =>
+              (r.refNo && String(r.refNo).trim().toLowerCase() === raw) ||
+              (r.strn && String(r.strn).trim().toLowerCase() === raw),
+          );
+          return found || null;
+        };
 
         invoicesToUpload = previewData.map((invoice) => {
-          // Resolve Bill To name → id
-          const billToMatch = invoice.billToName
-            ? billToByName[String(invoice.billToName).trim().toLowerCase()]
-            : null;
-          const shipToMatch = invoice.shipToName
-            ? shipToByName[String(invoice.shipToName).trim().toLowerCase()]
-            : null;
+          // Resolve Bill To & Ship To by NTN, CNIC, or Name
+          const billToMatch = findBillToShipToRecord(
+            invoice.billToName || invoice.billToNTN,
+            billToRecords,
+          );
+          const shipToMatch = findBillToShipToRecord(
+            invoice.shipToName || invoice.shipToNTN,
+            shipToRecords,
+          );
 
           return {
             ...invoice,
@@ -1538,7 +1570,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             paymentTerms: invoice.paymentTerms || "",
             paymentDue: invoice.paymentDue || "",
             group: invoice.group || "",
-            // Resolve Bill To / Ship To names to IDs
+            // Resolve Bill To / Ship To names/NTNs to IDs and names
+            billToName: billToMatch ? billToMatch.name : (invoice.billToName || ""),
+            shipToName: shipToMatch ? shipToMatch.name : (invoice.shipToName || ""),
             billToId: billToMatch ? billToMatch.id : invoice.billToId || null,
             shipToId: shipToMatch ? shipToMatch.id : invoice.shipToId || null,
             // Ensure seller details are populated from selected tenant
@@ -1743,21 +1777,13 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
               paymentTerms: cleanedItem.paymentTerms || "",
               paymentDue: cleanedItem.paymentDue || "",
               group: cleanedItem.group || "",
-              // Resolve Bill To / Ship To names to IDs
+              // Resolve Bill To / Ship To names/NTNs to IDs
               billToId: (() => {
-                const name = String(cleanedItem.billToName || "").trim().toLowerCase();
-                if (!name) return null;
-                const match = billToRecords.find(
-                  (r) => r.name && r.name.trim().toLowerCase() === name,
-                );
+                const match = findBillToShipToRecord(cleanedItem.billToName || cleanedItem.billToNTN, billToRecords);
                 return match ? match.id : null;
               })(),
               shipToId: (() => {
-                const name = String(cleanedItem.shipToName || "").trim().toLowerCase();
-                if (!name) return null;
-                const match = shipToRecords.find(
-                  (r) => r.name && r.name.trim().toLowerCase() === name,
-                );
+                const match = findBillToShipToRecord(cleanedItem.shipToName || cleanedItem.shipToNTN, shipToRecords);
                 return match ? match.id : null;
               })(),
               items: [cleanedItem],
@@ -1857,6 +1883,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                 ...invoice,
                 billToId: resolved.billToId ?? invoice.billToId ?? null,
                 shipToId: resolved.shipToId ?? invoice.shipToId ?? null,
+                billToName: resolved.billToName || invoice.billToName || "",
+                shipToName: resolved.shipToName || invoice.shipToName || "",
               }
               : invoice,
           );

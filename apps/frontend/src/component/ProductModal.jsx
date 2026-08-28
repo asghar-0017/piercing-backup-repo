@@ -16,6 +16,7 @@ const ProductModal = ({ isOpen, onClose, onSave, initialProduct }) => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    weight: "",
     hsCode: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,9 +29,10 @@ const ProductModal = ({ isOpen, onClose, onSave, initialProduct }) => {
           ? {
               name: initialProduct.name || "",
               description: initialProduct.description || "",
+              weight: initialProduct.weight || "",
               hsCode: initialProduct.hsCode || "",
             }
-          : { name: "", description: "", hsCode: "" }
+          : { name: "", description: "", weight: "", hsCode: "" }
       );
     }
   }, [isOpen, initialProduct]);
@@ -239,6 +241,42 @@ const ProductModal = ({ isOpen, onClose, onSave, initialProduct }) => {
                 }
                 variant="outlined"
                 placeholder="Enter product description"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "rgba(255, 255, 255, 0.6)",
+                    backdropFilter: "blur(10px)",
+                    borderRadius: 2,
+                    "& fieldset": {
+                      borderColor: "rgba(0, 0, 0, 0.12)",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "rgba(0, 0, 0, 0.2)",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "#007AFF",
+                      borderWidth: 2,
+                    },
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: "#1a1a1a",
+                    fontWeight: 500,
+                  },
+                  "& .MuiOutlinedInput-input": {
+                    color: "#1a1a1a",
+                  },
+                }}
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Weight"
+                value={formData.weight}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, weight: e.target.value }))
+                }
+                variant="outlined"
+                placeholder="Enter weight"
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     backgroundColor: "rgba(255, 255, 255, 0.6)",

@@ -17,6 +17,10 @@ export const createProductModel = (sequelize) => {
         type: DataTypes.TEXT,
         allowNull: true,
       },
+      weight: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
       hsCode: {
         type: DataTypes.STRING(50),
         allowNull: true,

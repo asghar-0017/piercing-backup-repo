@@ -46,6 +46,7 @@ export default function ProductTable({
     return (
       (product.name || "").toLowerCase().includes(searchLower) ||
       (product.description || "").toLowerCase().includes(searchLower) ||
+      (product.weight || "").toLowerCase().includes(searchLower) ||
       (product.hsCode || "").toLowerCase().includes(searchLower)
     );
   });
@@ -380,6 +381,7 @@ export default function ProductTable({
                     "S.No",
                     "Name",
                     "Description",
+                    "Weight",
                     "HS Code",
                     "Created By",
                     "Actions",
@@ -445,6 +447,9 @@ export default function ProductTable({
                     </TableCell>
                     <TableCell align="left" sx={{ fontWeight: 500 }}>
                       {product.description || "-"}
+                    </TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 500 }}>
+                      {product.weight || "-"}
                     </TableCell>
                     <TableCell align="center" sx={{ fontWeight: 500 }}>
                       {product.hsCode || "-"}
