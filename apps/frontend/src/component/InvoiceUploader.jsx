@@ -328,6 +328,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "item_hsCode",
     "item_uoM",
     "item_productName",
+    "item_productWeight",
     "item_valueSalesExcludingST",
     "item_quantity",
     "item_qtyForInternal",
@@ -404,6 +405,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Unit of Measurement for (Internal)": "item_uoMForInternal",
     "UoM (For Internal Use)": "item_uoMForInternal",
     "Product Name": "item_productName",
+    "Product Weight": "item_productWeight",
+    "product_weight": "item_productWeight",
+    "productweight": "item_productWeight",
+    "weight": "item_productWeight",
+    "item_productWeight": "item_productWeight",
+    "item_weight": "item_productWeight",
     "Value Sales (Excl ST)": "item_valueSalesExcludingST",
     "Quantity in KGS (For FBR)": "item_quantity",
     Quantity: "item_quantity",
@@ -447,6 +454,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     bill_to: "billToName",
     ship_to: "shipToName",
     product_name: "item_productName",
+    product_weight: "item_productWeight",
+    productweight: "item_productWeight",
+    weight: "item_productWeight",
     hs_code: "item_hsCode",
     hscode: "item_hsCode",
     quantity: "item_quantity",
@@ -454,6 +464,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     unit_cost: "item_unitPrice",
     qty_for_internal: "item_qtyForInternal",
     qty_internal: "item_qtyForInternal",
+    qty_for_internal_use: "item_qtyForInternal",
+    qty_internal_use: "item_qtyForInternal",
     item_code: "item_itemCode",
     units: "item_units",
     courier_charges: "item_courierCharges",
@@ -503,6 +515,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       "SRO Sched": "item_sroScheduleNo",
       "SRO Item": "item_sroItemSerialNo",
       "Product Na": "item_productName",
+      "Product We": "item_productWeight",
       "Value Sale": "item_valueSalesExcludingST",
       "Unit Of Measurement for (FBR)": "item_uoM",
       "Unit Of Measurement for (Internal)": "item_uoMForInternal",
@@ -1636,6 +1649,32 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           });
 
           // Map other item fields to remove the 'item_' prefix
+          if (cleanedItem.item_productWeight !== undefined) {
+            cleanedItem.productWeight = cleanedItem.item_productWeight;
+            cleanedItem.weight = cleanedItem.item_productWeight;
+          }
+
+          // Auto-calculate quantity (Qty in KGS / For FBR) if productWeight and qtyForInternal are provided
+          const pWeightRaw = String(cleanedItem.item_productWeight || cleanedItem.productWeight || cleanedItem.weight || "").trim();
+          const qIntRaw = String(cleanedItem.item_qtyForInternal || cleanedItem.qtyForInternal || "").trim();
+          const pWeightNum = parseFloat(pWeightRaw);
+          const qIntNum = parseFloat(qIntRaw);
+
+          if (!isNaN(pWeightNum) && !isNaN(qIntNum) && pWeightNum > 0 && qIntNum > 0) {
+            const calcQty = pWeightNum * qIntNum;
+            const formattedQty = Number.isInteger(calcQty) ? calcQty : Math.round(calcQty * 100) / 100;
+            cleanedItem.quantity = formattedQty;
+            cleanedItem.item_quantity = formattedQty;
+          }
+
+          // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
+          const vsExclVal = parseFloat(cleanedItem.valueSalesExcludingST || cleanedItem.item_valueSalesExcludingST || 0) || 0;
+          const qIntVal = parseFloat(cleanedItem.item_qtyForInternal || cleanedItem.qtyForInternal || 0) || 0;
+          if (vsExclVal > 0 && qIntVal > 0) {
+            const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
+            cleanedItem.unitPrice = calcUnitPrice;
+            cleanedItem.item_unitPrice = calcUnitPrice;
+          }
           if (cleanedItem.item_hsCode) {
             cleanedItem.hsCode = cleanedItem.item_hsCode;
           }

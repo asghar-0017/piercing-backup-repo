@@ -5001,37 +5001,36 @@ export const bulkCreateInvoices = async (req, res) => {
 
     // Batch fetch existing products to avoid individual queries
     const { Product } = req.tenantModels;
-    const existingProducts =
-      uniqueProductNames.length > 0
-        ? await Product.findAll({
-          where: {
-            name: {
-              [Product.sequelize.Sequelize.Op.in]: uniqueProductNames,
-            },
-          },
-          attributes: ["id", "name", "description", "hsCode", "uom"],
-        })
-        : [];
+    const allTenantProducts = await Product.findAll({
+      attributes: ["id", "name", "description", "hsCode", "uom", "weight"],
+    });
 
     // Create lookup maps for O(1) access - case insensitive
     const existingProductMap = new Map();
-    existingProducts.forEach((product) => {
-      // Add both exact case and lowercase versions for flexible matching
-      existingProductMap.set(product.name.toLowerCase().trim(), product);
-      existingProductMap.set(product.name.trim(), product);
+    const allDbWeightsSet = new Set();
+
+    allTenantProducts.forEach((product) => {
+      if (product.name) {
+        // Add both exact case and lowercase versions for flexible matching
+        existingProductMap.set(product.name.toLowerCase().trim(), product);
+        existingProductMap.set(product.name.trim(), product);
+      }
+      if (product.weight && String(product.weight).trim()) {
+        allDbWeightsSet.add(String(product.weight).trim().toLowerCase());
+      }
     });
 
     console.log(
-      `🔍 Found ${existingProducts.length} existing products in database`,
+      `🔍 Found ${allTenantProducts.length} existing products in database (${allDbWeightsSet.size} unique weights)`,
     );
     console.log(
       `🔍 Product names in database:`,
-      existingProducts.map((p) => p.name),
+      allTenantProducts.map((p) => p.name),
     );
     console.log(`🔍 Product names from CSV:`, uniqueProductNames);
 
     // Safety check: Ensure we have products to validate against
-    if (uniqueProductNames.length > 0 && existingProducts.length === 0) {
+    if (uniqueProductNames.length > 0 && allTenantProducts.length === 0) {
       console.log(
         `⚠️ WARNING: No products found in database but CSV has product names!`,
       );
@@ -5375,6 +5374,39 @@ export const bulkCreateInvoices = async (req, res) => {
             continue;
           }
 
+          // Extract product weight from itemData
+          const productWeight = String(
+            itemData.item_productWeight ||
+            itemData.productWeight ||
+            itemData.weight ||
+            itemData.item_weight ||
+            ""
+          ).trim();
+
+          // Validate product weight is provided (mandatory requirement)
+          if (!productWeight) {
+            console.log(`❌ Product weight is MISSING for item ${j + 1} in invoice ${i + 1}`);
+            validationErrors.push({
+              index: i,
+              row: i + 1,
+              error: `Missing Product Weight (Product weight is required)`,
+            });
+            hasErrorInThisInvoice = true;
+            continue;
+          }
+
+          // Validate product weight existence in DB
+          if (!allDbWeightsSet.has(productWeight.toLowerCase())) {
+            console.log(`❌ Product weight "${productWeight}" NOT FOUND in database`);
+            validationErrors.push({
+              index: i,
+              row: i + 1,
+              error: `Incorrect Product Weight (Product weight "${productWeight}" does not exist in database)`,
+            });
+            hasErrorInThisInvoice = true;
+            continue;
+          }
+
           // Validate product exists in system
           console.log(`🔍 Validating product: "${productName}"`);
           const existingProduct = existingProductMap.get(
@@ -5389,6 +5421,23 @@ export const bulkCreateInvoices = async (req, res) => {
             });
             hasErrorInThisInvoice = true;
             continue;
+          }
+
+          // Validate product weight belongs to this product if provided
+          if (productWeight) {
+            const dbWeight = String(existingProduct.weight || "").trim().toLowerCase();
+            if (dbWeight !== productWeight.toLowerCase()) {
+              console.log(
+                `❌ Product weight "${productWeight}" does not match product weight "${existingProduct.weight}" for product "${productName}"`,
+              );
+              validationErrors.push({
+                index: i,
+                row: i + 1,
+                error: `Incorrect Product Weight (Product weight "${productWeight}" does not belong to product "${productName}")`,
+              });
+              hasErrorInThisInvoice = true;
+              continue;
+            }
           }
 
           console.log(`✅ Product "${productName}" found in system`);
@@ -5559,108 +5608,118 @@ export const bulkCreateInvoices = async (req, res) => {
         const sourceInvoiceNo = invoiceData.sourceInvoiceNo || invoiceData.companyInvoiceRefNo;
 
         // Prepare invoice data for batch insert
-        // Resolve or auto-create Bill To record in DB
-        let resolvedBillToId = invoiceData.billToId ||
-          findBillToShipToRecordInBackend(invoiceData.billToName || invoiceData.billToNTN, billToRecords)?.id || null;
+        // Resolve or auto-create Bill To record in DB ONLY IF explicitly provided in CSV/upload
+        let resolvedBillToId = invoiceData.billToId || null;
+        const hasBillToInput = String(invoiceData.billToName || invoiceData.billToNTN || "").trim() !== "";
 
-        if (!resolvedBillToId && (invoiceData.billToName || invoiceData.billToNTN || invoiceData.buyerNTNCNIC)) {
-          const targetVal = invoiceData.billToName || invoiceData.billToNTN || invoiceData.buyerNTNCNIC;
-          const matchedBuyer = findBuyerByNtnOrName(targetVal);
+        if (!resolvedBillToId && hasBillToInput) {
+          const targetVal = String(invoiceData.billToName || invoiceData.billToNTN).trim();
+          const existingBillTo = findBillToShipToRecordInBackend(targetVal, billToRecords);
 
-          if (matchedBuyer) {
-            const existingBillTo = findBillToShipToRecordInBackend(matchedBuyer.buyerNTNCNIC || matchedBuyer.buyerBusinessName, billToRecords);
-            if (existingBillTo) {
-              resolvedBillToId = existingBillTo.id;
+          if (existingBillTo) {
+            resolvedBillToId = existingBillTo.id;
+          } else {
+            const matchedBuyer = findBuyerByNtnOrName(targetVal);
+            if (matchedBuyer) {
+              const buyerBillToMatch = findBillToShipToRecordInBackend(matchedBuyer.buyerNTNCNIC || matchedBuyer.buyerBusinessName, billToRecords);
+              if (buyerBillToMatch) {
+                resolvedBillToId = buyerBillToMatch.id;
+              } else {
+                try {
+                  const createdBillTo = await BillToShipTo.create({
+                    type: "BILL_TO",
+                    name: matchedBuyer.buyerBusinessName || `Bill To (${targetVal})`,
+                    address: matchedBuyer.buyerAddress || invoiceData.buyerAddress || "N/A",
+                    ntn: matchedBuyer.buyerNTNCNIC || targetVal,
+                    cnic: matchedBuyer.buyerNTNCNIC && String(matchedBuyer.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? matchedBuyer.buyerNTNCNIC : null,
+                  });
+                  resolvedBillToId = createdBillTo.id;
+                  billToRecords.push(createdBillTo);
+                  console.log(`✅ Auto-created Bill To record from explicitly supplied input (ID: ${createdBillTo.id}, Name: "${createdBillTo.name}")`);
+                } catch (err) {
+                  console.error("Error creating Bill To from Buyer:", err.message);
+                }
+              }
             } else {
               try {
+                const rawVal = String(targetVal).trim();
+                const isNtn = /^[0-9\-]{7,15}$/.test(rawVal);
+                const newName = isNtn
+                  ? (invoiceData.buyerBusinessName || `Bill To (${rawVal})`)
+                  : (invoiceData.billToName || "Bill To Record");
+                const newNtn = isNtn ? rawVal : (invoiceData.billToNTN || null);
+
                 const createdBillTo = await BillToShipTo.create({
                   type: "BILL_TO",
-                  name: matchedBuyer.buyerBusinessName || `Bill To (${targetVal})`,
-                  address: matchedBuyer.buyerAddress || invoiceData.buyerAddress || "N/A",
-                  ntn: matchedBuyer.buyerNTNCNIC || targetVal,
-                  cnic: matchedBuyer.buyerNTNCNIC && String(matchedBuyer.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? matchedBuyer.buyerNTNCNIC : null,
+                  name: newName,
+                  address: invoiceData.buyerAddress || "N/A",
+                  ntn: newNtn,
+                  cnic: invoiceData.buyerNTNCNIC && String(invoiceData.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? invoiceData.buyerNTNCNIC : null,
                 });
                 resolvedBillToId = createdBillTo.id;
                 billToRecords.push(createdBillTo);
-                console.log(`✅ Auto-created Bill To record from Buyer data (ID: ${createdBillTo.id}, Name: "${createdBillTo.name}", NTN: "${createdBillTo.ntn}")`);
+                console.log(`✅ Auto-created Bill To record from raw input (ID: ${createdBillTo.id}, Name: "${newName}")`);
               } catch (err) {
-                console.error("Error creating Bill To from Buyer:", err.message);
+                console.error("Error auto-creating Bill To record:", err.message);
               }
-            }
-          } else {
-            try {
-              const rawVal = String(targetVal).trim();
-              const isNtn = /^[0-9\-]{7,15}$/.test(rawVal);
-              const newName = isNtn
-                ? (invoiceData.buyerBusinessName || `Bill To (${rawVal})`)
-                : (invoiceData.billToName || invoiceData.buyerBusinessName || "Bill To Record");
-              const newNtn = isNtn ? rawVal : (invoiceData.billToNTN || invoiceData.buyerNTNCNIC || null);
-
-              const createdBillTo = await BillToShipTo.create({
-                type: "BILL_TO",
-                name: newName,
-                address: invoiceData.buyerAddress || "N/A",
-                ntn: newNtn,
-                cnic: invoiceData.buyerNTNCNIC && String(invoiceData.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? invoiceData.buyerNTNCNIC : null,
-              });
-              resolvedBillToId = createdBillTo.id;
-              billToRecords.push(createdBillTo);
-              console.log(`✅ Auto-created Bill To record from raw input (ID: ${createdBillTo.id}, Name: "${newName}", NTN: "${newNtn}")`);
-            } catch (err) {
-              console.error("Error auto-creating Bill To record:", err.message);
             }
           }
         }
 
-        // Resolve or auto-create Ship To record in DB
-        let resolvedShipToId = invoiceData.shipToId ||
-          findBillToShipToRecordInBackend(invoiceData.shipToName || invoiceData.shipToNTN, shipToRecords)?.id || null;
+        // Resolve or auto-create Ship To record in DB ONLY IF explicitly provided in CSV/upload
+        let resolvedShipToId = invoiceData.shipToId || null;
+        const hasShipToInput = String(invoiceData.shipToName || invoiceData.shipToNTN || "").trim() !== "";
 
-        if (!resolvedShipToId && (invoiceData.shipToName || invoiceData.shipToNTN || invoiceData.buyerNTNCNIC)) {
-          const targetVal = invoiceData.shipToName || invoiceData.shipToNTN || invoiceData.buyerNTNCNIC;
-          const matchedBuyer = findBuyerByNtnOrName(targetVal);
+        if (!resolvedShipToId && hasShipToInput) {
+          const targetVal = String(invoiceData.shipToName || invoiceData.shipToNTN).trim();
+          const existingShipTo = findBillToShipToRecordInBackend(targetVal, shipToRecords);
 
-          if (matchedBuyer) {
-            const existingShipTo = findBillToShipToRecordInBackend(matchedBuyer.buyerNTNCNIC || matchedBuyer.buyerBusinessName, shipToRecords);
-            if (existingShipTo) {
-              resolvedShipToId = existingShipTo.id;
+          if (existingShipTo) {
+            resolvedShipToId = existingShipTo.id;
+          } else {
+            const matchedBuyer = findBuyerByNtnOrName(targetVal);
+            if (matchedBuyer) {
+              const buyerShipToMatch = findBillToShipToRecordInBackend(matchedBuyer.buyerNTNCNIC || matchedBuyer.buyerBusinessName, shipToRecords);
+              if (buyerShipToMatch) {
+                resolvedShipToId = buyerShipToMatch.id;
+              } else {
+                try {
+                  const createdShipTo = await BillToShipTo.create({
+                    type: "SHIP_TO",
+                    name: matchedBuyer.buyerBusinessName || `Ship To (${targetVal})`,
+                    address: matchedBuyer.buyerAddress || invoiceData.buyerAddress || "N/A",
+                    ntn: matchedBuyer.buyerNTNCNIC || targetVal,
+                    cnic: matchedBuyer.buyerNTNCNIC && String(matchedBuyer.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? matchedBuyer.buyerNTNCNIC : null,
+                  });
+                  resolvedShipToId = createdShipTo.id;
+                  shipToRecords.push(createdShipTo);
+                  console.log(`✅ Auto-created Ship To record from explicitly supplied input (ID: ${createdShipTo.id}, Name: "${createdShipTo.name}")`);
+                } catch (err) {
+                  console.error("Error creating Ship To from Buyer:", err.message);
+                }
+              }
             } else {
               try {
+                const rawVal = String(targetVal).trim();
+                const isNtn = /^[0-9\-]{7,15}$/.test(rawVal);
+                const newName = isNtn
+                  ? (invoiceData.buyerBusinessName || `Ship To (${rawVal})`)
+                  : (invoiceData.shipToName || "Ship To Record");
+                const newNtn = isNtn ? rawVal : (invoiceData.shipToNTN || null);
+
                 const createdShipTo = await BillToShipTo.create({
                   type: "SHIP_TO",
-                  name: matchedBuyer.buyerBusinessName || `Ship To (${targetVal})`,
-                  address: matchedBuyer.buyerAddress || invoiceData.buyerAddress || "N/A",
-                  ntn: matchedBuyer.buyerNTNCNIC || targetVal,
-                  cnic: matchedBuyer.buyerNTNCNIC && String(matchedBuyer.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? matchedBuyer.buyerNTNCNIC : null,
+                  name: newName,
+                  address: invoiceData.buyerAddress || "N/A",
+                  ntn: newNtn,
+                  cnic: invoiceData.buyerNTNCNIC && String(invoiceData.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? invoiceData.buyerNTNCNIC : null,
                 });
                 resolvedShipToId = createdShipTo.id;
                 shipToRecords.push(createdShipTo);
-                console.log(`✅ Auto-created Ship To record from Buyer data (ID: ${createdShipTo.id}, Name: "${createdShipTo.name}", NTN: "${createdShipTo.ntn}")`);
+                console.log(`✅ Auto-created Ship To record from raw input (ID: ${createdShipTo.id}, Name: "${newName}")`);
               } catch (err) {
-                console.error("Error creating Ship To from Buyer:", err.message);
+                console.error("Error auto-creating Ship To record:", err.message);
               }
-            }
-          } else {
-            try {
-              const rawVal = String(targetVal).trim();
-              const isNtn = /^[0-9\-]{7,15}$/.test(rawVal);
-              const newName = isNtn
-                ? (invoiceData.buyerBusinessName || `Ship To (${rawVal})`)
-                : (invoiceData.shipToName || invoiceData.buyerBusinessName || "Ship To Record");
-              const newNtn = isNtn ? rawVal : (invoiceData.shipToNTN || invoiceData.buyerNTNCNIC || null);
-
-              const createdShipTo = await BillToShipTo.create({
-                type: "SHIP_TO",
-                name: newName,
-                address: invoiceData.buyerAddress || "N/A",
-                ntn: newNtn,
-                cnic: invoiceData.buyerNTNCNIC && String(invoiceData.buyerNTNCNIC).replace(/[^0-9]/g, "").length === 13 ? invoiceData.buyerNTNCNIC : null,
-              });
-              resolvedShipToId = createdShipTo.id;
-              shipToRecords.push(createdShipTo);
-              console.log(`✅ Auto-created Ship To record from raw input (ID: ${createdShipTo.id}, Name: "${newName}", NTN: "${newNtn}")`);
-            } catch (err) {
-              console.error("Error auto-creating Ship To record:", err.message);
             }
           }
         }
@@ -5835,8 +5894,26 @@ export const bulkCreateInvoices = async (req, res) => {
                 String(itemData.item_uoM || "").trim() ||
                 existingProduct.uom ||
                 null,
-              quantity: parseFloat(itemData.item_quantity) || 0,
-              unitPrice: parseFloat(itemData.item_unitPrice) || 0,
+              quantity: (() => {
+                const pWeightRaw = String(itemData.item_productWeight || itemData.productWeight || itemData.weight || existingProduct?.weight || "").trim();
+                const qIntRaw = String(itemData.item_qtyForInternal || itemData.qtyForInternal || itemData.qty_for_internal || "").trim();
+                const pWeightNum = parseFloat(pWeightRaw);
+                const qIntNum = parseFloat(qIntRaw);
+
+                if (!isNaN(pWeightNum) && !isNaN(qIntNum) && pWeightNum > 0 && qIntNum > 0) {
+                  const calcQty = pWeightNum * qIntNum;
+                  return Number.isInteger(calcQty) ? calcQty : Math.round(calcQty * 100) / 100;
+                }
+                return parseFloat(itemData.item_quantity || itemData.quantity) || 0;
+              })(),
+              unitPrice: (() => {
+                const vsExclVal = parseFloat(itemData.item_valueSalesExcludingST || itemData.valueSalesExcludingST || 0) || 0;
+                const qIntVal = parseFloat(itemData.item_qtyForInternal || itemData.qtyForInternal || itemData.qty_for_internal || 0) || 0;
+                if (vsExclVal > 0 && qIntVal > 0) {
+                  return Math.round((vsExclVal / qIntVal) * 10000) / 10000;
+                }
+                return parseFloat(itemData.item_unitPrice || itemData.unitPrice) || 0;
+              })(),
               totalValues: parseFloat(itemData.item_totalValues) || 0,
               valueSalesExcludingST:
                 parseFloat(itemData.item_valueSalesExcludingST) || 0,
@@ -8261,6 +8338,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "item_uoM",
       "item_uoMForInternal",
       "item_productName",
+      "item_productWeight",
       "item_valueSalesExcludingST",
       "item_quantity",
       "item_qtyForInternal",
@@ -8309,6 +8387,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       item_uoM: "Unit Of Measurement for (FBR)",
       item_uoMForInternal: "Unit Of Measurement for (Internal)",
       item_productName: "Product Name",
+      item_productWeight: "Product Weight",
       item_valueSalesExcludingST: "Value Sales (Excl ST)",
       item_quantity: "Quantity in KGS (For FBR)",
       item_qtyForInternal: "Qty (For Internal Use)",
@@ -8706,6 +8785,38 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         vat25Cell.style = { ...vat25Cell.style, numFmt: "0.00" };
       }
 
+      // Calculated Quantity in KGS (For FBR) formula: =ProductWeight * QtyForInternal
+      if (
+        headerIndex("item_quantity") > 0 &&
+        headerIndex("item_productWeight") > 0 &&
+        headerIndex("item_qtyForInternal") > 0
+      ) {
+        const pwColL = getColLetter(headerIndex("item_productWeight"));
+        const qiColL = getColLetter(headerIndex("item_qtyForInternal"));
+        const qtyCell = template.getCell(r, headerIndex("item_quantity"));
+        qtyCell.value = {
+          formula: `IF(AND(${pwColL}${r}<>"",${qiColL}${r}<>""),${pwColL}${r}*${qiColL}${r},"")`,
+          result: "",
+        };
+        qtyCell.style = { ...qtyCell.style, numFmt: "0.00" };
+      }
+
+      // Calculated Unit Cost formula: =ValueSalesExcludingST / QtyForInternal
+      if (
+        headerIndex("item_unitPrice") > 0 &&
+        headerIndex("item_valueSalesExcludingST") > 0 &&
+        headerIndex("item_qtyForInternal") > 0
+      ) {
+        const vsColL = getColLetter(headerIndex("item_valueSalesExcludingST"));
+        const qiColL = getColLetter(headerIndex("item_qtyForInternal"));
+        const ucCell = template.getCell(r, headerIndex("item_unitPrice"));
+        ucCell.value = {
+          formula: `IF(AND(${vsColL}${r}<>"",${qiColL}${r}<>"",${qiColL}${r}>0),ROUND(${vsColL}${r}/${qiColL}${r},4),"")`,
+          result: "",
+        };
+        ucCell.style = { ...ucCell.style, numFmt: "0.0000" };
+      }
+
       template.getCell(
         r,
         headerIndex("item_valueSalesExcludingST"),
@@ -8780,9 +8891,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       const aitColLetter = getColLetter(headerIndex("item_advanceIncomeTax"));
       const dscColLetter = getColLetter(headerIndex("item_discount"));
 
-      // Auto-calculate Unit Price = Value Sales (Excl. ST) ÷ Quantity
+      // Auto-calculate Unit Cost = Value Sales (Excl. ST) ÷ Qty (For Internal Use)
+      const qtyIntColLetter = getColLetter(headerIndex("item_qtyForInternal"));
       template.getCell(r, headerIndex("item_unitPrice")).value = {
-        formula: `IF(OR($${retailColLetter}${r}="",$${qtyColLetter}${r}=""),"",IFERROR($${retailColLetter}${r}/$${qtyColLetter}${r},0))`,
+        formula: `IF(OR($${retailColLetter}${r}="",$${qtyIntColLetter}${r}=""),"",IFERROR($${retailColLetter}${r}/$${qtyIntColLetter}${r},0))`,
       };
 
       // Auto-calculate Sales Tax Applicable = Value Sales (Excl. ST) × (Rate ÷ 100)

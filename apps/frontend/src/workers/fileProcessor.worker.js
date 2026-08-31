@@ -298,6 +298,12 @@ class FileProcessor {
       "Unit of Measurement for (Internal)": "item_uoMForInternal",
       "UoM (For Internal Use)": "item_uoMForInternal",
       "Product Name": "item_productName",
+      "Product Weight": "item_productWeight",
+      "product_weight": "item_productWeight",
+      "productweight": "item_productWeight",
+      "weight": "item_productWeight",
+      "item_productWeight": "item_productWeight",
+      "item_weight": "item_productWeight",
       "Product Description": "item_productDescription",
       "Value Sales (Excl ST)": "item_valueSalesExcludingST",
       "Quantity in KGS (For FBR)": "item_quantity",
@@ -349,6 +355,9 @@ class FileProcessor {
       ship_to: "shipToName",
       ship_to_ntn: "shipToName",
       product_name: "item_productName",
+      product_weight: "item_productWeight",
+      productweight: "item_productWeight",
+      weight: "item_productWeight",
       product_description: "item_productDescription",
       hs_code: "item_hsCode",
       hscode: "item_hsCode",
@@ -357,6 +366,8 @@ class FileProcessor {
       unit_cost: "item_unitPrice",
       qty_for_internal: "item_qtyForInternal",
       qty_internal: "item_qtyForInternal",
+      qty_for_internal_use: "item_qtyForInternal",
+      qty_internal_use: "item_qtyForInternal",
       item_code: "item_itemCode",
       units: "item_units",
       courier_charges: "item_courierCharges",
@@ -408,6 +419,7 @@ class FileProcessor {
       "SRO Sched": "item_sroScheduleNo",
       "SRO Item": "item_sroItemSerialNo",
       "Product Na": "item_productName",
+      "Product We": "item_productWeight",
       "Product De": "item_productDescription",
       "Value Sale": "item_valueSalesExcludingST",
       "Unit Of Measurement for (FBR)": "item_uoM",
@@ -917,6 +929,7 @@ class FileProcessor {
     // Map alternative field names to standard names AND preserve original names for backend
     const fieldMappings = {
       item_productName: "name",
+      item_productWeight: "productWeight",
       item_hsCode: "hsCode",
       item_productDescription: "productDescription",
       item_quantity: "quantity",
@@ -990,6 +1003,28 @@ class FileProcessor {
     } else {
       cleaned.vat18 = cleaned.vat18 || false;
       cleaned.vat25 = cleaned.vat25 || false;
+    }
+
+    // Auto-calculate quantity (Qty in KGS / For FBR) if productWeight and qtyForInternal are provided
+    const pWeightRaw = String(cleaned.item_productWeight || cleaned.productWeight || cleaned.weight || "").trim();
+    const qIntRaw = String(cleaned.item_qtyForInternal || cleaned.qtyForInternal || cleaned.qty_for_internal || "").trim();
+    const pWeightNum = parseFloat(pWeightRaw);
+    const qIntNum = parseFloat(qIntRaw);
+
+    if (!isNaN(pWeightNum) && !isNaN(qIntNum) && pWeightNum > 0 && qIntNum > 0) {
+      const calcQty = pWeightNum * qIntNum;
+      const formattedQty = Number.isInteger(calcQty) ? calcQty : Math.round(calcQty * 100) / 100;
+      cleaned.quantity = formattedQty;
+      cleaned.item_quantity = formattedQty;
+    }
+
+    // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
+    const vsExclVal = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
+    const qIntVal = parseFloat(cleaned.item_qtyForInternal || cleaned.qtyForInternal || 0) || 0;
+    if (vsExclVal > 0 && qIntVal > 0) {
+      const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
+      cleaned.unitPrice = calcUnitPrice;
+      cleaned.item_unitPrice = calcUnitPrice;
     }
 
     // Recalculate totalValues to include courierCharges + VAT amounts

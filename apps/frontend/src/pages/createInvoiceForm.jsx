@@ -282,6 +282,7 @@ export default function CreateInvoice() {
 
   // Buyer and product related state - moved here to avoid initialization errors
   const [buyers, setBuyers] = useState([]);
+  const [allBuyers, setAllBuyers] = useState([]);
   // Buyer pagination/search state
   const [buyerSearch, setBuyerSearch] = useState("");
   const [buyerPage, setBuyerPage] = useState(1);
@@ -327,56 +328,81 @@ export default function CreateInvoice() {
   // Memoized combined options for maximum performance
   const billToCombinedOptions = React.useMemo(() => {
     const opts = [{ id: "__add__", name: "+ Add Bill To" }];
+    const seenIds = new Set();
 
-    buyers.forEach((b) => {
+    const buyerList = [...(allBuyers || []), ...(buyers || [])];
+    buyerList.forEach((b) => {
+      if (!b || !b.id || seenIds.has(String(b.id))) return;
+      seenIds.add(String(b.id));
+
+      const bName = b.buyerBusinessName || b.buyer_business_name || b.buyerName || b.name || "";
+      const bAddress = b.buyerAddress || b.buyer_address || b.address || "";
+      const bNtn = b.buyerNTNCNIC || b.buyer_ntn_cnic || b.ntn || "";
+
       opts.push({
         id: `buyer_${b.id}`,
         buyerId: b.id,
-        name: b.buyerBusinessName || "",
-        address: b.buyerAddress || "",
-        ntn: b.buyerNTNCNIC || "",
+        name: bName ? `${bName}${bNtn ? ` (${bNtn})` : ""}` : `Buyer #${b.id}`,
+        address: bAddress,
+        ntn: bNtn,
         isBuyer: true,
         rawBuyer: b,
       });
     });
 
-    billToOptions.forEach((o) => {
-      opts.push(o);
+    (billToOptions || []).forEach((o) => {
+      if (o && o.id && !seenIds.has(String(o.id))) {
+        seenIds.add(String(o.id));
+        opts.push(o);
+      }
     });
 
     return opts;
-  }, [buyers, billToOptions]);
+  }, [allBuyers, buyers, billToOptions]);
 
   const shipToCombinedOptions = React.useMemo(() => {
     const opts = [{ id: "__add__", name: "+ Add Ship To" }];
+    const seenIds = new Set();
 
-    buyers.forEach((b) => {
+    const buyerList = [...(allBuyers || []), ...(buyers || [])];
+    buyerList.forEach((b) => {
+      if (!b || !b.id || seenIds.has(String(b.id))) return;
+      seenIds.add(String(b.id));
+
+      const bName = b.buyerBusinessName || b.buyer_business_name || b.buyerName || b.name || "";
+      const bAddress = b.buyerAddress || b.buyer_address || b.address || "";
+      const bNtn = b.buyerNTNCNIC || b.buyer_ntn_cnic || b.ntn || "";
+
       opts.push({
         id: `buyer_${b.id}`,
         buyerId: b.id,
-        name: b.buyerBusinessName || "",
-        address: b.buyerAddress || "",
-        ntn: b.buyerNTNCNIC || "",
+        name: bName ? `${bName}${bNtn ? ` (${bNtn})` : ""}` : `Buyer #${b.id}`,
+        address: bAddress,
+        ntn: bNtn,
         isBuyer: true,
         rawBuyer: b,
       });
     });
 
-    shipToOptions.forEach((o) => {
-      opts.push(o);
+    (shipToOptions || []).forEach((o) => {
+      if (o && o.id && !seenIds.has(String(o.id))) {
+        seenIds.add(String(o.id));
+        opts.push(o);
+      }
     });
 
     return opts;
-  }, [buyers, shipToOptions]);
+  }, [allBuyers, buyers, shipToOptions]);
 
   const customFilterBillToOptions = React.useCallback((options, state) => {
     const inputValue = (state.inputValue || "").trim().toLowerCase();
+    const isSelectedMatch = selectedBillTo && selectedBillTo.name && inputValue === (selectedBillTo.name || "").trim().toLowerCase();
     const results = [options[0]]; // Always keep "+ Add Bill To" at position 0
 
     let count = 0;
     for (let i = 1; i < options.length; i++) {
       const opt = options[i];
-      if (!inputValue) {
+      if (!inputValue || isSelectedMatch) {
         results.push(opt);
         count++;
       } else {
@@ -388,19 +414,20 @@ export default function CreateInvoice() {
           count++;
         }
       }
-      if (count >= 50) break; // Limit rendering to 50 items for instant 0ms response!
+      if (count >= 100) break;
     }
     return results;
-  }, []);
+  }, [selectedBillTo]);
 
   const customFilterShipToOptions = React.useCallback((options, state) => {
     const inputValue = (state.inputValue || "").trim().toLowerCase();
+    const isSelectedMatch = selectedShipTo && selectedShipTo.name && inputValue === (selectedShipTo.name || "").trim().toLowerCase();
     const results = [options[0]]; // Always keep "+ Add Ship To" at position 0
 
     let count = 0;
     for (let i = 1; i < options.length; i++) {
       const opt = options[i];
-      if (!inputValue) {
+      if (!inputValue || isSelectedMatch) {
         results.push(opt);
         count++;
       } else {
@@ -412,10 +439,10 @@ export default function CreateInvoice() {
           count++;
         }
       }
-      if (count >= 50) break; // Limit rendering to 50 items for instant 0ms response!
+      if (count >= 100) break;
     }
     return results;
-  }, []);
+  }, [selectedShipTo]);
 
   const fetchShipTo = async (searchVal = "") => {
     if (!selectedTenant) return;
@@ -470,14 +497,16 @@ export default function CreateInvoice() {
         setSelectedBillTo(foundInBill);
         setBillToInputValue(foundInBill.name);
       } else {
-        const foundInBuyer = buyers.find(b => `buyer_${b.id}` === String(formData.billToId) || String(b.id) === String(formData.billToId));
+        const buyerList = [...(allBuyers || []), ...(buyers || [])];
+        const foundInBuyer = buyerList.find(b => `buyer_${b.id}` === String(formData.billToId) || String(b.id) === String(formData.billToId));
         if (foundInBuyer) {
+          const bName = foundInBuyer.buyerBusinessName || foundInBuyer.buyer_business_name || foundInBuyer.buyerName || foundInBuyer.name || "";
           const bOpt = {
             id: `buyer_${foundInBuyer.id}`,
             buyerId: foundInBuyer.id,
-            name: foundInBuyer.buyerBusinessName || "",
-            address: foundInBuyer.buyerAddress || "",
-            ntn: foundInBuyer.buyerNTNCNIC || "",
+            name: bName ? `${bName}${foundInBuyer.buyerNTNCNIC ? ` (${foundInBuyer.buyerNTNCNIC})` : ""}` : `Buyer #${foundInBuyer.id}`,
+            address: foundInBuyer.buyerAddress || foundInBuyer.buyer_address || "",
+            ntn: foundInBuyer.buyerNTNCNIC || foundInBuyer.buyer_ntn_cnic || "",
             isBuyer: true,
             rawBuyer: foundInBuyer,
           };
@@ -489,7 +518,7 @@ export default function CreateInvoice() {
       setSelectedBillTo(null);
       setBillToInputValue("");
     }
-  }, [formData.billToId, billToOptions, buyers]);
+  }, [formData.billToId, billToOptions, buyers, allBuyers]);
 
   useEffect(() => {
     if (formData.shipToId) {
@@ -498,14 +527,16 @@ export default function CreateInvoice() {
         setSelectedShipTo(foundInShip);
         setShipToInputValue(foundInShip.name);
       } else {
-        const foundInBuyer = buyers.find(b => `buyer_${b.id}` === String(formData.shipToId) || String(b.id) === String(formData.shipToId));
+        const buyerList = [...(allBuyers || []), ...(buyers || [])];
+        const foundInBuyer = buyerList.find(b => `buyer_${b.id}` === String(formData.shipToId) || String(b.id) === String(formData.shipToId));
         if (foundInBuyer) {
+          const bName = foundInBuyer.buyerBusinessName || foundInBuyer.buyer_business_name || foundInBuyer.buyerName || foundInBuyer.name || "";
           const bOpt = {
             id: `buyer_${foundInBuyer.id}`,
             buyerId: foundInBuyer.id,
-            name: foundInBuyer.buyerBusinessName || "",
-            address: foundInBuyer.buyerAddress || "",
-            ntn: foundInBuyer.buyerNTNCNIC || "",
+            name: bName ? `${bName}${foundInBuyer.buyerNTNCNIC ? ` (${foundInBuyer.buyerNTNCNIC})` : ""}` : `Buyer #${foundInBuyer.id}`,
+            address: foundInBuyer.buyerAddress || foundInBuyer.buyer_address || "",
+            ntn: foundInBuyer.buyerNTNCNIC || foundInBuyer.buyer_ntn_cnic || "",
             isBuyer: true,
             rawBuyer: foundInBuyer,
           };
@@ -517,7 +548,7 @@ export default function CreateInvoice() {
       setSelectedShipTo(null);
       setShipToInputValue("");
     }
-  }, [formData.shipToId, shipToOptions, buyers]);
+  }, [formData.shipToId, shipToOptions, buyers, allBuyers]);
 
   const handleSelectBillTo = async (newValue) => {
     if (!newValue) {
@@ -2295,6 +2326,9 @@ export default function CreateInvoice() {
           const rows = response.data.data?.buyers || [];
           const pagination = response.data.data?.pagination || {};
           setBuyers((prev) => (append ? [...prev, ...rows] : rows));
+          if (!search && page === 1 && !append) {
+            setAllBuyers(rows);
+          }
           setBuyerHasMore(
             pagination.total_pages ? (pagination.current_page || page) < pagination.total_pages : false
           );
@@ -2314,11 +2348,20 @@ export default function CreateInvoice() {
 
     // Reset list when tenant changes
     setBuyers([]);
+    setAllBuyers([]);
     setBuyerSearch("");
     setBuyerPage(1);
     setBuyerHasMore(true);
     if (selectedTenant) {
       fetchBuyersPage(1, "", false);
+      api
+        .get(`/tenant/${selectedTenant.tenant_id}/buyers/all`)
+        .then((res) => {
+          if (res?.data?.success && Array.isArray(res.data.data?.buyers)) {
+            setAllBuyers(res.data.data.buyers);
+          }
+        })
+        .catch(() => null);
     }
 
     // Expose functions to handlers
@@ -2874,6 +2917,17 @@ export default function CreateInvoice() {
         icon: "warning",
         title: "Required Fields Missing",
         text: "Please fill in HS Code before adding item.",
+        confirmButtonColor: "#2A69B0",
+      });
+      return;
+    }
+
+    const itemWeight = parseFloat(currentItem.weight || 0);
+    if (!currentItem.weight || isNaN(itemWeight) || itemWeight <= 0) {
+      Swal.fire({
+        icon: "error",
+        title: "Weight Required",
+        text: "Please add weight to the product first.",
         confirmButtonColor: "#2A69B0",
       });
       return;
@@ -3861,6 +3915,24 @@ export default function CreateInvoice() {
         await showCompanyInvoiceRefNoRequired();
         setSaveValidateLoading(false);
         return;
+      }
+
+      // Check weight for items
+      const itemsToValidate = addedItems.length > 0 ? addedItems : formData.items;
+      for (const item of itemsToValidate) {
+        if (item.name || item.hsCode) {
+          const wNum = parseFloat(item.weight || 0);
+          if (!item.weight || isNaN(wNum) || wNum <= 0) {
+            Swal.fire({
+              icon: "error",
+              title: "Weight Required",
+              text: "Please add weight to the product first.",
+              confirmButtonColor: "#2A69B0",
+            });
+            setSaveValidateLoading(false);
+            return;
+          }
+        }
       }
 
       // ── Pre-check: companyInvoiceRefNo uniqueness BEFORE hitting FBR ──
@@ -5571,23 +5643,6 @@ export default function CreateInvoice() {
                     ? `${newValue.buyerBusinessName} (${newValue.buyerNTNCNIC})`
                     : "";
                   setBuyerInputValue(label);
-
-                  const buyerOpt = {
-                    id: `buyer_${newValue.id}`,
-                    buyerId: newValue.id,
-                    name: newValue.buyerBusinessName || "",
-                    address: newValue.buyerAddress || "",
-                    ntn: newValue.buyerNTNCNIC || "",
-                    isBuyer: true,
-                    rawBuyer: newValue,
-                  };
-
-                  if (!selectedBillTo) {
-                    handleSelectBillTo(buyerOpt);
-                  }
-                  if (!selectedShipTo) {
-                    handleSelectShipTo(buyerOpt);
-                  }
                 }}
                 renderInput={(params) => (
                   <TextField
@@ -6241,6 +6296,20 @@ export default function CreateInvoice() {
                         }
 
                         if (newVal) {
+                          const wVal =
+                            newVal.weight !== undefined && newVal.weight !== null
+                              ? String(newVal.weight)
+                              : "";
+                          const wNum = parseFloat(wVal);
+                          if (!wVal || isNaN(wNum) || wNum <= 0) {
+                            Swal.fire({
+                              icon: "error",
+                              title: "Weight Required",
+                              text: "Please add weight to the product first.",
+                              confirmButtonColor: "#2A69B0",
+                            });
+                          }
+
                           handleItemChange(index, "name", newVal.name || "");
                           handleItemChange(
                             index,
@@ -6252,13 +6321,7 @@ export default function CreateInvoice() {
                             "productDescription",
                             newVal.description || "",
                           );
-                          handleItemChange(
-                            index,
-                            "weight",
-                            newVal.weight !== undefined && newVal.weight !== null
-                              ? String(newVal.weight)
-                              : "",
-                          );
+                          handleItemChange(index, "weight", wVal);
                         } else {
                           // Clear product fields if selection is cleared
                           handleItemChange(index, "name", "");
@@ -6495,28 +6558,17 @@ export default function CreateInvoice() {
                     item.quantity === "0.00"
                       ? ""
                       : formatQuantityWithCommas(item.quantity)
-                  } // Show empty instead of 0.00
-                  onChange={(e) => {
-                    const newValue = handleFloatingNumberInput(
-                      e.target.value,
-                      true,
-                    );
-                    if (newValue !== null) {
-                      handleItemChange(index, "quantity", newValue);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const value = e.target.value;
-                    if (value) {
-                      // Remove commas and get the raw numeric value
-                      const cleanValue = value.replace(/,/g, "");
-                      // Don't parse to float and back to string - preserve the original decimal places
-                      if (cleanValue && cleanValue !== "") {
-                        handleItemChange(index, "quantity", cleanValue);
-                      }
-                    }
+                  }
+                  InputProps={{
+                    readOnly: true,
                   }}
                   variant="outlined"
+                  sx={{
+                    "& .MuiInputBase-input": {
+                      backgroundColor: "#f9fafb",
+                      cursor: "not-allowed",
+                    },
+                  }}
                 />
 
                 <TextField
