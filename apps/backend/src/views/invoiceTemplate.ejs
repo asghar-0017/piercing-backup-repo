@@ -447,19 +447,16 @@
           </td>
 
           <td style="width: 37%; padding: 6px 8px 4px 6px; vertical-align: top;">
-            <% let sumGrossTotal=0; let sumDiscount=0; let sumCourier=0; let sumTaxable=0; let sumVat25=0; let
-              sumVat18=0; let sumFurther=0; if (invoice && invoice.items) { invoice.items.forEach(item=> {
+            <% let sumGrossTotal=0; let sumDiscount=0; let sumCourier=0; let sumTaxable=0; let sumFurther=0; if (invoice && invoice.items) { invoice.items.forEach(item=> {
               sumGrossTotal += Number(item.valueSalesExcludingST || 0);
               sumDiscount += Number(item.discount || 0);
               sumCourier += Number(item.courierCharges || 0);
               sumTaxable += Number(item.salesTaxApplicable || 0);
-              sumVat25 += Number(item.vat25Amount || 0);
-              sumVat18 += Number(item.vat18Amount || 0);
               sumFurther += Number(item.furtherTax || 0);
               });
               }
 
-              let finalTotal = sumGrossTotal - sumDiscount + sumCourier + sumTaxable + sumVat25 + sumVat18 + sumFurther;
+              let finalTotal = sumGrossTotal - sumDiscount + sumCourier + sumTaxable + sumFurther;
               %>
               <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
                 <tr>
@@ -488,20 +485,6 @@
                   <td class="bold" style="text-align: right; padding: 2px 0;">
                     <%= Number(sumTaxable).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
                       2}) %>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="bold" style="text-align: right; padding: 2px 2px;">VAT 25% :</td>
-                  <td class="bold" style="text-align: right; padding: 2px 0;">
-                    <%= Number(sumVat25).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
-                      %>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="bold" style="text-align: right; padding: 2px 2px;">VAT 18% :</td>
-                  <td class="bold" style="text-align: right; padding: 2px 0;">
-                    <%= Number(sumVat18).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})
-                      %>
                   </td>
                 </tr>
                 <tr>

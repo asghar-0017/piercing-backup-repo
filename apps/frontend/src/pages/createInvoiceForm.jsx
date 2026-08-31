@@ -1668,11 +1668,11 @@ export default function CreateInvoice() {
             fedPayable: item.fedPayable || "0",
             discount: item.discount || "0",
             advanceIncomeTax: item.advanceIncomeTax || "0",
-            vat18: item.vat18 || false,
-            vat25: item.vat25 || false,
-            vatAmount: item.vatAmount || 0,
-            vat18Amount: item.vat18Amount !== undefined && item.vat18Amount !== null ? parseFloat(item.vat18Amount) : (item.vat18 ? Math.round(((parseFloat(item.valueSalesExcludingST || 0) || 0) + (parseFloat(item.salesTaxApplicable || 0) || 0)) * 0.18 * 100) / 100 : 0),
-            vat25Amount: item.vat25Amount !== undefined && item.vat25Amount !== null ? parseFloat(item.vat25Amount) : (item.vat25 ? Math.round(((parseFloat(item.valueSalesExcludingST || 0) || 0) + (parseFloat(item.salesTaxApplicable || 0) || 0)) * 0.25 * 100) / 100 : 0),
+            vat18: false,
+            vat25: false,
+            vatAmount: 0,
+            vat18Amount: 0,
+            vat25Amount: 0,
             isValueSalesManual: false,
             isTotalValuesManual: false,
             isSalesTaxManual: false,
@@ -2862,16 +2862,9 @@ export default function CreateInvoice() {
 
       // Recalculate total value if it's not manually entered
       // Formula: (Qty × Unit Cost) + Courier Charges
-      // Calculate VAT Amounts separately
-      const salesExclSTVal = parseFloat(item.valueSalesExcludingST || 0) || 0;
-      const salesTaxVal = parseFloat(item.salesTaxApplicable || 0) || 0;
-      
-      const vat18Amt = item.vat18 ? Math.round((salesExclSTVal + salesTaxVal) * 0.18 * 100) / 100 : 0;
-      const vat25Amt = item.vat25 ? Math.round((salesExclSTVal + salesTaxVal) * 0.25 * 100) / 100 : 0;
-      
-      item.vat18Amount = vat18Amt;
-      item.vat25Amount = vat25Amt;
-      item.vatAmount = vat18Amt + vat25Amt;
+      item.vat18Amount = 0;
+      item.vat25Amount = 0;
+      item.vatAmount = 0;
 
       if (!item.isTotalValuesManual) {
         const qtyForTotal =
@@ -6694,72 +6687,6 @@ export default function CreateInvoice() {
                     label="Sales Tax Applicable"
                     type="text"
                     value={formatNumberWithCommas(item.salesTaxApplicable)}
-                    InputProps={{
-                      readOnly: true,
-                    }}
-                    variant="outlined"
-                    sx={{
-                      "& .MuiInputBase-input.Mui-readOnly": {
-                        backgroundColor: "#f5f5f5",
-                        cursor: "not-allowed",
-                      },
-                    }}
-                  />
-                </Box>
-              </Box>
-
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mt: 1, alignItems: "flex-start" }}>
-                <Box sx={{ flex: "1 1 18%", minWidth: "150px", display: "flex", flexDirection: "column" }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={item.vat18 || false}
-                        onChange={(e) => handleItemChange(index, "vat18", e.target.checked)}
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label="VAT 18%"
-                    sx={{ mb: 0.5, ml: 0 }}
-                  />
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Calculated VAT 18%"
-                    type="text"
-                    value={formatNumberWithCommas(item.vat18Amount || 0)}
-                    InputProps={{
-                      readOnly: true,
-                    }}
-                    variant="outlined"
-                    sx={{
-                      "& .MuiInputBase-input.Mui-readOnly": {
-                        backgroundColor: "#f5f5f5",
-                        cursor: "not-allowed",
-                      },
-                    }}
-                  />
-                </Box>
-
-                <Box sx={{ flex: "1 1 18%", minWidth: "150px", display: "flex", flexDirection: "column" }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={item.vat25 || false}
-                        onChange={(e) => handleItemChange(index, "vat25", e.target.checked)}
-                        color="primary"
-                        size="small"
-                      />
-                    }
-                    label="VAT 25%"
-                    sx={{ mb: 0.5, ml: 0 }}
-                  />
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Calculated VAT 25%"
-                    type="text"
-                    value={formatNumberWithCommas(item.vat25Amount || 0)}
                     InputProps={{
                       readOnly: true,
                     }}
