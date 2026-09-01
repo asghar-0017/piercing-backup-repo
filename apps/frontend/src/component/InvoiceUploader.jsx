@@ -2650,7 +2650,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
           {/* COMMENTED OUT: Backend Template Generation Code - Preserved for Future Use */}
 
-          {/* <Box sx={{ mb: 2 }}>
+         {/* <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
               onClick={async () => {
