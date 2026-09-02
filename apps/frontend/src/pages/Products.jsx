@@ -305,7 +305,7 @@ const Products = () => {
           products: productsData.map(product => ({
             name: product.productName || product.name,
             description: product.productDescription || product.description,
-            weight: product.weight,
+            weight: product.weight || product.Weight || product.productWeight || null,
             hsCode: product.hsCode,
             uom: product.uom,
           }))

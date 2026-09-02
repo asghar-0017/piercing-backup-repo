@@ -1,7 +1,7 @@
 import { DataTypes } from "sequelize";
 
 export const createProductModel = (sequelize) => {
-  return sequelize.define(
+  const Product = sequelize.define(
     "Product",
     {
       id: {

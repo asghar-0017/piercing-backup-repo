@@ -207,6 +207,7 @@ class UploadOptimizer {
     const displayToInternalHeaderMap = {
       "Product Name": "productName",
       "Product Description": "productDescription",
+      "Weight": "weight",
       "HS Code": "hsCode",
       "Unit Of Measurement": "uom",
     };
@@ -223,6 +224,7 @@ class UploadOptimizer {
           const headers = [
             "Product Name",
             "Product Description",
+            "Weight",
             "HS Code",
             "Unit Of Measurement",
           ];
@@ -280,6 +282,7 @@ class UploadOptimizer {
     return [
       "Product Name",
       "Product Description",
+      "Weight",
       "HS Code",
       "Unit Of Measurement",
     ];

@@ -8540,6 +8540,7 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
     const allRatesCol = allUoMCol + 1;
     const allSROCol = allRatesCol + 1;
     const allSROItemCol = allSROCol + 1;
+    const allVatCol = allSROItemCol + 1;
 
     const writeHiddenList = (colIndex, values, isSROItems = false) => {
       const startRow = 2; // keep row 1 for headers on Template
@@ -8630,6 +8631,10 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       true, // isSROItems = true to get all items
     );
 
+    // Write VAT list for dropdown
+    const vatValues = ["18%", "25%"];
+    const allVatRange = writeHiddenList(allVatCol, vatValues);
+
     // Simplified rate mapping - no complex mapping needed
 
     // Simplified approach - no complex hidden columns needed
@@ -8664,7 +8669,9 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       template.getCell(r, headerIndex("invoiceType")).dataValidation = {
         type: "list",
         allowBlank: true,
-        formulae: [`"${invoiceTypeValues.join(",")}"`],
+        formulae: [
+          `$${getColLetter(typeListCol)}$${typeListRange.startRow}:$${getColLetter(typeListCol)}$${typeListRange.endRow}`,
+        ],
         showErrorMessage: true,
         errorStyle: "warning",
         errorTitle: "Invalid value",
@@ -8751,11 +8758,13 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         template.getCell(r, headerIndex("item_vat")).dataValidation = {
           type: "list",
           allowBlank: true,
-          formulae: ['"18%,25%"'],
+          formulae: [
+            `$${getColLetter(allVatCol)}$${allVatRange.startRow}:$${getColLetter(allVatCol)}$${allVatRange.endRow}`,
+          ],
           showErrorMessage: true,
           errorStyle: "warning",
           errorTitle: "Invalid VAT",
-          error: 'Select 18% or 25% from the dropdown.',
+          error: "Select 18% or 25% from the dropdown.",
         };
       }
 

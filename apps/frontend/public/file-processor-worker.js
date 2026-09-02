@@ -83,6 +83,7 @@ function parseCSV(content, expectedHeaders) {
   const displayToInternalHeaderMap = {
     "Product Name": "productName",
     "Product Description": "productDescription",
+    "Weight": "weight",
     "HS Code": "hsCode",
     "Unit Of Measurement": "uom",
   };
@@ -161,13 +162,18 @@ function parseExcel(content) {
     const displayToInternalHeaderMap = {
       "Product Name": "productName",
       "Product Description": "productDescription",
+      "Weight": "weight",
       "HS Code": "hsCode",
       "Unit Of Measurement": "uom",
     };
 
-    // Validate headers
-    const expectedHeaders = Object.keys(displayToInternalHeaderMap);
-    const missingHeaders = expectedHeaders.filter(
+    // Validate required headers
+    const requiredHeaders = [
+      "Product Name",
+      "HS Code",
+      "Unit Of Measurement",
+    ];
+    const missingHeaders = requiredHeaders.filter(
       (col) => !headers.includes(col)
     );
     if (missingHeaders.length > 0) {

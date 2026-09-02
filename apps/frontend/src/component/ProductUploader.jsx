@@ -401,9 +401,13 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       // Parse headers
       const headers = parseCSVLine(lines[0]);
 
-      // Validate headers - check if visual labels are present
-      const visualHeaders = Object.keys(displayToInternalHeaderMap);
-      const missingHeaders = visualHeaders.filter(
+      // Validate required headers
+      const requiredHeaders = [
+        "Product Name",
+        "HS Code",
+        "Unit Of Measurement",
+      ];
+      const missingHeaders = requiredHeaders.filter(
         (col) => !headers.includes(col)
       );
       if (missingHeaders.length > 0) {
@@ -465,9 +469,13 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           String(header || "").trim()
         );
 
-        // Validate headers - check if visual labels are present
-        const visualHeaders = Object.keys(displayToInternalHeaderMap);
-        const missingHeaders = visualHeaders.filter(
+        // Validate required headers
+        const requiredHeaders = [
+          "Product Name",
+          "HS Code",
+          "Unit Of Measurement",
+        ];
+        const missingHeaders = requiredHeaders.filter(
           (col) => !headers.includes(col)
         );
         if (missingHeaders.length > 0) {
@@ -933,6 +941,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         return {
           productName: "",
           productDescription: "",
+          weight: "",
           hsCode: "",
           uom: "",
         };
@@ -942,6 +951,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       return {
         productName: data.productName || data.name || "",
         productDescription: data.productDescription || data.description || "",
+        weight: data.weight || "",
         hsCode: data.hsCode || "",
         uom: data.uom || "",
       };
@@ -1141,6 +1151,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                       <TableCell>Row</TableCell>
                       <TableCell>Product Name</TableCell>
                       <TableCell>Product Description</TableCell>
+                      <TableCell>Weight</TableCell>
                       <TableCell>HS Code</TableCell>
                       <TableCell>Unit Of Measurement</TableCell>
                       <TableCell>Status</TableCell>
@@ -1152,6 +1163,7 @@ const ProductUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
                         <TableCell>{row._row}</TableCell>
                         <TableCell>{row.productName}</TableCell>
                         <TableCell>{row.productDescription}</TableCell>
+                        <TableCell>{row.weight || "-"}</TableCell>
                         <TableCell>{row.hsCode}</TableCell>
                         <TableCell>{row.uom}</TableCell>
                         <TableCell>

@@ -708,7 +708,7 @@ export const bulkCreateProducts = async (req, res) => {
       const chunkData = chunk.map((product) => ({
         name: product.name,
         description: product.description || product.productDescription || null,
-        weight: product.weight || null,
+        weight: product.weight || product.Weight || product.productWeight || null,
         hsCode: product.hsCode,
         uom: product.uom,
         createdAt: new Date(),
