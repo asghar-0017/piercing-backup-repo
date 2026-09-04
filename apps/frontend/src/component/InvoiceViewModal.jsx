@@ -429,31 +429,7 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                       p: 1,
                     }}
                   >
-                    UoM ( for FBR Use)
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: "#2c7c93",
-                      color: "white",
-                      fontWeight: "bold",
-                      textAlign: "center",
-                      fontSize: "11px",
-                      p: 1,
-                    }}
-                  >
                     Qty (for FBR Use)
-                  </TableCell>
-                  <TableCell
-                    sx={{
-                      bgcolor: "#2c7c93",
-                      color: "white",
-                      fontWeight: "bold",
-                      textAlign: "center",
-                      fontSize: "11px",
-                      p: 1,
-                    }}
-                  >
-                    UoM (for Internal Use)
                   </TableCell>
                   <TableCell
                     sx={{
@@ -642,16 +618,6 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                         p: 1,
                       }}
                     >
-                      {item.uoM || item.uom || "-"}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        border: "1px solid #157492",
-                        textAlign: "center",
-                        fontSize: "11px",
-                        p: 1,
-                      }}
-                    >
                       {formatNumberWithCommas(item.quantity)}
                     </TableCell>
                     <TableCell
@@ -662,25 +628,15 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                         p: 1,
                       }}
                     >
-                      {item.uoMForInternal || item.uomForInternal || "-"}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        border: "1px solid #157492",
-                        textAlign: "center",
-                        fontSize: "11px",
-                        p: 1,
-                      }}
-                    >
                       {item.qtyForInternal !== undefined &&
-                      item.qtyForInternal !== null &&
-                      item.qtyForInternal !== ""
+                        item.qtyForInternal !== null &&
+                        item.qtyForInternal !== ""
                         ? formatNumberWithCommas(item.qtyForInternal)
                         : item.quantityForInternal !== undefined &&
                           item.quantityForInternal !== null &&
                           item.quantityForInternal !== ""
-                        ? formatNumberWithCommas(item.quantityForInternal)
-                        : "-"}
+                          ? formatNumberWithCommas(item.quantityForInternal)
+                          : "-"}
                     </TableCell>
                     <TableCell
                       sx={{
@@ -765,12 +721,12 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                       }}
                     >
                       {item.advanceIncomeTax === null ||
-                      item.advanceIncomeTax === undefined ||
-                      item.advanceIncomeTax === ""
+                        item.advanceIncomeTax === undefined ||
+                        item.advanceIncomeTax === ""
                         ? "0"
                         : formatNumberWithCommas(
-                            parseFloat(item.advanceIncomeTax)
-                          )}
+                          parseFloat(item.advanceIncomeTax)
+                        )}
                     </TableCell>
                     <TableCell
                       sx={{

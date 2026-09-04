@@ -371,7 +371,7 @@
             <th style="width: 7%;" class="text-center">UNITS</th>
             <th style="width: 5%;" class="text-center">UoM</th>
             <th style="width: 5%;" class="text-center">QTY</th>
-            <th style="width: 11%;" class="text-right">RATE</th>
+            <th style="width: 11%;" class="text-right">Unit Cost</th>
             <th style="width: 11%;" class="text-right">Amount</th>
           </tr>
         </thead>
@@ -404,7 +404,21 @@
                 <%= item.qtyForInternal || 0 %>
               </td>
               <td class="text-right">
-                <%= item.rate || '' %>
+                <% 
+                  let unitCostVal = 0;
+                  if (item.unitCost !== undefined && item.unitCost !== null && item.unitCost !== '') {
+                    unitCostVal = Number(item.unitCost);
+                  } else if (item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== '') {
+                    unitCostVal = Number(item.unitPrice);
+                  } else if (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') {
+                    unitCostVal = Number(item.unit_price);
+                  } else {
+                    const qty = Number(item.qtyForInternal || item.quantity || 0);
+                    const amount = Number(item.valueSalesExcludingST || 0);
+                    unitCostVal = qty > 0 ? (amount / qty) : 0;
+                  }
+                %>
+                <%= Number(unitCostVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
               </td>
               <td class="text-right">
                 <%= Number(item.valueSalesExcludingST || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
@@ -413,7 +427,7 @@
             </tr>
             <% }); } else { %>
               <tr>
-                <td colspan="8" class="text-center">No items found</td>
+                <td colspan="9" class="text-center">No items found</td>
               </tr>
               <% } %>
 
@@ -447,7 +461,8 @@
           </td>
 
           <td style="width: 37%; padding: 6px 8px 4px 6px; vertical-align: top;">
-            <% let sumGrossTotal=0; let sumDiscount=0; let sumCourier=0; let sumTaxable=0; let sumFurther=0; if (invoice && invoice.items) { invoice.items.forEach(item=> {
+            <% let sumGrossTotal=0; let sumDiscount=0; let sumCourier=0; let sumTaxable=0; let sumFurther=0; if (invoice
+              && invoice.items) { invoice.items.forEach(item=> {
               sumGrossTotal += Number(item.valueSalesExcludingST || 0);
               sumDiscount += Number(item.discount || 0);
               sumCourier += Number(item.courierCharges || 0);
