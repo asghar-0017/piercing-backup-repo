@@ -477,7 +477,16 @@
                     <%= formatNumber(item.salesTaxWithheldAtSource) %>
                   </td>
                   <td>
-                    <%= formatNumber(item.totalValues) %>
+                    <%= formatNumber(
+                      parseFloat(item.valueSalesExcludingST || 0) +
+                      parseFloat(item.salesTaxApplicable || 0) +
+                      parseFloat(item.furtherTax || 0) +
+                      parseFloat(item.extraTax || 0) +
+                      parseFloat(item.fedPayable || 0) +
+                      parseFloat(item.advanceIncomeTax || 0) -
+                      parseFloat(item.discount || 0) +
+                      parseFloat(item.courierCharges || 0)
+                    ) %>
                   </td>
                 </tr>
                 <% }); %>
@@ -499,10 +508,10 @@
           const advanceIncomeTax = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.advanceIncomeTax
           || 0), 0) : 0;
           const dis = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.discount || 0), 0) : 0;
+          const courier = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.courierCharges || 0), 0) : 0;
           const withheld = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.salesTaxWithheldAtSource
           || 0), 0) : 0;
-          const grandTotal = invoice.items ? invoice.items.reduce((sum, i) => sum + parseFloat(i.totalValues || 0), 0) :
-          0;
+          const grandTotal = subTotal + gst + further + extra + fed + advanceIncomeTax - dis + courier;
           %>
 
           <div class="summary-box">

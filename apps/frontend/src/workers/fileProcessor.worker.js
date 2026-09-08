@@ -1027,15 +1027,19 @@ class FileProcessor {
       cleaned.item_unitPrice = calcUnitPrice;
     }
 
-    // Recalculate totalValues to include courierCharges + VAT amounts
-    const baseTotal = parseFloat(cleaned.totalValues || cleaned.item_totalValues || 0) || 0;
-    const courier = parseFloat(cleaned.courierCharges || cleaned.item_courierCharges || 0) || 0;
-    const vatAmt = (parseFloat(cleaned.vat18Amount || 0) || 0) + (parseFloat(cleaned.vat25Amount || 0) || 0);
-    if (courier > 0 || vatAmt > 0) {
-      const recalcTotal = Math.round((baseTotal + courier + vatAmt) * 100) / 100;
-      cleaned.totalValues = recalcTotal;
-      cleaned.item_totalValues = recalcTotal;
-    }
+    // Calculate totalValues accurately
+    const vsExcl = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
+    const stApp = parseFloat(cleaned.salesTaxApplicable || cleaned.item_salesTaxApplicable || 0) || 0;
+    const ftVal = parseFloat(cleaned.furtherTax || cleaned.item_furtherTax || 0) || 0;
+    const etVal = parseFloat(cleaned.extraTax || cleaned.item_extraTax || 0) || 0;
+    const fedVal = parseFloat(cleaned.fedPayable || cleaned.item_fedPayable || 0) || 0;
+    const advVal = parseFloat(cleaned.advanceIncomeTax || cleaned.item_advanceIncomeTax || 0) || 0;
+    const discVal = parseFloat(cleaned.discount || cleaned.item_discount || 0) || 0;
+    const courierVal = parseFloat(cleaned.courierCharges || cleaned.item_courierCharges || 0) || 0;
+
+    const recalcTotal = Math.round((vsExcl + stApp + ftVal + etVal + fedVal + advVal - discVal + courierVal) * 100) / 100;
+    cleaned.totalValues = recalcTotal;
+    cleaned.item_totalValues = recalcTotal;
 
     return cleaned;
   }

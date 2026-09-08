@@ -899,16 +899,14 @@ export default function CreateInvoice() {
                   parseFloat(item.furtherTax || 0) + // Use current Further Tax value
                   parseFloat(item.fedPayable || 0) +
                   parseFloat(item.extraTax || 0) +
-                  parseFloat(item.advanceIncomeTax || 0);
+                  parseFloat(item.advanceIncomeTax || 0) +
+                  parseFloat(item.courierCharges || 0);
 
                 const discountAmount = parseFloat(item.discount || 0);
                 const totalAfterDiscount =
                   calculatedTotalBeforeDiscount - discountAmount;
-                const taxWithheld = parseFloat(
-                  item.salesTaxWithheldAtSource || 0,
-                );
                 const calculatedTotal = Number(
-                  (totalAfterDiscount + taxWithheld).toFixed(2),
+                  totalAfterDiscount.toFixed(2),
                 );
 
                 return {
@@ -931,16 +929,14 @@ export default function CreateInvoice() {
                 furtherTaxAmount + // Use the new Further Tax amount
                 parseFloat(item.fedPayable || 0) +
                 parseFloat(item.extraTax || 0) +
-                parseFloat(item.advanceIncomeTax || 0);
+                parseFloat(item.advanceIncomeTax || 0) +
+                parseFloat(item.courierCharges || 0);
 
               const discountAmount = parseFloat(item.discount || 0);
               const totalAfterDiscount =
                 calculatedTotalBeforeDiscount - discountAmount;
-              const taxWithheld = parseFloat(
-                item.salesTaxWithheldAtSource || 0,
-              );
               const calculatedTotal = Number(
-                (totalAfterDiscount + taxWithheld).toFixed(2),
+                totalAfterDiscount.toFixed(2),
               );
 
               return {
@@ -982,14 +978,14 @@ export default function CreateInvoice() {
               parseFloat(item.furtherTax || 0) + // Use current Further Tax value
               parseFloat(item.fedPayable || 0) +
               parseFloat(item.extraTax || 0) +
-              parseFloat(item.advanceIncomeTax || 0);
+              parseFloat(item.advanceIncomeTax || 0) +
+              parseFloat(item.courierCharges || 0);
 
             const discountAmount = parseFloat(item.discount || 0);
             const totalAfterDiscount =
               calculatedTotalBeforeDiscount - discountAmount;
-            const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
             const calculatedTotal = Number(
-              (totalAfterDiscount + taxWithheld).toFixed(2),
+              totalAfterDiscount.toFixed(2),
             );
 
             return {
@@ -1028,14 +1024,14 @@ export default function CreateInvoice() {
               furtherTaxAmount + // Use the new Further Tax amount
               parseFloat(item.fedPayable || 0) +
               parseFloat(item.extraTax || 0) +
-              parseFloat(item.advanceIncomeTax || 0);
+              parseFloat(item.advanceIncomeTax || 0) +
+              parseFloat(item.courierCharges || 0);
 
             const discountAmount = parseFloat(item.discount || 0);
             const totalAfterDiscount =
               calculatedTotalBeforeDiscount - discountAmount;
-            const taxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
             const calculatedTotal = Number(
-              (totalAfterDiscount + taxWithheld).toFixed(2),
+              totalAfterDiscount.toFixed(2),
             );
 
             return {
@@ -2867,30 +2863,31 @@ export default function CreateInvoice() {
       item.vatAmount = 0;
 
       if (!item.isTotalValuesManual) {
+        const valueSalesVal = parseFloat(item.valueSalesExcludingST || 0);
         const qtyForTotal =
           parseFloat(item.qtyForInternal || 0) > 0
             ? parseFloat(item.qtyForInternal)
             : parseFloat(item.quantity || 0);
         const unitCostForTotal = parseFloat(item.unitPrice || 0);
+        const baseAmount = valueSalesVal > 0 ? valueSalesVal : (qtyForTotal * unitCostForTotal);
         const courierForTotal = parseFloat(item.courierCharges || 0);
         const salesTaxApp = parseFloat(item.salesTaxApplicable || 0);
-        const salesTaxWithheld = parseFloat(item.salesTaxWithheldAtSource || 0);
         const extraTaxVal = parseFloat(item.extraTax || 0);
         const furtherTaxVal = parseFloat(item.furtherTax || 0);
         const fedPayableVal = parseFloat(item.fedPayable || 0);
         const advIncomeTaxVal = parseFloat(item.advanceIncomeTax || 0);
+        const discountVal = parseFloat(item.discount || 0);
 
         const rowLineTotal = Number(
           (
-            (qtyForTotal * unitCostForTotal) +
+            baseAmount +
             courierForTotal +
             salesTaxApp +
-            salesTaxWithheld +
             extraTaxVal +
             furtherTaxVal +
             fedPayableVal +
-            advIncomeTaxVal +
-            item.vatAmount
+            advIncomeTaxVal -
+            discountVal
           ).toFixed(2),
         );
         item.totalValues = rowLineTotal.toString();

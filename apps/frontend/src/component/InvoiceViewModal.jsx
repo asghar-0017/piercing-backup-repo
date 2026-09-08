@@ -84,14 +84,23 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
     (sum, item) => sum + parseFloat(item.discount || 0),
     0
   );
+  const courierTotal = (invoice.items || []).reduce(
+    (sum, item) => sum + parseFloat(item.courierCharges || 0),
+    0
+  );
   const withheld = (invoice.items || []).reduce(
     (sum, item) => sum + parseFloat(item.salesTaxWithheldAtSource || 0),
     0
   );
-  const grandTotal = (invoice.items || []).reduce(
-    (sum, item) => sum + parseFloat(item.totalValues || 0),
-    0
-  );
+  const grandTotal =
+    subTotal +
+    gst +
+    further +
+    extra +
+    fed +
+    advanceIncomeTaxTotal -
+    dis +
+    courierTotal;
 
   // Convert number to words function with paisa support
   const convertToWords = (num) => {
@@ -758,7 +767,16 @@ const InvoiceViewModal = ({ open, onClose, invoice, onPrint }) => {
                         p: 1,
                       }}
                     >
-                      {formatNumberWithCommas(parseFloat(item.totalValues))}
+                      {formatNumberWithCommas(
+                        parseFloat(item.valueSalesExcludingST || 0) +
+                          parseFloat(item.salesTaxApplicable || 0) +
+                          parseFloat(item.furtherTax || 0) +
+                          parseFloat(item.extraTax || 0) +
+                          parseFloat(item.fedPayable || 0) +
+                          parseFloat(item.advanceIncomeTax || 0) -
+                          parseFloat(item.discount || 0) +
+                          parseFloat(item.courierCharges || 0)
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

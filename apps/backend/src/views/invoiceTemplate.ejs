@@ -117,12 +117,6 @@
       border-bottom: 1px solid #000 !important;
     }
 
-    /* Total row configuration: No left, right or bottom lines */
-    .items-table tr.total-row td {
-      border: none !important;
-      padding-top: 6px;
-      font-size: 11px;
-    }
 
     .footer-meta {
       position: absolute;
@@ -376,10 +370,9 @@
           </tr>
         </thead>
         <tbody>
-          <% let totalQty=0; if (invoice && invoice.items && invoice.items.length> 0) {
+          <% if (invoice && invoice.items && invoice.items.length > 0) {
             invoice.items.forEach((item, index) => {
             const isLast = index === invoice.items.length - 1;
-            totalQty += Number(item.quantity || 0);
             %>
             <tr class="<%= isLast ? 'last-row' : '' %>">
               <td class="text-center">
@@ -430,16 +423,6 @@
                 <td colspan="9" class="text-center">No items found</td>
               </tr>
               <% } %>
-
-                <tr class="total-row">
-                  <td colspan="4" class="text-right bold" style="padding-right: 15px;">Total</td>
-                  <td></td>
-                  <td class="text-center bold">
-                    <%= totalQty %>
-                  </td>
-                  <td></td>
-                  <td></td>
-                </tr>
         </tbody>
       </table>
 
@@ -496,7 +479,7 @@
                   </td>
                 </tr>
                 <tr>
-                  <td class="bold" style="text-align: right; padding: 2px 2px;">Taxable Value :</td>
+                  <td class="bold" style="text-align: right; padding: 2px 2px;">Sales Tax (GST) :</td>
                   <td class="bold" style="text-align: right; padding: 2px 0;">
                     <%= Number(sumTaxable).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:
                       2}) %>
