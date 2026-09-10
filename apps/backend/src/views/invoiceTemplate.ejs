@@ -6,27 +6,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tax Invoice - Piercing Systems Pakistan</title>
   <style>
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: Arial, sans-serif;
-      font-size: 11px;
+      font-size: 10.5px;
       color: #000;
       margin: 0;
-      padding: 20px;
+      padding: 0;
       background-color: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     .page {
       width: 210mm;
       min-height: 297mm;
+      height: 297mm;
+      max-height: 297mm;
       margin: 0 auto;
-      padding: 10mm;
+      padding: 8mm 10mm 6mm 10mm;
       box-sizing: border-box;
       background: white;
       position: relative;
+      overflow: hidden;
     }
 
     .page-break {
       page-break-after: always;
+      break-after: page;
     }
 
     table {
@@ -37,7 +52,7 @@
 
     th,
     td {
-      padding: 4px 6px;
+      padding: 3px 5px;
       text-align: left;
       vertical-align: top;
     }
@@ -72,11 +87,11 @@
     }
 
     .invoice-title {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: bold;
       text-decoration: underline;
       text-align: center;
-      margin: 15px 0 5px 0;
+      margin: 8px 0 6px 0;
     }
 
     .connected-table {
@@ -86,6 +101,8 @@
 
     .connected-table td {
       border: 1px solid #000;
+      padding: 3px 5px;
+      font-size: 10px;
     }
 
     /* MAIN ITEMS TABLE BORDERLESS CONTAINER */
@@ -97,9 +114,9 @@
 
     .items-table th {
       font-weight: bold;
-      font-size: 10px;
+      font-size: 9.5px;
       border: 1px solid #000;
-      padding: 5px 6px;
+      padding: 3.5px 5px;
     }
 
     /* Inner vertical grids for data items */
@@ -108,21 +125,28 @@
       border-right: 1px solid #000;
       border-top: none;
       border-bottom: none;
-      font-size: 10px;
-      padding: 3px 6px;
+      font-size: 9.5px;
+      padding: 2.5px 5px;
+      line-height: 1.2;
     }
 
-    /* This closes the item box perfectly at Row 12 */
+    /* This closes the item box perfectly at last row */
     .items-table tr.last-row td {
       border-bottom: 1px solid #000 !important;
     }
 
+    .avoid-break {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
 
     .footer-meta {
       position: absolute;
-      bottom: 20px;
+      bottom: 6mm;
+      left: 10mm;
+      right: 10mm;
       width: calc(100% - 20mm);
-      font-size: 10px;
+      font-size: 9.5px;
     }
 
     ol {
@@ -131,9 +155,10 @@
     }
 
     ol li {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       text-align: justify;
-      line-height: 1.4;
+      line-height: 1.35;
+      font-size: 10px;
     }
   </style>
 </head>
@@ -144,7 +169,7 @@
     if (!address) return ['', '', ''];
     let parts = address.split(/\r?\n/).map(p => p.trim()).filter(Boolean);
     if (parts.length === 1 && address.includes(',')) {
-    parts = address.split(',').map(p => p.trim()).filter(Boolean);
+      parts = address.split(',').map(p => p.trim()).filter(Boolean);
     }
     if (parts.length === 0) return ['', '', ''];
     if (parts.length === 1) return [parts[0], '', ''];
@@ -155,54 +180,54 @@
     %>
 
     <div class="page page-break">
-      <table style="margin-top: -50px; font-family: Arial, sans-serif; border-collapse: collapse; width: 100%;">
+      <table style="margin-top: 0; font-family: Arial, sans-serif; border-collapse: collapse; width: 100%;">
         <tr>
           <td style="width: 22%; vertical-align: middle; padding: 0;">
             <img src="data:image/png;base64,<%= piercingSystemLogoBase64 %>" alt="PSP Logo"
-              style="width: 100%; max-width: 140px; height: auto; display: block;">
+              style="width: 100%; max-width: 130px; height: auto; display: block;">
           </td>
           <td
-            style="width: 78%; text-align: left; vertical-align: middle; padding-left: 15px; font-weight: bold; font-size: 11.5px;  color: #000;">
+            style="width: 78%; text-align: left; vertical-align: middle; padding-left: 12px; font-weight: bold; font-size: 11px; color: #000;">
 
-            <div style="text-align: center; font-size: 18px; font-weight: bold; margin: 0 0 2px 0;">
+            <div style="text-align: center; font-size: 17px; font-weight: bold; margin: 0 0 2px 0;">
               <%= invoice.sellerBusinessName || 'Piercing Systems Pakistan Pvt Ltd' %>
             </div>
 
-            <div style="text-align: center; font-size: 13px; font-weight: bold; margin-bottom: 4px;">
+            <div style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 2px;">
               <%= addressParts[0] || 'Jewelry Market' %>
             </div>
 
-            <div style="text-align: center; font-size: 11.5px; font-weight: bold; margin-bottom: 2px;">
+            <div style="text-align: center; font-size: 11px; font-weight: bold; margin-bottom: 2px;">
               <%= addressParts[1] || 'OFFICE 701, 7TH FLOOR ALKHALEEJ TOWER , MAIN SHAHEED E MILLAT ROAD,' %>
             </div>
 
-            <div style="text-align: center; font-size: 11.5px; font-weight: bold; margin-bottom: 6px;">
+            <div style="text-align: center; font-size: 11px; font-weight: bold; margin-bottom: 4px;">
               <%= addressParts[2] || 'TARIQ ROAD KARACHI- PAKISTAN.' %>
             </div>
 
             <table style="width: 100%; margin: 0; padding: 0; border-collapse: collapse;">
               <tr>
-                <td style="padding: 0; font-weight: bold; font-size: 11.5px; text-align: center; width: 50%;">
+                <td style="padding: 0; font-weight: bold; font-size: 11px; text-align: center; width: 50%;">
                   Tel : <%= invoice.telNo || '021-34922327/8/9' %>
                 </td>
-                <td style="padding: 0; font-weight: bold; font-size: 11.5px; text-align: center; width: 50%;">
+                <td style="padding: 0; font-weight: bold; font-size: 11px; text-align: center; width: 50%;">
                   Mob : <%= invoice.mobNo || '+92 333 1025 202' %>
                 </td>
               </tr>
             </table>
 
-            <table style="width: 100%; margin: 4px 0 0 0; padding: 0; border-collapse: collapse;">
+            <table style="width: 100%; margin: 3px 0 0 0; padding: 0; border-collapse: collapse;">
               <tr>
                 <td
-                  style="padding: 0; font-weight: bold; font-size: 11px; text-align: left; white-space: nowrap; width: 33%;">
+                  style="padding: 0; font-weight: bold; font-size: 10.5px; text-align: left; white-space: nowrap; width: 33%;">
                   STRN: <%= invoice.strn || '1700360958715' %>
                 </td>
                 <td
-                  style="padding: 0; font-weight: bold; font-size: 11px; text-align: center; white-space: nowrap; width: 25%;">
+                  style="padding: 0; font-weight: bold; font-size: 10.5px; text-align: center; white-space: nowrap; width: 25%;">
                   NTN: <%= invoice.seller_full_ntn || invoice.sellerFullNTN || invoice.sellerNTNCNIC || '3609587-7' %>
                 </td>
                 <td
-                  style="padding: 0; font-weight: bold; font-size: 11px; text-align: right; white-space: nowrap; width: 42%;">
+                  style="padding: 0; font-weight: bold; font-size: 10.5px; text-align: right; white-space: nowrap; width: 42%;">
                   E-mail: <%= invoice.email || 'sales@piercingsystems.pk/info@piercingsystems.pk' %>
                 </td>
               </tr>
@@ -219,16 +244,16 @@
           <td style="width: 49.3%; padding: 0; vertical-align: top;">
             <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
               <tr class="bg-gray" style="border-bottom: 1px solid #000;">
-                <td style="font-weight: bold; padding: 4px 6px; height: 16px; white-space: nowrap;">INVOICE NO : <%=
+                <td style="font-weight: bold; padding: 3px 5px; height: 16px; font-size: 10px; white-space: nowrap;">INVOICE NO : <%=
                     invoice.invoice_number || '' %> &nbsp;&nbsp;&nbsp;&nbsp; GST Ref : <%= invoice.companyInvoiceRefNo
                       || '' %>
                 </td>
               </tr>
               <tr class="bg-gray" style="border-bottom: 1px solid #000;">
-                <td style="font-weight: bold; padding: 4px 6px;">SHIP TO</td>
+                <td style="font-weight: bold; padding: 3px 5px; font-size: 10px;">SHIP TO</td>
               </tr>
               <tr>
-                <td style="padding: 4px 6px; padding-bottom: 8px;">
+                <td style="padding: 4px 6px; font-size: 9.5px; line-height: 1.25;">
                   <% if (invoice.ShipTo) { %>
                     <div class="bold">
                       <%= invoice.ShipTo.name || '' %>
@@ -236,22 +261,16 @@
                     <div>
                       <%= invoice.ShipTo.address || '' %>
                     </div>
-                    <br>
-                    <div>Contact Person : &nbsp;&nbsp; <%= invoice.ShipTo.contactPerson || '' %>
-                    </div>
-                    <div>Contact No : &nbsp;&nbsp; <%= invoice.ShipTo.contactNo || '' %>
-                    </div>
-                    <div>CNIC &nbsp; <%= invoice.ShipTo.cnic || '' %> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        NTN &nbsp;&nbsp; <%= invoice.ShipTo.ntn || '' %>
-                    </div>
-                    <% } else { %>
-                      <div class="bold"></div>
-                      <div></div>
-                      <br>
-                      <div>Contact Person : &nbsp;&nbsp; </div>
-                      <div>Contact No :</div>
-                      <div>CNIC &nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN</div>
-                      <% } %>
+                    <div style="margin-top: 5px;">Contact Person : &nbsp; <%= invoice.ShipTo.contactPerson || '' %></div>
+                    <div>Contact No : &nbsp; <%= invoice.ShipTo.contactNo || '' %></div>
+                    <div>CNIC : &nbsp; <%= invoice.ShipTo.cnic || '' %> &nbsp;&nbsp;&nbsp;&nbsp; NTN : &nbsp; <%= invoice.ShipTo.ntn || '' %></div>
+                  <% } else { %>
+                    <div class="bold">&nbsp;</div>
+                    <div>&nbsp;</div>
+                    <div style="margin-top: 5px;">Contact Person : </div>
+                    <div>Contact No : </div>
+                    <div>CNIC : &nbsp;&nbsp;&nbsp;&nbsp; NTN : </div>
+                  <% } %>
                 </td>
               </tr>
             </table>
@@ -262,15 +281,15 @@
           <td style="width: 49.3%; padding: 0; vertical-align: top;">
             <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
               <tr class="bg-gray" style="border-bottom: 1px solid #000;">
-                <td style="font-weight: bold; padding: 4px 6px; height: 16px;">INVOICE DATE : &nbsp;&nbsp; <%=
+                <td style="font-weight: bold; padding: 3px 5px; height: 16px; font-size: 10px;">INVOICE DATE : &nbsp;&nbsp; <%=
                     invoice.invoiceDate || '' %>
                 </td>
               </tr>
               <tr class="bg-gray" style="border-bottom: 1px solid #000;">
-                <td style="font-weight: bold; padding: 4px 6px;">BILL TO</td>
+                <td style="font-weight: bold; padding: 3px 5px; font-size: 10px;">BILL TO</td>
               </tr>
               <tr>
-                <td style="padding: 4px 6px; padding-bottom: 8px;">
+                <td style="padding: 4px 6px; font-size: 9.5px; line-height: 1.25;">
                   <% if (invoice.BillTo) { %>
                     <div class="bold">
                       <%= invoice.BillTo.name || '' %>
@@ -278,22 +297,14 @@
                     <div>
                       <%= invoice.BillTo.address || '' %>
                     </div>
-                    <br><br>
-                    <div>Ref No <%= invoice.BillTo.refNo || '' %>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        NTN &nbsp;&nbsp; <%= invoice.BillTo.ntn || '' %>
-                    </div>
-                    <div>STRN : &nbsp;&nbsp; <%= invoice.BillTo.strn || '' %>
-                    </div>
-                    <% } else { %>
-                      <div class="bold"></div>
-                      <div></div>
-                      <br><br>
-                      <div>Ref No
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        NTN</div>
-                      <div>STRN :</div>
-                      <% } %>
+                    <div style="margin-top: 5px;">Ref No : &nbsp; <%= invoice.BillTo.refNo || '' %> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN : &nbsp; <%= invoice.BillTo.ntn || '' %></div>
+                    <div>STRN : &nbsp; <%= invoice.BillTo.strn || '' %></div>
+                  <% } else { %>
+                    <div class="bold">&nbsp;</div>
+                    <div>&nbsp;</div>
+                    <div style="margin-top: 5px;">Ref No : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN : </div>
+                    <div>STRN : </div>
+                  <% } %>
                 </td>
               </tr>
             </table>
@@ -426,24 +437,22 @@
         </tbody>
       </table>
 
-      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 15px;">
+      <table class="avoid-break" style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 8px;">
         <tr>
-          <td style="width: 63%; padding: 8px 6px 4px 8px; vertical-align: top; line-height: 1.3;">
-            <div class="bold" style="font-size: 11px;">DECLARATION :</div>
-            <div style="font-size: 10px; text-align: justify; margin-top: 3px; color: #000; font-weight: normal;">
+          <td style="width: 63%; padding: 6px 8px 4px 8px; vertical-align: top; line-height: 1.25;">
+            <div class="bold" style="font-size: 10px;">DECLARATION :</div>
+            <div style="font-size: 9.5px; text-align: justify; margin-top: 3px; color: #000; font-weight: normal; line-height: 1.25;">
               We declare that goods received in good condition this invoice shows actual price of the goods described
               and that all particulars are true and correct.<br>
               THIS INVOICE IS SUBJECT TO TERMS & CONDITIONS PRINTED OVERLEAF & I HEREBY ACCEPT THIS INVOICE.
             </div>
-            <br>
-            <div class="bold" style="margin-top: 5px; font-size: 11px;">Goods Received By :</div>
-            <br><br>
-            <div class="bold" style="font-size: 11px;">Date : <span style="font-weight: normal;">
+            <div class="bold" style="margin-top: 6px; font-size: 10px;">Goods Received By :</div>
+            <div class="bold" style="margin-top: 4px; font-size: 10px;">Date : <span style="font-weight: normal;">
                 <%= invoice.invoiceDate || '' %>
               </span></div>
           </td>
 
-          <td style="width: 37%; padding: 6px 8px 4px 6px; vertical-align: top;">
+          <td style="width: 37%; padding: 5px 8px 4px 6px; vertical-align: top;">
             <% let sumGrossTotal=0; let sumDiscount=0; let sumCourier=0; let sumTaxable=0; let sumFurther=0; if (invoice
               && invoice.items) { invoice.items.forEach(item=> {
               sumGrossTotal += Number(item.valueSalesExcludingST || 0);
@@ -456,7 +465,7 @@
 
               let finalTotal = sumGrossTotal - sumDiscount + sumCourier + sumTaxable + sumFurther;
               %>
-              <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
                 <tr>
                   <td class="bold" style="text-align: right; padding: 2px 2px; width: 60%;">Gross Total :</td>
                   <td class="bold" style="text-align: right; padding: 2px 0; width: 40%;">
@@ -503,24 +512,24 @@
           </td>
         </tr>
         <tr>
-          <td colspan="2" style=" padding: 6px 8px 6px 8px; vertical-align: middle;">
-            <div class="bold" style="font-size: 11px;">
-              Amount In Words : <span style="font-weight: normal; font-size: 11px;">PKR &nbsp;<%= typeof convertToWords
+          <td colspan="2" style="padding: 4px 8px; vertical-align: middle; border-top: 1px solid #000;">
+            <div class="bold" style="font-size: 10px;">
+              Amount In Words : <span style="font-weight: normal; font-size: 10px;">PKR &nbsp;<%= typeof convertToWords
                   !=='undefined' ? convertToWords(finalTotal) : '' %></span>
             </div>
           </td>
         </tr>
       </table>
 
-      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 15px;">
+      <table class="avoid-break" style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 8px;">
         <tr>
-          <td style="width: 58%; padding: 8px 6px 8px 8px; vertical-align: top;">
-            <div class="bold" style="text-decoration: underline; margin-bottom: 6px; font-size: 11px;">BANK DETAILS :
+          <td style="width: 58%; padding: 6px 8px 6px 8px; vertical-align: top;">
+            <div class="bold" style="text-decoration: underline; margin-bottom: 4px; font-size: 10.5px;">BANK DETAILS :
             </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px; line-height: 1.45;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px; line-height: 1.35;">
               <tr>
-                <td style="padding: 1px 0; width: 130px; font-weight: normal;">BENEFICIARY NAME</td>
-                <td style="padding: 1px 0; width: 15px; text-align: center;">:</td>
+                <td style="padding: 1px 0; width: 125px; font-weight: normal;">BENEFICIARY NAME</td>
+                <td style="padding: 1px 0; width: 12px; text-align: center;">:</td>
                 <td style="padding: 1px 0; font-weight: normal;">
                   Piercing Systems Pakistan Pvt Ltd
                 </td>
@@ -548,64 +557,62 @@
             </table>
           </td>
 
-          <td style="width: 42%; padding: 8px 8px 6px 6px; vertical-align: top; text-align: right; position: relative;">
-            <div class="bold" style="font-size: 11px; margin-bottom: 2px; text-align: right; color: #000;">
+          <td style="width: 42%; padding: 6px 8px 4px 6px; vertical-align: top; text-align: right; position: relative;">
+            <div class="bold" style="font-size: 10.5px; margin-bottom: 2px; text-align: right; color: #000;">
               Piercing Systems Pakistan Pvt Ltd
             </div>
-            <div style="text-align: right; padding-right: 35px; margin-top: 2px;">
+            <div style="text-align: right; padding-right: 30px; margin-top: 2px;">
               <img src="data:image/png;base64,<%= stampLogoBase64 %>" alt="Authorized Signatory Stamp"
-                style="max-width: 90px; height: auto; display: inline-block;">
+                style="max-width: 75px; height: auto; display: inline-block;">
             </div>
-            <div class="bold" style="font-size: 10px; text-align: right; padding-right: 12px; margin-top: 5px;">
+            <div class="bold" style="font-size: 9.5px; text-align: right; padding-right: 12px; margin-top: 3px;">
               AUTHORISED SIGNATORY
             </div>
           </td>
         </tr>
       </table>
 
-      <div class="text-center bold" style="margin-top: 10px; font-size: 10.5px; font-family: Arial, sans-serif;">
-        "This is Computer Genereted Invoice"
+      <div class="text-center bold" style="margin-top: 6px; font-size: 10px; font-family: Arial, sans-serif;">
+        "This is Computer Generated Invoice"
       </div>
-      <% if ((typeof showFbrLogo !=='undefined' && showFbrLogo) || (typeof showQRCode !=='undefined' && showQRCode)) {
-        %>
-        <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+
+      <% if ((typeof showFbrLogo !=='undefined' && showFbrLogo) || (typeof showQRCode !=='undefined' && showQRCode)) { %>
+        <table style="width: 100%; margin-top: 4px; border-collapse: collapse;">
           <tr>
             <td style="width: 50%; text-align: left; vertical-align: middle;">
               <% if (typeof showFbrLogo !=='undefined' && showFbrLogo && typeof companyLogoBase64 !=='undefined' ) { %>
                 <img src="data:image/png;base64,<%= companyLogoBase64 %>" alt="FBR Logo"
-                  style="max-width: 100px; height: auto;">
+                  style="max-width: 70px; height: auto;">
                 <% } %>
             </td>
             <td style="width: 50%; text-align: right; vertical-align: middle;">
               <% if (typeof showQRCode !=='undefined' && showQRCode && typeof qrData !=='undefined' ) { %>
-                <img src="<%= qrData %>" alt="QR Code" style="max-width: 100px; height: auto;">
-                <% } %>
+                <img src="<%= qrData %>" alt="QR Code" style="max-width: 70px; height: auto;">
+              <% } %>
             </td>
           </tr>
         </table>
-        <% } else { %>
-          <div></div>
-          <% } %>
+      <% } %>
 
-            <div class="footer-meta">
-              <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
-              <table style="margin: 0; font-size: 9px;">
-                <tr>
-                  <td><strong>User name :</strong>
-                    <%= invoice.created_by_name || 'System' %>
-                  </td>
-                  <td class="text-center"><strong>Print Date & Time :</strong>
-                    <%= new Date().toLocaleString('en-GB', { day: '2-digit' , month: '2-digit' , year: 'numeric' ,
-                      hour: '2-digit' , minute: '2-digit' , second: '2-digit' , hour12: false }).replace(',', '' ) %>
-                  </td>
-                  <td class="text-right"><strong>Page :</strong> 1 / 2</td>
-                </tr>
-              </table>
-            </div>
+      <div class="footer-meta">
+        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 4px;">
+        <table style="margin: 0; font-size: 9px;">
+          <tr>
+            <td><strong>User name :</strong>
+              <%= invoice.created_by_name || 'System' %>
+            </td>
+            <td class="text-center"><strong>Print Date & Time :</strong>
+              <%= new Date().toLocaleString('en-GB', { day: '2-digit' , month: '2-digit' , year: 'numeric' ,
+                hour: '2-digit' , minute: '2-digit' , second: '2-digit' , hour12: false }).replace(',', '' ) %>
+            </td>
+            <td class="text-right"><strong>Page :</strong> 1 / 2</td>
+          </tr>
+        </table>
+      </div>
     </div>
 
     <div class="page">
-      <div class="bold text-center" style="font-size: 14px; text-decoration: underline; margin-bottom: 20px;">
+      <div class="bold text-center" style="font-size: 13px; text-decoration: underline; margin-bottom: 15px;">
         TERMS & CONDITIONS OF THIS TAX INVOICE
       </div>
 
@@ -644,7 +651,7 @@
       </ol>
 
       <div
-        style="font-size: 11px; line-height: 1.5; padding-top: 25px; font-family: Arial, sans-serif; text-align: left; color: #000;">
+        style="font-size: 10.5px; line-height: 1.45; padding-top: 20px; font-family: Arial, sans-serif; text-align: left; color: #000;">
         To place reorders, complaint, compliments and enquires contact us on following.<br>
         Telephone. <%= invoice.telNo || '(021) 349-22-329 / (021) 349-22-327 /(021) 349-22-328' %> Mobile & What's App.
           <%= invoice.mobNo || '+923331025202' %><br>
@@ -653,7 +660,7 @@
       </div>
 
       <div class="footer-meta">
-        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 5px;">
+        <hr style="border: 0; border-top: 1px solid #000; margin-bottom: 4px;">
         <table style="margin: 0; font-size: 9px;">
           <tr>
             <td><strong>User name :</strong>

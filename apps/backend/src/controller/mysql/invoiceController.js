@@ -3362,7 +3362,12 @@ export const printInvoice = async (req, res) => {
 
     await page.setContent(html, { waitUntil: "networkidle0" });
 
-    await page.pdf({ path: pdfPath, format: "A4", printBackground: true });
+    await page.pdf({
+      path: pdfPath,
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
 
     await browser.close();
 
