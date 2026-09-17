@@ -135,6 +135,13 @@
       border-bottom: 1px solid #000 !important;
     }
 
+    .items-table tr.total-row td {
+      border-top: 1px solid #000 !important;
+      border-bottom: 1px solid #000 !important;
+      font-size: 9.5px;
+      padding: 3px 5px;
+    }
+
     .avoid-break {
       page-break-inside: avoid;
       break-inside: avoid;
@@ -381,9 +388,12 @@
           </tr>
         </thead>
         <tbody>
-          <% if (invoice && invoice.items && invoice.items.length > 0) {
-            invoice.items.forEach((item, index) => {
-            const isLast = index === invoice.items.length - 1;
+          <% 
+            let totalQty = 0;
+            if (invoice && invoice.items && invoice.items.length > 0) {
+              invoice.items.forEach((item, index) => {
+                totalQty += Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
+                const isLast = index === invoice.items.length - 1;
             %>
             <tr class="<%= isLast ? 'last-row' : '' %>">
               <td class="text-center">
@@ -430,10 +440,20 @@
               </td>
             </tr>
             <% }); } else { %>
-              <tr>
+              <tr class="last-row">
                 <td colspan="9" class="text-center">No items found</td>
               </tr>
               <% } %>
+            <tr class="total-row">
+              <td colspan="4" class="text-right bold" style="padding-right: 10px;">TOTAL</td>
+              <td class="text-center"></td>
+              <td class="text-center"></td>
+              <td class="text-center bold">
+                <%= Number(totalQty || 0).toLocaleString() %>
+              </td>
+              <td class="text-right"></td>
+              <td class="text-right"></td>
+            </tr>
         </tbody>
       </table>
 
