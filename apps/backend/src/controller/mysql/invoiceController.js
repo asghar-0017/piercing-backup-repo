@@ -3657,6 +3657,7 @@ export const deleteInvoice = async (req, res) => {
       invoiceDate: invoice.invoiceDate,
       invoiceRefNo: invoice.invoiceRefNo,
       companyInvoiceRefNo: invoice.companyInvoiceRefNo,
+      sourceInvoiceNo: invoice.sourceInvoiceNo,
       internal_invoice_no: invoice.internal_invoice_no,
       transctypeId: invoice.transctypeId,
 
@@ -3716,8 +3717,19 @@ export const deleteInvoice = async (req, res) => {
       },
     );
 
-    // Soft delete the invoice
-    await invoice.update({ isDeleted: true });
+    // Soft delete the invoice and append timestamp to companyInvoiceRefNo and sourceInvoiceNo
+    // so that the same invoice numbers can be re-uploaded or re-created without conflicts
+    const timestamp = Date.now();
+    const updatePayload = { isDeleted: true };
+
+    if (invoice.companyInvoiceRefNo) {
+      updatePayload.companyInvoiceRefNo = `${invoice.companyInvoiceRefNo}_${timestamp}`.slice(0, 100);
+    }
+    if (invoice.sourceInvoiceNo) {
+      updatePayload.sourceInvoiceNo = `${invoice.sourceInvoiceNo}_${timestamp}`.slice(0, 100);
+    }
+
+    await invoice.update(updatePayload);
 
     // Check if this is an automatic deletion during FBR submission
     // This happens when a saved invoice is deleted right after submitting to FBR
@@ -3838,12 +3850,17 @@ export const recoverInvoice = async (req, res) => {
         },
       );
 
-      await invoice.update(
-        { isDeleted: false },
-        {
-          transaction: t,
-        },
-      );
+      const recoveryPayload = { isDeleted: false };
+      if (invoice.companyInvoiceRefNo && /_\d{13,}$/.test(invoice.companyInvoiceRefNo)) {
+        recoveryPayload.companyInvoiceRefNo = invoice.companyInvoiceRefNo.replace(/_\d{13,}$/, "");
+      }
+      if (invoice.sourceInvoiceNo && /_\d{13,}$/.test(invoice.sourceInvoiceNo)) {
+        recoveryPayload.sourceInvoiceNo = invoice.sourceInvoiceNo.replace(/_\d{13,}$/, "");
+      }
+
+      await invoice.update(recoveryPayload, {
+        transaction: t,
+      });
     });
 
     try {
