@@ -331,73 +331,87 @@ class AutoSchemaSync {
       {
         table: "invoice_items",
         column: "quantity",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "unitPrice",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "totalValues",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
+        isUpdate: true,
+      },
+      {
+        table: "invoice_items",
+        column: "amountcol",
+        type: "DECIMAL(20,4)",
+        allowNull: true,
+        isUpdate: true,
+      },
+      {
+        table: "invoice_items",
+        column: "descountdol",
+        type: "DECIMAL(20,4)",
+        allowNull: true,
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "valueSalesExcludingST",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "fixedNotifiedValueOrRetailPrice",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "salesTaxApplicable",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "salesTaxWithheldAtSource",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "extraTax",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "furtherTax",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "fedPayable",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "advanceIncomeTax",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "discount",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         isUpdate: true,
       },
       {
@@ -415,8 +429,9 @@ class AutoSchemaSync {
       {
         table: "invoice_items",
         column: "courierCharges",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         allowNull: true,
+        isUpdate: true,
       },
       {
         table: "invoice_backups",
@@ -441,26 +456,30 @@ class AutoSchemaSync {
       {
         table: "invoice_items",
         column: "vatAmount",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         allowNull: true,
+        isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "vat18Amount",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         allowNull: true,
+        isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "vat25Amount",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         allowNull: true,
+        isUpdate: true,
       },
       {
         table: "invoice_items",
         column: "qtyForInternal",
-        type: "DECIMAL(20,2)",
+        type: "DECIMAL(20,4)",
         allowNull: true,
+        isUpdate: true,
       },
       {
         table: "invoice_items",
@@ -592,13 +611,13 @@ class AutoSchemaSync {
       const currentScale = currentColumn.NUMERIC_SCALE;
 
       // Only update if the type is different
-      if (currentType === "decimal" && newType.includes("DECIMAL")) {
-        const newPrecision = newType.match(/DECIMAL\((\d+),(\d+)\)/);
+      if (currentType === "decimal" && /DECIMAL/i.test(newType)) {
+        const newPrecision = newType.match(/DECIMAL\((\d+),\s*(\d+)\)/i);
         if (newPrecision) {
           const [, newPrecisionValue, newScaleValue] = newPrecision;
           if (
-            parseInt(newPrecisionValue) > parseInt(currentPrecision) ||
-            parseInt(newScaleValue) > parseInt(currentScale)
+            parseInt(newPrecisionValue) !== parseInt(currentPrecision) ||
+            parseInt(newScaleValue) !== parseInt(currentScale)
           ) {
             const sql = `ALTER TABLE \`${tableName}\` MODIFY COLUMN \`${columnName}\` ${newType}`;
             await sequelize.query(sql);
@@ -1003,8 +1022,10 @@ class AutoSchemaSync {
 // Export for use in other modules
 export default AutoSchemaSync;
 
+import { pathToFileURL } from "url";
+
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const sync = new AutoSchemaSync();
   sync
     .run()

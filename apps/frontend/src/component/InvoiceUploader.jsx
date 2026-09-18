@@ -329,6 +329,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "item_uoM",
     "item_productName",
     "item_productWeight",
+    "item_amountcol",
+    "item_descountdol",
     "item_valueSalesExcludingST",
     "item_qtyForInternal",
     "item_quantity",
@@ -345,7 +347,6 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "item_furtherTax",
     "item_fedPayable",
     "item_advanceIncomeTax",
-    "item_discount",
     "item_totalValues",
   ];
 
@@ -410,7 +411,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "productweight": "item_productWeight",
     "weight": "item_productWeight",
     "item_productWeight": "item_productWeight",
-    "item_weight": "item_productWeight",
+    Amount: "item_amountcol",
+    Discount: "item_descountdol",
     "Value Sales (Excl ST)": "item_valueSalesExcludingST",
     "Qty (For Internal Use)": "item_qtyForInternal",
     "Quantity in KGS (For FBR)": "item_quantity",
@@ -428,7 +430,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Further Tax": "item_furtherTax",
     "FED Payable": "item_fedPayable",
     "Advance Income Tax": "item_advanceIncomeTax",
-    Discount: "item_discount",
+    // Discount: "item_discount",
     "Total Values": "item_totalValues",
     // Additional mappings for common variations
     dn_invoice_ref_no: "invoiceRefNo",
@@ -484,7 +486,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     extra_tax: "item_extraTax",
     further_tax: "item_furtherTax",
     fed_payable: "item_fedPayable",
-    discount: "item_discount",
+    amount: "item_amountcol",
+    amountcol: "item_amountcol",
+    item_amountcol: "item_amountcol",
+    descountdol: "item_descountdol",
+    item_descountdol: "item_descountdol",
+    // discount: "item_discount",
     unit_of_measurement: "item_uoM",
     unit_of_measurement_for_fbr: "item_uoM",
     unit_of_measurement_for_internal: "item_uoMForInternal",
@@ -1667,6 +1674,15 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             cleanedItem.item_quantity = formattedQty;
           }
 
+          // Auto-calculate Value Sales (Excl ST) from Amount - Discount
+          const amtVal = parseFloat(cleanedItem.item_amountcol || cleanedItem.amountcol || 0) || 0;
+          const discVal = parseFloat(cleanedItem.item_descountdol || cleanedItem.descountdol || 0) || 0;
+          if (amtVal > 0 || discVal > 0) {
+            const netVs = Math.round((amtVal - discVal) * 100) / 100;
+            cleanedItem.valueSalesExcludingST = netVs;
+            cleanedItem.item_valueSalesExcludingST = netVs;
+          }
+
           // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
           const vsExclVal = parseFloat(cleanedItem.valueSalesExcludingST || cleanedItem.item_valueSalesExcludingST || 0) || 0;
           const qIntVal = parseFloat(cleanedItem.item_qtyForInternal || cleanedItem.qtyForInternal || 0) || 0;
@@ -1674,6 +1690,12 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
             cleanedItem.unitPrice = calcUnitPrice;
             cleanedItem.item_unitPrice = calcUnitPrice;
+          }
+          if (cleanedItem.item_amountcol !== undefined) {
+            cleanedItem.amountcol = cleanedItem.item_amountcol;
+          }
+          if (cleanedItem.item_descountdol !== undefined) {
+            cleanedItem.descountdol = cleanedItem.item_descountdol;
           }
           if (cleanedItem.item_hsCode) {
             cleanedItem.hsCode = cleanedItem.item_hsCode;
@@ -1725,9 +1747,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           if (cleanedItem.item_advanceIncomeTax) {
             cleanedItem.advanceIncomeTax = cleanedItem.item_advanceIncomeTax;
           }
-          if (cleanedItem.item_discount) {
-            cleanedItem.discount = cleanedItem.item_discount;
-          }
+          // if (cleanedItem.item_discount) {
+          //   cleanedItem.discount = cleanedItem.item_discount;
+          // }
           if (cleanedItem.item_saleType) {
             cleanedItem.saleType = cleanedItem.item_saleType;
           }
@@ -2650,7 +2672,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
           {/* COMMENTED OUT: Backend Template Generation Code - Preserved for Future Use */}
 
-         {/* <Box sx={{ mb: 2 }}>
+          {/* <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
               onClick={async () => {

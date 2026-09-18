@@ -548,6 +548,10 @@ export const createInvoice = catchAsync(async (req, res, next) => {
 
           totalValues: cleanNumericValue(item.totalValues),
 
+          amountcol: cleanNumericValue(item.amountcol),
+
+          descountdol: cleanNumericValue(item.descountdol),
+
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
 
           fixedNotifiedValueOrRetailPrice: cleanNumericValue(
@@ -700,6 +704,8 @@ export const createInvoice = catchAsync(async (req, res, next) => {
       units: item.units,
       courierCharges: item.courierCharges,
       totalValues: item.totalValues,
+      amountcol: item.amountcol,
+      descountdol: item.descountdol,
       valueSalesExcludingST: item.valueSalesExcludingST,
       fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
       salesTaxApplicable: item.salesTaxApplicable,
@@ -770,6 +776,8 @@ export const createInvoice = catchAsync(async (req, res, next) => {
           units: item.units,
           courierCharges: item.courierCharges,
           totalValues: item.totalValues,
+          amountcol: item.amountcol,
+          descountdol: item.descountdol,
           valueSalesExcludingST: item.valueSalesExcludingST,
           fixedNotifiedValueOrRetailPrice:
             item.fixedNotifiedValueOrRetailPrice,
@@ -1166,6 +1174,10 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
 
           totalValues: cleanNumericValue(item.totalValues),
 
+          amountcol: cleanNumericValue(item.amountcol),
+
+          descountdol: cleanNumericValue(item.descountdol),
+
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
 
           fixedNotifiedValueOrRetailPrice: cleanNumericValue(
@@ -1303,6 +1315,8 @@ export const saveInvoice = catchAsync(async (req, res, next) => {
           units: item.units,
           courierCharges: item.courierCharges,
           totalValues: item.totalValues,
+          amountcol: item.amountcol,
+          descountdol: item.descountdol,
           valueSalesExcludingST: item.valueSalesExcludingST,
           fixedNotifiedValueOrRetailPrice:
             item.fixedNotifiedValueOrRetailPrice,
@@ -1737,6 +1751,10 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
 
           totalValues: cleanNumericValue(item.totalValues),
 
+          amountcol: cleanNumericValue(item.amountcol),
+
+          descountdol: cleanNumericValue(item.descountdol),
+
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
 
           fixedNotifiedValueOrRetailPrice: cleanNumericValue(
@@ -1874,6 +1892,8 @@ export const saveAndValidateInvoice = catchAsync(async (req, res, next) => {
           units: item.units,
           courierCharges: item.courierCharges,
           totalValues: item.totalValues,
+          amountcol: item.amountcol,
+          descountdol: item.descountdol,
           valueSalesExcludingST: item.valueSalesExcludingST,
           fixedNotifiedValueOrRetailPrice:
             item.fixedNotifiedValueOrRetailPrice,
@@ -3470,6 +3490,8 @@ export const updateInvoice = async (req, res) => {
         units: item.units,
         courierCharges: item.courierCharges,
         totalValues: item.totalValues,
+        amountcol: item.amountcol,
+        descountdol: item.descountdol,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
         salesTaxApplicable: item.salesTaxApplicable,
@@ -3549,6 +3571,8 @@ export const updateInvoice = async (req, res) => {
         units: item.units,
         courierCharges: item.courierCharges,
         totalValues: item.totalValues,
+        amountcol: item.amountcol,
+        descountdol: item.descountdol,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
         salesTaxApplicable: item.salesTaxApplicable,
@@ -3693,6 +3717,8 @@ export const deleteInvoice = async (req, res) => {
         units: item.units,
         courierCharges: item.courierCharges,
         totalValues: item.totalValues,
+        amountcol: item.amountcol,
+        descountdol: item.descountdol,
         valueSalesExcludingST: item.valueSalesExcludingST,
         fixedNotifiedValueOrRetailPrice: item.fixedNotifiedValueOrRetailPrice,
         salesTaxApplicable: item.salesTaxApplicable,
@@ -4266,6 +4292,10 @@ export const submitSavedInvoice = async (req, res) => {
 
           totalValues: cleanNumericValue(item.totalValues),
 
+          amountcol: cleanNumericValue(item.amountcol),
+
+          descountdol: cleanNumericValue(item.descountdol),
+
           valueSalesExcludingST: cleanNumericValue(item.valueSalesExcludingST),
 
           fixedNotifiedValueOrRetailPrice: cleanNumericValue(
@@ -4684,6 +4714,8 @@ export const submitSavedInvoice = async (req, res) => {
             uoM: item.uoM,
             unitPrice: item.unitPrice,
             totalValues: item.totalValues,
+            amountcol: item.amountcol,
+            descountdol: item.descountdol,
             valueSalesExcludingST: item.valueSalesExcludingST,
             fixedNotifiedValueOrRetailPrice:
               item.fixedNotifiedValueOrRetailPrice,
@@ -4746,6 +4778,8 @@ export const submitSavedInvoice = async (req, res) => {
             uoM: item.uoM,
             unitPrice: item.unitPrice,
             totalValues: item.totalValues,
+            amountcol: item.amountcol,
+            descountdol: item.descountdol,
             valueSalesExcludingST: item.valueSalesExcludingST,
             fixedNotifiedValueOrRetailPrice:
               item.fixedNotifiedValueOrRetailPrice,
@@ -5937,6 +5971,10 @@ export const bulkCreateInvoices = async (req, res) => {
                 return parseFloat(itemData.item_unitPrice || itemData.unitPrice) || 0;
               })(),
               totalValues: parseFloat(itemData.item_totalValues) || 0,
+              amountcol:
+                parseFloat(itemData.item_amountcol || itemData.amountcol) || 0,
+              descountdol:
+                parseFloat(itemData.item_descountdol || itemData.descountdol) || 0,
               valueSalesExcludingST:
                 parseFloat(itemData.item_valueSalesExcludingST) || 0,
               // Force fixedNotifiedValueOrRetailPrice to 0 for Excel uploads
@@ -8361,6 +8399,8 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "item_uoMForInternal",
       "item_productName",
       "item_productWeight",
+      "item_amountcol",
+      "item_descountdol",
       "item_valueSalesExcludingST",
       "item_qtyForInternal",
       "item_quantity",
@@ -8377,7 +8417,6 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       "item_furtherTax",
       "item_fedPayable",
       "item_advanceIncomeTax",
-      "item_discount",
       "item_totalValues",
     ];
 
@@ -8410,6 +8449,8 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       item_uoMForInternal: "Unit Of Measurement for (Internal)",
       item_productName: "Product Name",
       item_productWeight: "Product Weight",
+      item_amountcol: "Amount",
+      item_descountdol: "Discount",
       item_valueSalesExcludingST: "Value Sales (Excl ST)",
       item_qtyForInternal: "Qty (For Internal Use)",
       item_quantity: "Quantity in KGS (For FBR)",
@@ -8426,7 +8467,6 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
       item_furtherTax: "Further Tax",
       item_fedPayable: "FED Payable",
       item_advanceIncomeTax: "Advance Income Tax",
-      item_discount: "Discount",
       item_totalValues: "Total Values",
     };
 
@@ -8848,30 +8888,50 @@ export const downloadInvoiceTemplateExcel = async (req, res) => {
         ucCell.style = { ...ucCell.style, numFmt: "0.0000" };
       }
 
-      template.getCell(
-        r,
-        headerIndex("item_valueSalesExcludingST"),
-      ).dataValidation = {
-        type: "decimal",
-        operator: "greaterThan",
-        formulae: [0],
-        allowBlank: true,
-        showErrorMessage: true,
-        errorStyle: "warning",
-        errorTitle: "Invalid Value (Excl. ST)",
-        error: "Value (Excl. ST) must be a positive number.",
-      };
+      // Auto-calculate Value Sales (Excl. ST) = Amount - Discount
+      if (
+        headerIndex("item_valueSalesExcludingST") > 0 &&
+        headerIndex("item_amountcol") > 0 &&
+        headerIndex("item_descountdol") > 0
+      ) {
+        const amtColL = getColLetter(headerIndex("item_amountcol"));
+        const dscDolColL = getColLetter(headerIndex("item_descountdol"));
+        const vsCell = template.getCell(
+          r,
+          headerIndex("item_valueSalesExcludingST"),
+        );
+        vsCell.value = {
+          formula: `IF(AND(${amtColL}${r}<>"",${dscDolColL}${r}<>""),${amtColL}${r}-${dscDolColL}${r},IF(${amtColL}${r}<>"",${amtColL}${r},""))`,
+          result: "",
+        };
+        vsCell.style = { ...vsCell.style, numFmt: "0.00" };
+      }
 
-      template.getCell(r, headerIndex("item_discount")).dataValidation = {
-        type: "decimal",
-        operator: "greaterThanOrEqual",
-        formulae: [0],
-        allowBlank: true,
-        showErrorMessage: true,
-        errorStyle: "warning",
-        errorTitle: "Invalid Discount",
-        error: "Discount must be a positive number (amount).",
-      };
+      if (headerIndex("item_amountcol") > 0) {
+        template.getCell(r, headerIndex("item_amountcol")).dataValidation = {
+          type: "decimal",
+          operator: "greaterThanOrEqual",
+          formulae: [0],
+          allowBlank: true,
+          showErrorMessage: true,
+          errorStyle: "warning",
+          errorTitle: "Invalid Amount",
+          error: "Amount must be a positive number.",
+        };
+      }
+
+      if (headerIndex("item_descountdol") > 0) {
+        template.getCell(r, headerIndex("item_descountdol")).dataValidation = {
+          type: "decimal",
+          operator: "greaterThanOrEqual",
+          formulae: [0],
+          allowBlank: true,
+          showErrorMessage: true,
+          errorStyle: "warning",
+          errorTitle: "Invalid Discount",
+          error: "Discount must be a positive number.",
+        };
+      }
 
       template.getCell(r, headerIndex("item_extraTax")).dataValidation = {
         type: "decimal",
@@ -8936,11 +8996,10 @@ IF(ISNUMBER(SEARCH("exempt",LOWER($${rateColLetter}${r}))),0,
 $${retailColLetter}${r}*(VALUE(SUBSTITUTE($${rateColLetter}${r},"%",""))/100))))`,
       };
 
-      // Auto-calculate Total Values = (Value Excl. ST + Sales Tax + FED + ST W/H + Further Tax + Extra Tax + Advance Income Tax) minus Discount Amount
+      // Auto-calculate Total Values = Value Excl. ST + Sales Tax + FED + ST W/H + Further Tax + Extra Tax + Advance Income Tax
       template.getCell(r, headerIndex("item_totalValues")).value = {
         formula: `IF($${retailColLetter}${r}="","",
-SUM($${vsColLetter}${r},$${staColLetter}${r},$${fedColLetter}${r},$${stwColLetter}${r},$${ftrColLetter}${r},$${extColLetter}${r},$${aitColLetter}${r})-
-IF($${dscColLetter}${r}="",0,VALUE($${dscColLetter}${r})))`,
+SUM($${vsColLetter}${r},$${staColLetter}${r},$${fedColLetter}${r},$${stwColLetter}${r},$${ftrColLetter}${r},$${extColLetter}${r},$${aitColLetter}${r}))`,
       };
     }
 

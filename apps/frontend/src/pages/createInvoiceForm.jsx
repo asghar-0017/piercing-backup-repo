@@ -243,6 +243,8 @@ export default function CreateInvoice() {
         qtyForInternal: "",
         courierCharges: "0",
         totalValues: "0",
+        amountcol: "",
+        descountdol: "",
         valueSalesExcludingST: "0",
         salesTaxApplicable: "0",
         salesTaxWithheldAtSource: "0",
@@ -1589,6 +1591,8 @@ export default function CreateInvoice() {
               qtyForInternal: "",
               courierCharges: "0",
               totalValues: "0",
+              amountcol: "",
+              descountdol: "",
               valueSalesExcludingST: "0",
               salesTaxApplicable: "0",
               salesTaxWithheldAtSource: "0",
@@ -1648,6 +1652,8 @@ export default function CreateInvoice() {
               ? String(item.courier_charges)
               : item.courierCharges || "0",
             totalValues: item.totalValues || "0",
+            amountcol: item.amountcol !== undefined && item.amountcol !== null ? String(item.amountcol) : "",
+            descountdol: item.descountdol !== undefined && item.descountdol !== null ? String(item.descountdol) : "",
             valueSalesExcludingST: item.valueSalesExcludingST || "0",
             salesTaxApplicable: item.salesTaxApplicable || "0",
             salesTaxWithheldAtSource: item.salesTaxWithheldAtSource || "0",
@@ -2642,6 +2648,8 @@ export default function CreateInvoice() {
       // Update the field - store the raw string value for display
       if (
         [
+          "amountcol",
+          "descountdol",
           "quantity",
           "unitPrice", // Calculated field
           "retailPrice", // User input field
@@ -2659,6 +2667,21 @@ export default function CreateInvoice() {
       ) {
         // Store the raw string value for display
         item[field] = value;
+        if (field === "amountcol" || field === "descountdol") {
+          const rawAmt = field === "amountcol" ? value : (item.amountcol || "");
+          const rawDisc = field === "descountdol" ? value : (item.descountdol || "");
+          if (rawAmt !== "" || rawDisc !== "") {
+            const amt = parseFloat(rawAmt || 0) || 0;
+            const disc = parseFloat(rawDisc || 0) || 0;
+            const netValue = Math.max(0, amt - disc);
+            item.valueSalesExcludingST = Number.isInteger(netValue)
+              ? netValue.toString()
+              : netValue.toFixed(2);
+            item.isValueSalesManual = false;
+          } else {
+            item.valueSalesExcludingST = "0";
+          }
+        }
         if (field === "valueSalesExcludingST") {
           item.isValueSalesManual = true;
         }
@@ -3004,6 +3027,8 @@ export default function CreateInvoice() {
           qtyForInternal: "",
           courierCharges: "0",
           totalValues: "0",
+          amountcol: "",
+          descountdol: "",
           valueSalesExcludingST: "0",
           salesTaxApplicable: "0",
           salesTaxWithheldAtSource: "0",
@@ -3681,6 +3706,14 @@ export default function CreateInvoice() {
         ...item,
         quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
         unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
+        amountcol:
+          item.amountcol !== undefined && item.amountcol !== ""
+            ? Number(Number(item.amountcol).toFixed(2))
+            : 0,
+        descountdol:
+          item.descountdol !== undefined && item.descountdol !== ""
+            ? Number(Number(item.descountdol).toFixed(2))
+            : 0,
         valueSalesExcludingST: Number(
           Number(item.valueSalesExcludingST || 0).toFixed(2),
         ),
@@ -4094,6 +4127,14 @@ export default function CreateInvoice() {
           ...item,
           quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
           unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
+          amountcol:
+            item.amountcol !== undefined && item.amountcol !== ""
+              ? Number(Number(item.amountcol).toFixed(2))
+              : 0,
+          descountdol:
+            item.descountdol !== undefined && item.descountdol !== ""
+              ? Number(Number(item.descountdol).toFixed(2))
+              : 0,
           valueSalesExcludingST: Number(
             Number(item.valueSalesExcludingST || 0).toFixed(2),
           ),
@@ -4604,6 +4645,14 @@ export default function CreateInvoice() {
           invoiceItemNo: fbrStatus?.invoiceNo || "", // This is the FBR item ID
           quantity: item.quantity === "" ? 0 : parseFloat(item.quantity),
           unitPrice: Number(Number(item.unitPrice || 0).toFixed(2)),
+          amountcol:
+            item.amountcol !== undefined && item.amountcol !== ""
+              ? Number(Number(item.amountcol).toFixed(2))
+              : 0,
+          descountdol:
+            item.descountdol !== undefined && item.descountdol !== ""
+              ? Number(Number(item.descountdol).toFixed(2))
+              : 0,
           valueSalesExcludingST: Number(
             Number(item.valueSalesExcludingST || 0).toFixed(2),
           ),
@@ -4779,6 +4828,8 @@ export default function CreateInvoice() {
           unitPrice: "0.00", // Calculated field: Retail Price ÷ Quantity
           retailPrice: "0", // User input field
           totalValues: "0",
+          amountcol: "",
+          descountdol: "",
           valueSalesExcludingST: "0",
           salesTaxApplicable: "0",
           salesTaxWithheldAtSource: "0",
@@ -6498,6 +6549,82 @@ export default function CreateInvoice() {
                   <TextField
                     fullWidth
                     size="small"
+                    label="Amount"
+                    type="text"
+                    value={
+                      item.amountcol === "0.00" || item.amountcol === "0"
+                        ? ""
+                        : formatWithCommasWhileTyping(item.amountcol || "")
+                    }
+                    onChange={(e) => {
+                      const newValue = handleFloatingNumberInput(
+                        e.target.value,
+                        true,
+                      );
+                      if (newValue !== null) {
+                        handleItemChange(index, "amountcol", newValue);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        const cleanValue = value.replace(/,/g, "");
+                        const numValue = parseFloat(cleanValue);
+                        if (!isNaN(numValue)) {
+                          handleItemChange(
+                            index,
+                            "amountcol",
+                            numValue.toString(),
+                          );
+                        }
+                      }
+                    }}
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Discount"
+                    type="text"
+                    value={
+                      item.descountdol === "0.00" || item.descountdol === "0"
+                        ? ""
+                        : formatWithCommasWhileTyping(item.descountdol || "")
+                    }
+                    onChange={(e) => {
+                      const newValue = handleFloatingNumberInput(
+                        e.target.value,
+                        true,
+                      );
+                      if (newValue !== null) {
+                        handleItemChange(index, "descountdol", newValue);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        const cleanValue = value.replace(/,/g, "");
+                        const numValue = parseFloat(cleanValue);
+                        if (!isNaN(numValue)) {
+                          handleItemChange(
+                            index,
+                            "descountdol",
+                            numValue.toString(),
+                          );
+                        }
+                      }
+                    }}
+                    variant="outlined"
+                  />
+                </Box>
+
+                <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
+                  <TextField
+                    fullWidth
+                    size="small"
                     label="Value Sales (Excl. ST)"
                     type="text"
                     value={
@@ -6900,7 +7027,7 @@ export default function CreateInvoice() {
                     variant="outlined"
                   />
                 </Box>
-                <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
+                {/* <Box sx={{ flex: "1 1 18%", minWidth: "150px" }}>
                   <TextField
                     fullWidth
                     size="small"
@@ -6938,7 +7065,7 @@ export default function CreateInvoice() {
                     }}
                     variant="outlined"
                   />
-                </Box>
+                </Box> */}
               </Box>
 
               <Box

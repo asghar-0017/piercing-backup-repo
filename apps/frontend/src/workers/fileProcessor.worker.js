@@ -322,7 +322,8 @@ class FileProcessor {
       "Further Tax": "item_furtherTax",
       "FED Payable": "item_fedPayable",
       "Advance Income Tax": "item_advanceIncomeTax",
-      Discount: "item_discount",
+      Amount: "item_amountcol",
+      Discount: "item_descountdol",
       "Total Values": "item_totalValues",
       // Additional mappings for common variations
       dn_invoice_ref_no: "invoiceRefNo",
@@ -385,9 +386,12 @@ class FileProcessor {
       st_withheld_at_source: "item_salesTaxWithheldAtSource",
       extra_tax: "item_extraTax",
       further_tax: "item_furtherTax",
-      fed_payable: "item_fedPayable",
-      advance_income_tax: "item_advanceIncomeTax",
-      discount: "item_discount",
+      amount: "item_amountcol",
+      amountcol: "item_amountcol",
+      item_amountcol: "item_amountcol",
+      descountdol: "item_descountdol",
+      item_descountdol: "item_descountdol",
+      // discount: "item_discount",
       unit_of_measurement: "item_uoM",
       unit_of_measurement_for_fbr: "item_uoM",
       unit_of_measurement_for_internal: "item_uoMForInternal",
@@ -867,6 +871,8 @@ class FileProcessor {
       "quantity",
       "unitPrice",
       "totalValues",
+      "amountcol",
+      "descountdol",
       "valueSalesExcludingST",
       "fixedNotifiedValueOrRetailPrice",
       "salesTaxApplicable",
@@ -875,12 +881,14 @@ class FileProcessor {
       "furtherTax",
       "fedPayable",
       "advanceIncomeTax",
-      "discount",
+      // "discount",
       "rate",
       // Alternative field names
       "item_quantity",
       "item_unitPrice",
       "item_totalValues",
+      "item_amountcol",
+      "item_descountdol",
       "item_valueSalesExcludingST",
       "item_salesTaxApplicable",
       "item_salesTaxWithheldAtSource",
@@ -888,7 +896,7 @@ class FileProcessor {
       "item_furtherTax",
       "item_fedPayable",
       "item_advanceIncomeTax",
-      "item_discount",
+      // "item_discount",
       "item_rate",
       "item_qtyForInternal",
       "item_courierCharges",
@@ -935,6 +943,8 @@ class FileProcessor {
       item_quantity: "quantity",
       item_unitPrice: "unitPrice",
       item_totalValues: "totalValues",
+      item_amountcol: "amountcol",
+      item_descountdol: "descountdol",
       item_valueSalesExcludingST: "valueSalesExcludingST",
       item_salesTaxApplicable: "salesTaxApplicable",
       item_salesTaxWithheldAtSource: "salesTaxWithheldAtSource",
@@ -942,7 +952,7 @@ class FileProcessor {
       item_furtherTax: "furtherTax",
       item_fedPayable: "fedPayable",
       item_advanceIncomeTax: "advanceIncomeTax",
-      item_discount: "discount",
+      // item_discount: "discount",
       item_uoM: "uoM",
       item_rate: "rate",
       item_saleType: "saleType",
@@ -987,7 +997,7 @@ class FileProcessor {
       // Recalculate VAT amounts based on current values
       const salesExcl = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
       const salesTax = parseFloat(cleaned.salesTaxApplicable || cleaned.item_salesTaxApplicable || 0) || 0;
-      cleaned.vat18Amount = Math.round((salesExcl + salesTax) * 0.18 * 100) / 100;
+      cleaned.vat18Amount = Math.round((salesExcl + salesTax) * 0.18 * 10000) / 10000;
       cleaned.item_vat18Amount = cleaned.vat18Amount;
       cleaned.vat25Amount = 0;
       cleaned.item_vat25Amount = 0;
@@ -996,7 +1006,7 @@ class FileProcessor {
       cleaned.vat18 = false;
       const salesExcl = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
       const salesTax = parseFloat(cleaned.salesTaxApplicable || cleaned.item_salesTaxApplicable || 0) || 0;
-      cleaned.vat25Amount = Math.round((salesExcl + salesTax) * 0.25 * 100) / 100;
+      cleaned.vat25Amount = Math.round((salesExcl + salesTax) * 0.25 * 10000) / 10000;
       cleaned.item_vat25Amount = cleaned.vat25Amount;
       cleaned.vat18Amount = 0;
       cleaned.item_vat18Amount = 0;
@@ -1013,9 +1023,22 @@ class FileProcessor {
 
     if (!isNaN(pWeightNum) && !isNaN(qIntNum) && pWeightNum > 0 && qIntNum > 0) {
       const calcQty = pWeightNum * qIntNum;
-      const formattedQty = Number.isInteger(calcQty) ? calcQty : Math.round(calcQty * 100) / 100;
+      const formattedQty = Number.isInteger(calcQty) ? calcQty : Math.round(calcQty * 10000) / 10000;
       cleaned.quantity = formattedQty;
       cleaned.item_quantity = formattedQty;
+    }
+
+    // Auto-calculate Value Sales (Excl ST) from Amount - Discount
+    const amtRaw = cleaned.item_amountcol !== undefined ? cleaned.item_amountcol : cleaned.amountcol;
+    const discRaw = cleaned.item_descountdol !== undefined ? cleaned.item_descountdol : cleaned.descountdol;
+    if (amtRaw !== undefined || discRaw !== undefined) {
+      const amt = parseFloat(amtRaw || 0) || 0;
+      const disc = parseFloat(discRaw || 0) || 0;
+      if (amt > 0 || disc > 0) {
+        const netVs = Math.round((amt - disc) * 10000) / 10000;
+        cleaned.valueSalesExcludingST = netVs;
+        cleaned.item_valueSalesExcludingST = netVs;
+      }
     }
 
     // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
@@ -1034,10 +1057,9 @@ class FileProcessor {
     const etVal = parseFloat(cleaned.extraTax || cleaned.item_extraTax || 0) || 0;
     const fedVal = parseFloat(cleaned.fedPayable || cleaned.item_fedPayable || 0) || 0;
     const advVal = parseFloat(cleaned.advanceIncomeTax || cleaned.item_advanceIncomeTax || 0) || 0;
-    const discVal = parseFloat(cleaned.discount || cleaned.item_discount || 0) || 0;
     const courierVal = parseFloat(cleaned.courierCharges || cleaned.item_courierCharges || 0) || 0;
 
-    const recalcTotal = Math.round((vsExcl + stApp + ftVal + etVal + fedVal + advVal - discVal + courierVal) * 100) / 100;
+    const recalcTotal = Math.round((vsExcl + stApp + ftVal + etVal + fedVal + advVal + courierVal) * 10000) / 10000;
     cleaned.totalValues = recalcTotal;
     cleaned.item_totalValues = recalcTotal;
 
