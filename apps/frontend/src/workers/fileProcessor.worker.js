@@ -475,25 +475,33 @@ class FileProcessor {
       (row.buyerNTNCNIC && row.buyerNTNCNIC.trim() !== "");
 
     // Check for meaningful item-level data
+    const parseNum = (val) => {
+      if (val === undefined || val === null || val === "") return 0;
+      const s = String(val).trim();
+      const clean = s.includes(",") && !s.includes(".") ? s.replace(",", ".") : s.replace(/,/g, "");
+      const n = parseFloat(clean);
+      return isNaN(n) ? 0 : n;
+    };
+
     const hasItemData =
       (row.item_productName && row.item_productName.trim() !== "") ||
       (row.item_hsCode && row.item_hsCode.trim() !== "") ||
-      (row.item_quantity &&
+      (row.item_quantity !== undefined &&
+        row.item_quantity !== null &&
         row.item_quantity !== "" &&
-        row.item_quantity !== "0" &&
-        row.item_quantity !== 0) ||
-      (row.item_unitPrice &&
+        parseNum(row.item_quantity) !== 0) ||
+      (row.item_unitPrice !== undefined &&
+        row.item_unitPrice !== null &&
         row.item_unitPrice !== "" &&
-        row.item_unitPrice !== "0" &&
-        row.item_unitPrice !== 0) ||
-      (row.item_totalValues &&
+        parseNum(row.item_unitPrice) !== 0) ||
+      (row.item_totalValues !== undefined &&
+        row.item_totalValues !== null &&
         row.item_totalValues !== "" &&
-        row.item_totalValues !== "0" &&
-        row.item_totalValues !== 0) ||
-      (row.item_valueSalesExcludingST &&
+        parseNum(row.item_totalValues) !== 0) ||
+      (row.item_valueSalesExcludingST !== undefined &&
+        row.item_valueSalesExcludingST !== null &&
         row.item_valueSalesExcludingST !== "" &&
-        row.item_valueSalesExcludingST !== "0" &&
-        row.item_valueSalesExcludingST !== 0);
+        parseNum(row.item_valueSalesExcludingST) !== 0);
 
     return hasInvoiceData || hasItemData;
   }
@@ -910,7 +918,16 @@ class FileProcessor {
         cleaned[field] !== null &&
         cleaned[field] !== ""
       ) {
-        const num = parseFloat(cleaned[field]);
+        let rawVal = cleaned[field];
+        if (typeof rawVal === "string") {
+          rawVal = rawVal.trim();
+          if (rawVal.includes(",") && rawVal.includes(".")) {
+            rawVal = rawVal.replace(/,/g, "");
+          } else if (rawVal.includes(",")) {
+            rawVal = rawVal.replace(",", ".");
+          }
+        }
+        const num = parseFloat(rawVal);
         cleaned[field] = isNaN(num) ? 0 : num;
       } else {
         // Only default to 0 for optional fields.
@@ -1016,10 +1033,17 @@ class FileProcessor {
     }
 
     // Auto-calculate quantity (Qty in KGS / For FBR) if productWeight and qtyForInternal are provided
+    const parseFloatClean = (str) => {
+      if (!str) return NaN;
+      const s = String(str).trim();
+      const clean = s.includes(",") && !s.includes(".") ? s.replace(",", ".") : s.replace(/,/g, "");
+      return parseFloat(clean);
+    };
+
     const pWeightRaw = String(cleaned.item_productWeight || cleaned.productWeight || cleaned.weight || "").trim();
     const qIntRaw = String(cleaned.item_qtyForInternal || cleaned.qtyForInternal || cleaned.qty_for_internal || "").trim();
-    const pWeightNum = parseFloat(pWeightRaw);
-    const qIntNum = parseFloat(qIntRaw);
+    const pWeightNum = parseFloatClean(pWeightRaw);
+    const qIntNum = parseFloatClean(qIntRaw);
 
     if (!isNaN(pWeightNum) && !isNaN(qIntNum) && pWeightNum > 0 && qIntNum > 0) {
       const calcQty = pWeightNum * qIntNum;
