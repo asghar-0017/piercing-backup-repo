@@ -186,22 +186,61 @@
     const allItems = (invoice && invoice.items && invoice.items.length > 0) ? invoice.items : [];
     
     let totalQty = 0;
-    let sumGrossTotal = 0;
+    let sumAmountCol = 0;
+    let sumNetValue = 0;
     let sumDiscount = 0;
     let sumCourier = 0;
     let sumTaxable = 0;
     let sumFurther = 0;
 
     allItems.forEach(item => {
-      totalQty += Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
-      sumGrossTotal += Number(item.valueSalesExcludingST || 0);
-      sumDiscount += Number(item.discount || 0);
-      sumCourier += Number(item.courierCharges || 0);
-      sumTaxable += Number(item.salesTaxApplicable || 0);
-      sumFurther += Number(item.furtherTax || 0);
+      const qty = Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
+      totalQty += qty;
+      
+      let disc = Number(
+        (item.discount !== undefined && item.discount !== null && item.discount !== '' && item.discount !== 0) ? item.discount : 
+        ((item.descountdol !== undefined && item.descountdol !== null && item.descountdol !== '' && item.descountdol !== 0) ? item.descountdol :
+        ((item.item_descountdol !== undefined && item.item_descountdol !== null && item.item_descountdol !== '' && item.item_descountdol !== 0) ? item.item_descountdol :
+        (item.discountAmount || item.discount_amount || item.discountInRupees || item.discount_val || 0)))
+      );
+      
+      const netVal = Number(item.valueSalesExcludingST !== undefined && item.valueSalesExcludingST !== null && item.valueSalesExcludingST !== '' ? item.valueSalesExcludingST : 0);
+      
+      let unitCostVal = 0;
+      if (item.unitCost !== undefined && item.unitCost !== null && item.unitCost !== '') {
+        unitCostVal = Number(item.unitCost);
+      } else if (item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== '') {
+        unitCostVal = Number(item.unitPrice);
+      } else if (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') {
+        unitCostVal = Number(item.unit_price);
+      }
+      const calculatedGross = unitCostVal * qty;
+      const amtCol = Number(item.amountcol !== undefined && item.amountcol !== null && item.amountcol !== '' ? item.amountcol :
+                     (item.item_amountcol !== undefined && item.item_amountcol !== null && item.item_amountcol !== '' ? item.item_amountcol : 0));
+
+      if (!disc) {
+        if (amtCol > 0 && netVal > 0 && amtCol > netVal) {
+          disc = amtCol - netVal;
+        } else if (calculatedGross > 0 && netVal > 0 && calculatedGross > netVal) {
+          disc = calculatedGross - netVal;
+        }
+      }
+      
+      sumDiscount += disc;
+      sumNetValue += netVal;
+      const itemGross = amtCol > 0 ? amtCol : (calculatedGross > netVal ? calculatedGross : (netVal + disc));
+      sumAmountCol += itemGross;
+      sumCourier += Number(item.courierCharges || item.courier_charges || item.item_courierCharges || 0);
+      sumTaxable += Number(item.salesTaxApplicable || item.sales_tax_applicable || item.item_salesTaxApplicable || 0);
+      sumFurther += Number(item.furtherTax || item.further_tax || item.item_furtherTax || 0);
     });
 
-    const finalTotal = sumGrossTotal - sumDiscount + sumCourier + sumTaxable + sumFurther;
+    if (!sumDiscount && (invoice.discount || invoice.totalDiscount || invoice.discountAmount || invoice.discount_amount || invoice.descountdol)) {
+      sumDiscount = Number(invoice.discount || invoice.totalDiscount || invoice.discountAmount || invoice.discount_amount || invoice.descountdol || 0);
+    }
+
+    const sumGrossTotal = (sumAmountCol > 0) ? sumAmountCol : (sumNetValue + sumDiscount);
+    const finalTotal = (sumGrossTotal - sumDiscount) + sumCourier + sumTaxable + sumFurther;
 
     // Pagination chunking logic:
     // Page 1 has full header (~118mm):
@@ -477,12 +516,11 @@
         <thead>
           <tr class="bg-gray">
             <th style="width: 4%;" class="text-center">SR #</th>
-            <th style="width: 13%;">ITEM CODE</th>
-            <th style="width: 11%;">HS CODE</th>
-            <th style="width: 33%;">DESCRIPTION</th>
-            <th style="width: 7%;" class="text-center">UNITS</th>
-            <th style="width: 5%;" class="text-center">UoM</th>
-            <th style="width: 5%;" class="text-center">QTY</th>
+            <th style="width: 14%;">ITEM CODE</th>
+            <th style="width: 12%;">HS CODE</th>
+            <th style="width: 36%;">DESCRIPTION</th>
+            <th style="width: 6%;" class="text-center">UNITS</th>
+            <th style="width: 6%;" class="text-center">QTY</th>
             <th style="width: 11%;" class="text-right">Unit Cost</th>
             <th style="width: 11%;" class="text-right">Amount</th>
           </tr>
@@ -506,9 +544,6 @@
               </td>
               <td>
                 <%= item.productDescription || item.name || '' %>
-              </td>
-              <td class="text-center">
-                <%= item.units || '' %>
               </td>
               <td class="text-center">
                 <%= item.uoMForInternal || 0 %>
@@ -541,14 +576,13 @@
             <% }); 
             } else if (!pageObj.hasSummary) { %>
               <tr class="last-row">
-                <td colspan="9" class="text-center">No items found</td>
+                <td colspan="8" class="text-center">No items found</td>
               </tr>
             <% } %>
 
             <% if (pageObj.hasSummary) { %>
               <tr class="total-row">
                 <td colspan="4" class="text-right bold" style="padding-right: 10px;">TOTAL</td>
-                <td class="text-center"></td>
                 <td class="text-center"></td>
                 <td class="text-center bold">
                   <%= Number(totalQty || 0).toLocaleString() %>
