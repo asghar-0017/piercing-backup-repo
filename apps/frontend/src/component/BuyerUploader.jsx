@@ -483,18 +483,20 @@ const BuyerUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           return; // Skip this row
         }
 
-        // Also check if NTN is already in validData to avoid file-level NTN conflicts
-        // even if not exact match (good practice, though prompt focused on exact)
-        const ntnExistsInFile = validData.some(
-          (item) => item.buyerNTNCNIC && item.buyerNTNCNIC.trim() === ntnCnic
-        );
-        if (ntnExistsInFile) {
-          duplicates.push({
-            ...row,
-            _status: "duplicate_ntn",
-            _row: rowNum
-          });
-          return;
+        // Check if Buyer ID is already in validData if ID is provided
+        const rowId = row.id || row.buyerId;
+        if (rowId) {
+          const idExistsInFile = validData.some(
+            (item) => String(item.id || item.buyerId) === String(rowId)
+          );
+          if (idExistsInFile) {
+            duplicates.push({
+              ...row,
+              _status: "duplicate",
+              _row: rowNum
+            });
+            return;
+          }
         }
       }
 

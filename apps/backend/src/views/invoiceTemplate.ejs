@@ -29,14 +29,11 @@
     .page {
       width: 210mm;
       min-height: 297mm;
-      height: 297mm;
-      max-height: 297mm;
       margin: 0 auto;
-      padding: 7mm 10mm 5mm 10mm;
+      padding: 6mm 10mm 5mm 10mm;
       box-sizing: border-box;
       background: white;
       position: relative;
-      overflow: hidden;
     }
 
     .page-break {
@@ -207,30 +204,41 @@
     const finalTotal = sumGrossTotal - sumDiscount + sumCourier + sumTaxable + sumFurther;
 
     // Pagination chunking logic:
-    // A page with full header + summary can comfortably fit up to 13 items.
-    // A page with full header without summary fits up to 24 items.
-    const MAX_WITH_SUMMARY = 13;
-    const MAX_NO_SUMMARY = 24;
+    // Page 1 has full header (~118mm):
+    // - With summary: up to 10 items
+    // - Without summary: up to 45 items
+    const PAGE1_MAX_WITH_SUMMARY = 10;
+    const PAGE1_MAX_NO_SUMMARY = 45;
+    const SUB_MAX_WITH_SUMMARY = 28;
+    const SUB_MAX_NO_SUMMARY = 50;
 
     const itemPages = [];
     if (allItems.length === 0) {
       itemPages.push({ items: [], startIndex: 0, hasSummary: true });
-    } else if (allItems.length <= MAX_WITH_SUMMARY) {
+    } else if (allItems.length <= PAGE1_MAX_WITH_SUMMARY) {
       itemPages.push({ items: allItems, startIndex: 0, hasSummary: true });
     } else {
       let currentIndex = 0;
       while (currentIndex < allItems.length) {
         const remaining = allItems.length - currentIndex;
-        if (remaining <= MAX_WITH_SUMMARY) {
+        const isFirstPage = (itemPages.length === 0);
+        const maxWithSummary = isFirstPage ? PAGE1_MAX_WITH_SUMMARY : SUB_MAX_WITH_SUMMARY;
+        const maxNoSummary = isFirstPage ? PAGE1_MAX_NO_SUMMARY : SUB_MAX_NO_SUMMARY;
+
+        if (remaining <= maxWithSummary) {
           itemPages.push({
             items: allItems.slice(currentIndex),
             startIndex: currentIndex,
             hasSummary: true
           });
           currentIndex = allItems.length;
-        } else if (remaining <= MAX_NO_SUMMARY) {
+        } else if (remaining <= maxNoSummary) {
           // Split nicely between current page and final summary page so the final page has items with summary
-          const itemsForThisPage = remaining - Math.min(MAX_WITH_SUMMARY, Math.ceil(remaining / 2));
+          const minSummaryPageItems = Math.min(remaining - 1, 5);
+          const itemsForThisPage = Math.min(
+            maxNoSummary,
+            remaining - Math.min(SUB_MAX_WITH_SUMMARY, Math.max(1, minSummaryPageItems))
+          );
           itemPages.push({
             items: allItems.slice(currentIndex, currentIndex + itemsForThisPage),
             startIndex: currentIndex,
@@ -239,11 +247,11 @@
           currentIndex += itemsForThisPage;
         } else {
           itemPages.push({
-            items: allItems.slice(currentIndex, currentIndex + MAX_NO_SUMMARY),
+            items: allItems.slice(currentIndex, currentIndex + maxNoSummary),
             startIndex: currentIndex,
             hasSummary: false
           });
-          currentIndex += MAX_NO_SUMMARY;
+          currentIndex += maxNoSummary;
         }
       }
     }
@@ -255,7 +263,8 @@
        const currentPageNum = pageIndex + 1;
   %>
     <div class="page page-break">
-      <!-- Full Header on every item page -->
+      <% if (pageIndex === 0) { %>
+      <!-- Full Header on first item page -->
       <table style="margin-top: 0; font-family: Arial, sans-serif; border-collapse: collapse; width: 100%;">
         <tr>
           <td style="width: 22%; vertical-align: middle; padding: 0;">
@@ -330,23 +339,40 @@
               </tr>
               <tr>
                 <td style="padding: 4px 6px; font-size: 9.5px; line-height: 1.25;">
-                  <% if (invoice.ShipTo) { %>
-                    <div class="bold">
-                      <%= invoice.ShipTo.name || '' %>
-                    </div>
-                    <div>
-                      <%= invoice.ShipTo.address || '' %>
-                    </div>
-                    <div style="margin-top: 5px;">Contact Person : &nbsp; <%= invoice.ShipTo.contactPerson || '' %></div>
-                    <div>Contact No : &nbsp; <%= invoice.ShipTo.contactNo || '' %></div>
-                    <div>CNIC : &nbsp; <%= invoice.ShipTo.cnic || '' %> &nbsp;&nbsp;&nbsp;&nbsp; NTN : &nbsp; <%= invoice.ShipTo.ntn || '' %></div>
-                  <% } else { %>
-                    <div class="bold">&nbsp;</div>
-                    <div>&nbsp;</div>
-                    <div style="margin-top: 5px;">Contact Person : </div>
-                    <div>Contact No : </div>
-                    <div>CNIC : &nbsp;&nbsp;&nbsp;&nbsp; NTN : </div>
-                  <% } %>
+                  <% 
+                    const shipToName = (invoice.ShipTo && invoice.ShipTo.name) || invoice.buyerBusinessName || invoice.buyer_business_name || '';
+                    const shipToAddress = (invoice.ShipTo && invoice.ShipTo.address) || invoice.buyerAddress || invoice.buyer_address || '';
+                    const shipToContactPerson = (invoice.ShipTo && invoice.ShipTo.contactPerson) || '';
+                    const shipToContactNo = (invoice.ShipTo && invoice.ShipTo.contactNo) || '';
+                    
+                    const rawShipVal = String(
+                      (invoice.ShipTo && (invoice.ShipTo.ntn || invoice.ShipTo.cnic || invoice.ShipTo.buyerNTNCNIC || invoice.ShipTo.buyer_ntn_cnic)) || 
+                      invoice.buyerNTNCNIC || invoice.buyer_ntn_cnic || invoice.buyerNTN || invoice.buyer_ntn || ''
+                    ).trim();
+                    const shipDigits = rawShipVal.replace(/\D/g, '');
+
+                    let shipToCnic = (invoice.ShipTo && invoice.ShipTo.cnic) || '';
+                    let shipToNtn = (invoice.ShipTo && invoice.ShipTo.ntn) || '';
+
+                    if (shipDigits.length === 13) {
+                      shipToCnic = rawShipVal;
+                      shipToNtn = '';
+                    } else if (shipDigits.length === 7 || shipDigits.length === 8) {
+                      shipToNtn = rawShipVal;
+                      shipToCnic = '';
+                    } else if (!shipToCnic && !shipToNtn && rawShipVal) {
+                      shipToNtn = rawShipVal;
+                    }
+                  %>
+                  <div class="bold">
+                    <%= shipToName %>
+                  </div>
+                  <div>
+                    <%= shipToAddress %>
+                  </div>
+                  <div style="margin-top: 5px;">Contact Person : &nbsp; <%= shipToContactPerson %></div>
+                  <div>Contact No : &nbsp; <%= shipToContactNo %></div>
+                  <div>CNIC : &nbsp; <%= shipToCnic %> &nbsp;&nbsp;&nbsp;&nbsp; NTN : &nbsp; <%= shipToNtn %></div>
                 </td>
               </tr>
             </table>
@@ -366,21 +392,24 @@
               </tr>
               <tr>
                 <td style="padding: 4px 6px; font-size: 9.5px; line-height: 1.25;">
-                  <% if (invoice.BillTo) { %>
-                    <div class="bold">
-                      <%= invoice.BillTo.name || '' %>
-                    </div>
-                    <div>
-                      <%= invoice.BillTo.address || '' %>
-                    </div>
-                    <div style="margin-top: 5px;">Ref No : &nbsp; <%= invoice.BillTo.refNo || '' %> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN : &nbsp; <%= invoice.BillTo.ntn || '' %></div>
-                    <div>STRN : &nbsp; <%= invoice.BillTo.strn || '' %></div>
-                  <% } else { %>
-                    <div class="bold">&nbsp;</div>
-                    <div>&nbsp;</div>
-                    <div style="margin-top: 5px;">Ref No : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN : </div>
-                    <div>STRN : </div>
-                  <% } %>
+                  <% 
+                    const billToName = (invoice.BillTo && invoice.BillTo.name) || invoice.buyerBusinessName || invoice.buyer_business_name || '';
+                    const billToAddress = (invoice.BillTo && invoice.BillTo.address) || invoice.buyerAddress || invoice.buyer_address || '';
+                    let billToRefNo = (invoice.BillTo && invoice.BillTo.refNo) || '';
+                    if (/registered/i.test(billToRefNo)) {
+                      billToRefNo = '';
+                    }
+                    const billToNtn = (invoice.BillTo && (invoice.BillTo.ntn || invoice.BillTo.buyerNTNCNIC || invoice.BillTo.buyer_ntn_cnic)) || invoice.buyerNTNCNIC || invoice.buyer_ntn_cnic || invoice.buyerNTN || invoice.buyer_ntn || '';
+                    const billToStrn = (invoice.BillTo && invoice.BillTo.strn) || '';
+                  %>
+                  <div class="bold">
+                    <%= billToName %>
+                  </div>
+                  <div>
+                    <%= billToAddress %>
+                  </div>
+                  <div style="margin-top: 5px;">Ref No : &nbsp; <%= billToRefNo %> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NTN : &nbsp; <%= billToNtn %></div>
+                  <div>STRN : &nbsp; <%= billToStrn %></div>
                 </td>
               </tr>
             </table>
@@ -441,6 +470,7 @@
           </td>
         </tr>
       </table>
+      <% } %>
 
       <!-- Items Table -->
       <table class="items-table">

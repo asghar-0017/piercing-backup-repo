@@ -11,7 +11,6 @@ export const createBuyerModel = (sequelize) => {
     buyerNTNCNIC: {
       type: DataTypes.STRING(50),
       allowNull: true,
-      unique: true, // Add unique constraint to prevent duplicate NTN
       validate: {
         len: [0, 50]
       }

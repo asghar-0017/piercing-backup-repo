@@ -35,7 +35,7 @@ async function fixBuyerIndexesFinal() {
       console.log(`🔨 Adding primary index on buyerNTNCNIC...`);
       try {
         await connection.execute(`
-          CREATE UNIQUE INDEX idx_buyer_ntn_cnic ON buyers(buyerNTNCNIC)
+          CREATE INDEX idx_buyer_ntn_cnic ON buyers(buyerNTNCNIC)
         `);
         console.log(`✅ Added idx_buyer_ntn_cnic index`);
       } catch (indexError) {

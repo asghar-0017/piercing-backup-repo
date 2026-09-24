@@ -78,16 +78,14 @@ export const createBuyer = async (req, res) => {
 
     const normalizedProvince = normalizeProvince(buyerProvince);
 
-    // Check if buyer with same NTN already exists
-    if (buyerNTNCNIC) {
-      const existingBuyer = await Buyer.findOne({
-        where: { buyerNTNCNIC: buyerNTNCNIC },
-      });
-
+    // Check if buyer with same ID already exists (if ID is provided)
+    const buyerId = req.body.id || req.body.buyerId;
+    if (buyerId) {
+      const existingBuyer = await Buyer.findByPk(buyerId);
       if (existingBuyer) {
         return res.status(409).json({
           success: false,
-          message: `Buyer with NTN/CNIC "${buyerNTNCNIC}" already exists. Please use a different NTN/CNIC or update the existing buyer.`,
+          message: `Buyer with ID "${buyerId}" already exists.`,
         });
       }
     }
@@ -152,7 +150,7 @@ export const createBuyer = async (req, res) => {
     if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(409).json({
         success: false,
-        message: "Buyer with this NTN/CNIC already exists",
+        message: "Buyer with this ID already exists",
       });
     }
 
@@ -337,22 +335,7 @@ export const updateBuyer = async (req, res) => {
       }
     }
 
-    // Check if the new NTN already exists with another buyer
-    if (buyerNTNCNIC && buyerNTNCNIC !== buyer.buyerNTNCNIC) {
-      const existingBuyer = await Buyer.findOne({
-        where: {
-          buyerNTNCNIC: buyerNTNCNIC,
-          id: { [req.tenantDb.Sequelize.Op.ne]: id }, // Exclude current buyer from check
-        },
-      });
-
-      if (existingBuyer) {
-        return res.status(409).json({
-          success: false,
-          message: `Buyer with NTN/CNIC "${buyerNTNCNIC}" already exists. Please use a different NTN/CNIC.`,
-        });
-      }
-    }
+    // (NTN uniqueness check removed - multiple buyers can share the same NTN/CNIC)
 
     // Normalize province to uppercase for consistency
     const normalizeProvince = (province) => {
@@ -492,7 +475,7 @@ export const updateBuyer = async (req, res) => {
     if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(409).json({
         success: false,
-        message: "Buyer with this NTN/CNIC already exists",
+        message: "Buyer with this ID already exists",
       });
     }
 
@@ -693,55 +676,57 @@ export const bulkCreateBuyers = async (req, res) => {
       }
     });
 
-    // PHASE 2: Batch duplicate checking (single database query)
-    const ntnCnicValues = validBuyers
-      .filter((buyer) => buyer.buyerNTNCNIC && buyer.buyerNTNCNIC.trim())
-      .map((buyer) => buyer.buyerNTNCNIC.trim());
+    // PHASE 2: Batch duplicate checking by ID (if IDs are provided)
+    const buyerIdValues = validBuyers
+      .map((buyer) => buyer.id || buyer.buyerId)
+      .filter((id) => id !== undefined && id !== null && id !== "");
 
     let existingBuyers = [];
-    if (ntnCnicValues.length > 0) {
-      // Single optimized query for all NTN/CNIC values
+    if (buyerIdValues.length > 0) {
       existingBuyers = await Buyer.findAll({
-        where: { buyerNTNCNIC: ntnCnicValues },
-        attributes: ["buyerNTNCNIC"],
+        where: { id: buyerIdValues },
+        attributes: ["id"],
         raw: true,
         benchmark: false,
         logging: false,
       });
     }
 
-    const existingSet = new Set(existingBuyers.map((b) => b.buyerNTNCNIC));
+    const existingIdSet = new Set(existingBuyers.map((b) => String(b.id)));
 
-    // Filter out existing buyers and duplicates within batch
+    // Filter out existing buyers and duplicate IDs within batch
     const finalBuyers = [];
-    const seenNTN = new Set();
+    const seenIDs = new Set();
 
     validBuyers.forEach((buyer) => {
       const ntnCnic = buyer.buyerNTNCNIC?.trim();
+      const rawId = buyer.id || buyer.buyerId;
+      const bId = rawId !== undefined && rawId !== null && rawId !== "" ? String(rawId) : null;
 
-      if (ntnCnic) {
-        if (existingSet.has(ntnCnic)) {
+      if (bId) {
+        if (existingIdSet.has(bId)) {
           results.errors.push({
             index: buyer.index,
             row: buyer.index + 1,
-            error: `Buyer with NTN/CNIC "${ntnCnic}" already exists in database`,
+            error: `Buyer with ID "${bId}" already exists in database`,
           });
           return;
         }
 
-        if (seenNTN.has(ntnCnic)) {
+        if (seenIDs.has(bId)) {
           results.errors.push({
             index: buyer.index,
             row: buyer.index + 1,
-            error: `Duplicate NTN/CNIC "${ntnCnic}" found in upload file`,
+            error: `Duplicate Buyer ID "${bId}" found in upload file`,
           });
           return;
         }
 
-        seenNTN.add(ntnCnic);
+        seenIDs.add(bId);
       }
 
       finalBuyers.push({
+        ...(bId ? { id: bId } : {}),
         buyerNTNCNIC: ntnCnic || null,
         buyerBusinessName: buyer.buyerBusinessName?.trim() || null,
         buyerProvince: buyer.normalizedProvince,
@@ -909,47 +894,45 @@ export const checkExistingBuyers = async (req, res) => {
       total: buyers.length,
     };
 
-    // Extract all NTN/CNIC values for batch checking
-    const ntnCnicValues = buyers
+    // Extract all ID values for batch checking
+    const buyerIdValues = buyers
       .map((buyer, index) => ({
-        ntnCnic: buyer.buyerNTNCNIC?.trim(),
+        id: buyer.id || buyer.buyerId,
         index,
         buyerData: buyer,
       }))
-      .filter((item) => item.ntnCnic); // Only check buyers with NTN/CNIC
+      .filter((item) => item.id !== undefined && item.id !== null && item.id !== "");
 
-    if (ntnCnicValues.length > 0) {
-      // Ultra-optimized batch query using IN clause with indexed field
-      // This will use the unique index on buyerNTNCNIC for O(1) lookups
+    if (buyerIdValues.length > 0) {
       const existingBuyers = await Buyer.findAll({
         where: {
-          buyerNTNCNIC: ntnCnicValues.map((item) => item.ntnCnic),
+          id: buyerIdValues.map((item) => item.id),
         },
-        attributes: ["buyerNTNCNIC", "buyerBusinessName"], // Only fetch what we need
-        raw: true, // Use raw queries for maximum performance
-        benchmark: false, // Disable benchmarking
-        logging: false, // Disable query logging for performance
-        // Force index usage for maximum performance (temporarily disabled until index issue is resolved)
-        // indexHints: [{ type: 'USE', values: ['idx_buyer_ntn_cnic'] }]
+        attributes: ["id", "buyerNTNCNIC", "buyerBusinessName"],
+        raw: true,
+        benchmark: false,
+        logging: false,
       });
 
-      const existingNtnCnicSet = new Set(
-        existingBuyers.map((buyer) => buyer.buyerNTNCNIC)
+      const existingIdSet = new Set(
+        existingBuyers.map((buyer) => String(buyer.id))
       );
 
       // Categorize buyers
       buyers.forEach((buyer, index) => {
-        const ntnCnic = buyer.buyerNTNCNIC?.trim();
+        const rawId = buyer.id || buyer.buyerId;
+        const bId = rawId !== undefined && rawId !== null && rawId !== "" ? String(rawId) : null;
 
-        if (ntnCnic && existingNtnCnicSet.has(ntnCnic)) {
+        if (bId && existingIdSet.has(bId)) {
           const existingBuyer = existingBuyers.find(
-            (b) => b.buyerNTNCNIC === ntnCnic
+            (b) => String(b.id) === bId
           );
           results.existing.push({
             index,
             row: index + 1,
             buyerData: buyer,
             existingBuyer: {
+              id: existingBuyer.id,
               buyerNTNCNIC: existingBuyer.buyerNTNCNIC,
               buyerBusinessName: existingBuyer.buyerBusinessName,
             },
@@ -963,7 +946,7 @@ export const checkExistingBuyers = async (req, res) => {
         }
       });
     } else {
-      // If no NTN/CNIC values, all buyers are considered new
+      // If no buyer IDs provided (new buyers), all are considered new
       buyers.forEach((buyer, index) => {
         results.new.push({
           index,

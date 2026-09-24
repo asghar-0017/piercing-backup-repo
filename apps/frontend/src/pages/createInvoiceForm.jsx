@@ -2502,8 +2502,7 @@ export default function CreateInvoice() {
 
         if (status === 400) {
           if (data.message && data.message.includes("already exists")) {
-            errorMessage =
-              "A buyer with this NTN/CNIC already exists. Please use a different NTN/CNIC.";
+            errorMessage = data.message;
           } else if (data.message && data.message.includes("validation")) {
             errorMessage =
               "Please check your input data. Some fields may be invalid or missing.";
@@ -2512,7 +2511,7 @@ export default function CreateInvoice() {
               data.message || "Invalid data provided. Please check all fields.";
           }
         } else if (status === 409) {
-          errorMessage = "This buyer already exists in our system.";
+          errorMessage = data.message || "This buyer already exists in our system.";
         } else if (status === 500) {
           errorMessage = "Server error occurred. Please try again later.";
         } else {

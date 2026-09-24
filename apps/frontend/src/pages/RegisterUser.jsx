@@ -158,9 +158,7 @@ const RegisterUser = () => {
       if (!res.ok) {
         // Handle specific error cases with human-readable messages
         if (data.message && data.message.includes("already exists")) {
-          throw new Error(
-            "A buyer with this NTN/CNIC already exists. Please use a different NTN/CNIC or contact support if this is an error."
-          );
+          throw new Error(data.message);
         } else if (data.message && data.message.includes("validation")) {
           throw new Error(
             "Please check your input data. Some fields may be invalid or missing."
@@ -175,7 +173,7 @@ const RegisterUser = () => {
               "Invalid data provided. Please check all fields and try again."
           );
         } else if (res.status === 409) {
-          throw new Error("This buyer already exists in our system.");
+          throw new Error(data.message || "This buyer already exists in our system.");
         } else if (res.status === 500) {
           throw new Error(
             "Server error occurred. Please try again later or contact support."

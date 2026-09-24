@@ -70,7 +70,7 @@ async function addIndexesToBuyersTable(sequelize, databaseName) {
     if (!existingIndexNames.includes('idx_buyer_ntn_cnic')) {
       console.log(`🔨 Adding primary index on buyerNTNCNIC...`);
       await sequelize.query(`
-        CREATE UNIQUE INDEX idx_buyer_ntn_cnic ON buyers(buyerNTNCNIC)
+        CREATE INDEX idx_buyer_ntn_cnic ON buyers(buyerNTNCNIC)
       `);
       console.log(`✅ Added idx_buyer_ntn_cnic index`);
     } else {
