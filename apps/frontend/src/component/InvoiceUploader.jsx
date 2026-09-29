@@ -1359,13 +1359,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             const isEmpty =
               val === undefined || val === null || String(val).trim() === "";
             const isZeroButRequiredNonZero =
-              [
-                "item_rate",
-                "item_quantity",
-                "item_unitPrice",
-                "item_valueSalesExcludingST",
-              ].includes(key) &&
-              (val === 0 || val === "0");
+              ["item_quantity"].includes(key) &&
+              (val === 0 || val === "0" || parseFloat(val) === 0);
 
             if (isEmpty || isZeroButRequiredNonZero) {
               const fieldLabel =
@@ -1684,9 +1679,9 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           }
 
           // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
-          const vsExclVal = parseFloat(cleanedItem.valueSalesExcludingST || cleanedItem.item_valueSalesExcludingST || 0) || 0;
+          const vsExclVal = parseFloat(cleanedItem.valueSalesExcludingST ?? cleanedItem.item_valueSalesExcludingST ?? 0) || 0;
           const qIntVal = parseFloat(cleanedItem.item_qtyForInternal || cleanedItem.qtyForInternal || 0) || 0;
-          if (vsExclVal > 0 && qIntVal > 0) {
+          if (qIntVal > 0) {
             const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
             cleanedItem.unitPrice = calcUnitPrice;
             cleanedItem.item_unitPrice = calcUnitPrice;
@@ -1700,7 +1695,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           if (cleanedItem.item_hsCode) {
             cleanedItem.hsCode = cleanedItem.item_hsCode;
           }
-          if (cleanedItem.item_rate) {
+          if (cleanedItem.item_rate !== undefined && cleanedItem.item_rate !== null) {
             let rateVal = String(cleanedItem.item_rate).trim();
             // If it's a number or string without %, append %
             if (rateVal && !rateVal.includes("%")) {
@@ -1711,40 +1706,40 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           if (cleanedItem.item_uoM) {
             cleanedItem.uoM = cleanedItem.item_uoM;
           }
-          if (cleanedItem.item_quantity) {
+          if (cleanedItem.item_quantity !== undefined && cleanedItem.item_quantity !== null) {
             cleanedItem.quantity = cleanedItem.item_quantity;
           }
-          if (cleanedItem.item_unitPrice) {
+          if (cleanedItem.item_unitPrice !== undefined && cleanedItem.item_unitPrice !== null) {
             cleanedItem.unitPrice = cleanedItem.item_unitPrice;
           }
-          if (cleanedItem.item_totalValues) {
+          if (cleanedItem.item_totalValues !== undefined && cleanedItem.item_totalValues !== null) {
             cleanedItem.totalValues = cleanedItem.item_totalValues;
           }
-          if (cleanedItem.item_valueSalesExcludingST) {
+          if (cleanedItem.item_valueSalesExcludingST !== undefined && cleanedItem.item_valueSalesExcludingST !== null) {
             cleanedItem.valueSalesExcludingST =
               cleanedItem.item_valueSalesExcludingST;
           }
-          if (cleanedItem.item_fixedNotifiedValueOrRetailPrice) {
+          if (cleanedItem.item_fixedNotifiedValueOrRetailPrice !== undefined && cleanedItem.item_fixedNotifiedValueOrRetailPrice !== null) {
             cleanedItem.fixedNotifiedValueOrRetailPrice =
               cleanedItem.item_fixedNotifiedValueOrRetailPrice;
           }
-          if (cleanedItem.item_salesTaxApplicable) {
+          if (cleanedItem.item_salesTaxApplicable !== undefined && cleanedItem.item_salesTaxApplicable !== null) {
             cleanedItem.salesTaxApplicable =
               cleanedItem.item_salesTaxApplicable;
           }
-          if (cleanedItem.item_extraTax) {
+          if (cleanedItem.item_extraTax !== undefined && cleanedItem.item_extraTax !== null) {
             cleanedItem.extraTax = cleanedItem.item_extraTax;
           }
-          if (cleanedItem.item_furtherTax) {
+          if (cleanedItem.item_furtherTax !== undefined && cleanedItem.item_furtherTax !== null) {
             cleanedItem.furtherTax = cleanedItem.item_furtherTax;
           }
-          if (cleanedItem.item_sroScheduleNo) {
+          if (cleanedItem.item_sroScheduleNo !== undefined && cleanedItem.item_sroScheduleNo !== null) {
             cleanedItem.sroScheduleNo = cleanedItem.item_sroScheduleNo;
           }
-          if (cleanedItem.item_fedPayable) {
+          if (cleanedItem.item_fedPayable !== undefined && cleanedItem.item_fedPayable !== null) {
             cleanedItem.fedPayable = cleanedItem.item_fedPayable;
           }
-          if (cleanedItem.item_advanceIncomeTax) {
+          if (cleanedItem.item_advanceIncomeTax !== undefined && cleanedItem.item_advanceIncomeTax !== null) {
             cleanedItem.advanceIncomeTax = cleanedItem.item_advanceIncomeTax;
           }
           // if (cleanedItem.item_discount) {

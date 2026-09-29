@@ -561,15 +561,29 @@
                   } else if (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') {
                     unitCostVal = Number(item.unit_price);
                   } else {
-                    const qty = Number(item.qtyForInternal || item.quantity || 0);
-                    const amount = Number(item.valueSalesExcludingST || 0);
+                    const qty = Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
+                    const amount = Number(item.amountcol !== undefined && item.amountcol !== null && item.amountcol !== '' ? item.amountcol : (item.valueSalesExcludingST || 0));
                     unitCostVal = qty > 0 ? (amount / qty) : 0;
+                  }
+
+                  const rowQty = Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
+                  let itemAmountVal = 0;
+                  if (item.amountcol !== undefined && item.amountcol !== null && item.amountcol !== '') {
+                    itemAmountVal = Number(item.amountcol);
+                  } else if (item.item_amountcol !== undefined && item.item_amountcol !== null && item.item_amountcol !== '') {
+                    itemAmountVal = Number(item.item_amountcol);
+                  } else if (item.amount !== undefined && item.amount !== null && item.amount !== '') {
+                    itemAmountVal = Number(item.amount);
+                  } else if (unitCostVal > 0 && rowQty > 0) {
+                    itemAmountVal = unitCostVal * rowQty;
+                  } else {
+                    itemAmountVal = Number(item.valueSalesExcludingST || 0);
                   }
                 %>
                 <%= Number(unitCostVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
               </td>
               <td class="text-right">
-                <%= Number(item.valueSalesExcludingST || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
+                <%= Number(itemAmountVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
                   maximumFractionDigits: 2}) %>
               </td>
             </tr>

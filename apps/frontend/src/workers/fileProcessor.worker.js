@@ -1066,9 +1066,9 @@ class FileProcessor {
     }
 
     // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
-    const vsExclVal = parseFloat(cleaned.valueSalesExcludingST || cleaned.item_valueSalesExcludingST || 0) || 0;
+    const vsExclVal = parseFloat(cleaned.valueSalesExcludingST ?? cleaned.item_valueSalesExcludingST ?? 0) || 0;
     const qIntVal = parseFloat(cleaned.item_qtyForInternal || cleaned.qtyForInternal || 0) || 0;
-    if (vsExclVal > 0 && qIntVal > 0) {
+    if (qIntVal > 0) {
       const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
       cleaned.unitPrice = calcUnitPrice;
       cleaned.item_unitPrice = calcUnitPrice;
