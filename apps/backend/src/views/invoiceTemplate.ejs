@@ -553,20 +553,8 @@
               </td>
               <td class="text-right">
                 <% 
-                  let unitCostVal = 0;
-                  if (item.unitCost !== undefined && item.unitCost !== null && item.unitCost !== '') {
-                    unitCostVal = Number(item.unitCost);
-                  } else if (item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== '') {
-                    unitCostVal = Number(item.unitPrice);
-                  } else if (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') {
-                    unitCostVal = Number(item.unit_price);
-                  } else {
-                    const qty = Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
-                    const amount = Number(item.amountcol !== undefined && item.amountcol !== null && item.amountcol !== '' ? item.amountcol : (item.valueSalesExcludingST || 0));
-                    unitCostVal = qty > 0 ? (amount / qty) : 0;
-                  }
-
                   const rowQty = Number(item.qtyForInternal !== undefined && item.qtyForInternal !== null && item.qtyForInternal !== '' ? item.qtyForInternal : (item.quantity || 0));
+
                   let itemAmountVal = 0;
                   if (item.amountcol !== undefined && item.amountcol !== null && item.amountcol !== '') {
                     itemAmountVal = Number(item.amountcol);
@@ -574,16 +562,42 @@
                     itemAmountVal = Number(item.item_amountcol);
                   } else if (item.amount !== undefined && item.amount !== null && item.amount !== '') {
                     itemAmountVal = Number(item.amount);
-                  } else if (unitCostVal > 0 && rowQty > 0) {
-                    itemAmountVal = unitCostVal * rowQty;
+                  }
+
+                  let disc = Number(
+                    (item.discount !== undefined && item.discount !== null && item.discount !== '' && item.discount !== 0) ? item.discount : 
+                    ((item.descountdol !== undefined && item.descountdol !== null && item.descountdol !== '' && item.descountdol !== 0) ? item.descountdol :
+                    ((item.item_descountdol !== undefined && item.item_descountdol !== null && item.item_descountdol !== '' && item.item_descountdol !== 0) ? item.item_descountdol :
+                    (item.discountAmount || item.discount_amount || item.discountInRupees || item.discount_val || 0)))
+                  );
+
+                  let itemSalesExclST = 0;
+                  if (item.valueSalesExcludingST !== undefined && item.valueSalesExcludingST !== null && item.valueSalesExcludingST !== '') {
+                    itemSalesExclST = Number(item.valueSalesExcludingST);
+                  } else if (item.item_valueSalesExcludingST !== undefined && item.item_valueSalesExcludingST !== null && item.item_valueSalesExcludingST !== '') {
+                    itemSalesExclST = Number(item.item_valueSalesExcludingST);
+                  } else if (itemAmountVal > 0) {
+                    itemSalesExclST = itemAmountVal - disc;
                   } else {
-                    itemAmountVal = Number(item.valueSalesExcludingST || 0);
+                    const rawUnit = Number(item.unitCost || item.unitPrice || item.unit_price || 0);
+                    itemSalesExclST = (rawUnit * rowQty) - disc;
+                  }
+
+                  let unitCostVal = 0;
+                  if (rowQty > 0 && itemSalesExclST !== 0) {
+                    unitCostVal = itemSalesExclST / rowQty;
+                  } else if (item.unitCost !== undefined && item.unitCost !== null && item.unitCost !== '') {
+                    unitCostVal = Number(item.unitCost);
+                  } else if (item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== '') {
+                    unitCostVal = Number(item.unitPrice);
+                  } else if (item.unit_price !== undefined && item.unit_price !== null && item.unit_price !== '') {
+                    unitCostVal = Number(item.unit_price);
                   }
                 %>
                 <%= Number(unitCostVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
               </td>
               <td class="text-right">
-                <%= Number(itemAmountVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
+                <%= Number(itemSalesExclST || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
                   maximumFractionDigits: 2}) %>
               </td>
             </tr>
