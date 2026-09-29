@@ -1678,8 +1678,8 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
             cleanedItem.item_valueSalesExcludingST = netVs;
           }
 
-          // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
-          const vsExclVal = parseFloat(cleanedItem.valueSalesExcludingST ?? cleanedItem.item_valueSalesExcludingST ?? 0) || 0;
+          // Auto-calculate Unit Cost from Amount column (not Value Sales Excl ST)
+          const vsExclVal = parseFloat(cleanedItem.item_amountcol ?? cleanedItem.amountcol ?? 0) || 0;
           const qIntVal = parseFloat(cleanedItem.item_qtyForInternal || cleanedItem.qtyForInternal || 0) || 0;
           if (qIntVal > 0) {
             const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
@@ -2667,7 +2667,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
           {/* COMMENTED OUT: Backend Template Generation Code - Preserved for Future Use */}
 
-          {/* <Box sx={{ mb: 2 }}>
+         {/* <Box sx={{ mb: 2 }}>
             <Button
               variant="outlined"
               onClick={async () => {

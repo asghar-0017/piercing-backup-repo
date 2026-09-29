@@ -1065,11 +1065,11 @@ class FileProcessor {
       }
     }
 
-    // Auto-calculate Unit Cost if valueSalesExcludingST and qtyForInternal are provided
-    const vsExclVal = parseFloat(cleaned.valueSalesExcludingST ?? cleaned.item_valueSalesExcludingST ?? 0) || 0;
+    // Auto-calculate Unit Cost from Amount column (not Value Sales Excl ST)
+    const amtColVal = parseFloat(cleaned.item_amountcol ?? cleaned.amountcol ?? 0) || 0;
     const qIntVal = parseFloat(cleaned.item_qtyForInternal || cleaned.qtyForInternal || 0) || 0;
     if (qIntVal > 0) {
-      const calcUnitPrice = Math.round((vsExclVal / qIntVal) * 10000) / 10000;
+      const calcUnitPrice = Math.round((amtColVal / qIntVal) * 10000) / 10000;
       cleaned.unitPrice = calcUnitPrice;
       cleaned.item_unitPrice = calcUnitPrice;
     }

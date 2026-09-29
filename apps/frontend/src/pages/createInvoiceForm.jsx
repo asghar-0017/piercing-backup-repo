@@ -2034,14 +2034,15 @@ export default function CreateInvoice() {
     if (isEditing && formData.items && formData.items.length > 0) {
       setFormData((prev) => {
         const updatedItems = prev.items.map((item) => {
-          const valueSales = parseFloat(
-            parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
-          );
+          const amountVal =
+            parseFloat(item.amountcol || 0) > 0
+              ? parseFloat(item.amountcol)
+              : parseFloat(item.valueSalesExcludingST || 0);
           const qtyForUnitCost =
             parseFloat(item.qtyForInternal || 0) > 0
               ? parseFloat(item.qtyForInternal)
               : parseFloat(item.quantity || 0);
-          const unitCost = qtyForUnitCost > 0 ? valueSales / qtyForUnitCost : 0;
+          const unitCost = qtyForUnitCost > 0 ? amountVal / qtyForUnitCost : 0;
           return {
             ...item,
             unitPrice: unitCost.toFixed(2),
@@ -2763,16 +2764,17 @@ export default function CreateInvoice() {
 
       // Auto-calculate unit cost and sales tax if not manual
       if (!item.isValueSalesManual) {
-        const valueSales = parseFloat(
-          parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
-        );
+        const amountVal =
+          parseFloat(item.amountcol || 0) > 0
+            ? parseFloat(item.amountcol)
+            : parseFloat(item.valueSalesExcludingST || 0);
         const qtyForUnitCost =
           parseFloat(item.qtyForInternal || 0) > 0
             ? parseFloat(item.qtyForInternal)
             : parseFloat(item.quantity || 0);
 
-        // Calculate unit cost: Value Sales (Excl ST) ÷ Qty (For Internal Use)
-        const unitCost = qtyForUnitCost > 0 ? valueSales / qtyForUnitCost : 0;
+        // Calculate unit cost: Amount ÷ Qty (For Internal Use)
+        const unitCost = qtyForUnitCost > 0 ? amountVal / qtyForUnitCost : 0;
         item.unitPrice = unitCost.toFixed(2);
 
         // Ensure unit cost is always calculated when retail price or quantity changes
@@ -2823,14 +2825,15 @@ export default function CreateInvoice() {
         }
       } else if (item.isValueSalesManual) {
         // If user manually entered value sales, update unit cost and then sales tax if not manual
-        const valueSales = parseFloat(
-          parseFloat(item.valueSalesExcludingST || 0).toFixed(2),
-        );
+        const amountVal =
+          parseFloat(item.amountcol || 0) > 0
+            ? parseFloat(item.amountcol)
+            : parseFloat(item.valueSalesExcludingST || 0);
         const qtyForUnitCost =
           parseFloat(item.qtyForInternal || 0) > 0
             ? parseFloat(item.qtyForInternal)
             : parseFloat(item.quantity || 0);
-        const unitCost = qtyForUnitCost > 0 ? valueSales / qtyForUnitCost : 0;
+        const unitCost = qtyForUnitCost > 0 ? amountVal / qtyForUnitCost : 0;
         item.unitPrice = unitCost.toFixed(2);
 
         // Only calculate sales tax if not manually entered
