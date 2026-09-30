@@ -562,6 +562,8 @@
                     itemAmountVal = Number(item.item_amountcol);
                   } else if (item.amount !== undefined && item.amount !== null && item.amount !== '') {
                     itemAmountVal = Number(item.amount);
+                  } else if (item.totalValues !== undefined && item.totalValues !== null && item.totalValues !== '') {
+                    itemAmountVal = Number(item.totalValues);
                   }
 
                   let disc = Number(
@@ -584,8 +586,8 @@
                   }
 
                   let unitCostVal = 0;
-                  if (rowQty > 0 && itemSalesExclST !== 0) {
-                    unitCostVal = itemSalesExclST / rowQty;
+                  if (rowQty > 0 && itemAmountVal !== 0) {
+                    unitCostVal = itemAmountVal / rowQty;
                   } else if (item.unitCost !== undefined && item.unitCost !== null && item.unitCost !== '') {
                     unitCostVal = Number(item.unitCost);
                   } else if (item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== '') {
@@ -597,7 +599,7 @@
                 <%= Number(unitCostVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
               </td>
               <td class="text-right">
-                <%= Number(itemSalesExclST || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
+                <%= Number(itemAmountVal || 0).toLocaleString(undefined, {minimumFractionDigits: 2,
                   maximumFractionDigits: 2}) %>
               </td>
             </tr>

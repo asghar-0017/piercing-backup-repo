@@ -1066,7 +1066,7 @@ class FileProcessor {
     }
 
     // Auto-calculate Unit Cost from Amount column (not Value Sales Excl ST)
-    const amtColVal = parseFloat(cleaned.item_amountcol ?? cleaned.amountcol ?? 0) || 0;
+    const amtColVal = parseFloat(cleaned.item_amountcol ?? cleaned.amountcol ?? cleaned.item_totalValues ?? cleaned.totalValues ?? 0) || 0;
     const qIntVal = parseFloat(cleaned.item_qtyForInternal || cleaned.qtyForInternal || 0) || 0;
     if (qIntVal > 0) {
       const calcUnitPrice = Math.round((amtColVal / qIntVal) * 10000) / 10000;
