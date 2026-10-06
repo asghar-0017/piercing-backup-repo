@@ -78,7 +78,11 @@ class FileProcessor {
       );
     }
 
-    const headers = jsonData[0].map((h) => this.normalizeHeader(h));
+    // Invoice templates contain 45 main invoice columns (indices 0 to 44).
+    // Columns beyond 44 are dropdown reference lists in Excel and must be ignored.
+    const maxDataCols = 45;
+    const rawHeaderRow = jsonData[0].slice(0, maxDataCols);
+    const headers = rawHeaderRow.map((h) => this.normalizeHeader(h));
 
     // Log available headers for debugging
     console.log("Available headers in Excel file:", headers);
@@ -96,7 +100,7 @@ class FileProcessor {
 
     // Create a mapping of available headers to their original names for data processing
     const headerMapping = {};
-    jsonData[0].forEach((originalHeader, index) => {
+    rawHeaderRow.forEach((originalHeader, index) => {
       const normalizedHeader = headers[index];
       headerMapping[normalizedHeader] = originalHeader;
     });
@@ -108,21 +112,20 @@ class FileProcessor {
       const row = jsonData[i];
       if (!row || !Array.isArray(row)) continue; // Skip invalid rows
 
-      // Check if the row has any non-empty cells in the first few columns (key fields)
-      const hasData = row
-        .slice(0, 5)
-        .some(
-          (cell) =>
-            cell !== null && cell !== undefined && String(cell).trim() !== "",
-        );
+      // Check if the row has any non-empty cells in the main header columns (0 to 44)
+      const slicedRow = row.slice(0, headers.length);
+      const hasData = slicedRow.some(
+        (cell) =>
+          cell !== null && cell !== undefined && String(cell).trim() !== "",
+      );
 
       if (!hasData) continue; // Skip rows with no meaningful data
 
       const rowData = {};
       headers.forEach((header, index) => {
         let value =
-          row[index] !== null && row[index] !== undefined
-            ? String(row[index]).trim()
+          slicedRow[index] !== null && slicedRow[index] !== undefined
+            ? String(slicedRow[index]).trim()
             : "";
         rowData[header] = value;
       });
@@ -141,28 +144,24 @@ class FileProcessor {
         });
       }
 
-      // Additional check: exclude rows that are clearly not invoice data
+      // Additional check: exclude instruction/header rows
+      const firstCell = String(slicedRow[0] || "").trim().toLowerCase();
       const invoiceType = String(
         rowData.invoiceType || rowData.invoice_type || "",
       )
         .trim()
         .toLowerCase();
 
-      // Skip special rows - check for instruction patterns
+      // Skip instruction/notes rows
       if (
-        invoiceType.includes("total") ||
+        firstCell.startsWith("instruction") ||
+        firstCell.startsWith("note:") ||
+        firstCell.startsWith("tip:") ||
         invoiceType.includes("instruction") ||
         invoiceType.includes("summary") ||
-        invoiceType.includes("note") ||
         invoiceType.includes("auto-calculates") ||
-        invoiceType.includes("enter ") ||
-        invoiceType.includes("use the") ||
-        invoiceType.includes("dropdown") ||
-        invoiceType.includes("validated") ||
-        invoiceType.includes("hardcoded") ||
-        invoiceType.includes("fallback") ||
-        /^\d+\.\s/.test(invoiceType) || // Starts with number followed by period and space
-        /^[a-z]\.\s/i.test(invoiceType) // Starts with letter followed by period and space
+        /^\d+\.\s/.test(invoiceType) ||
+        /^[a-z]\.\s/i.test(invoiceType)
       ) {
         continue;
       }
@@ -462,9 +461,7 @@ class FileProcessor {
   hasMeaningfulData(row, rowIndex) {
     // Check for meaningful invoice-level data
     const hasInvoiceData =
-      (row.invoiceType &&
-        row.invoiceType.trim() !== "" &&
-        row.invoiceType !== "Standard") ||
+      (row.invoiceType && row.invoiceType.trim() !== "") ||
       (row.invoiceDate && row.invoiceDate.trim() !== "") ||
       (row.companyInvoiceRefNo &&
         row.companyInvoiceRefNo.trim() !== "" &&
@@ -530,75 +527,19 @@ class FileProcessor {
       return false;
     }
 
-    // Check for instruction patterns in any field - if found, reject
-    // Made more specific to avoid false positives with legitimate invoice data
-    const instructionPatterns = [
-      "auto-calculates",
-      "enter ",
-      "use the",
-      "dropdown",
-      "validated",
-      "hardcoded",
-      "fallback",
-      "computed as",
-      "divided by",
-      "instruction",
-      "note:",
-      "tip:",
-      "help:",
-      "example:",
-    ];
-
-    const hasInstructionPatterns = Object.entries(row).some(([key, value]) => {
-      const strValue = String(value).toLowerCase().trim();
-      // Only check for patterns at the beginning of the field or as complete phrases
-      const matchesPattern = instructionPatterns.some((pattern) => {
-        return (
-          strValue.startsWith(pattern) ||
-          strValue.includes(` ${pattern}`) ||
-          strValue.includes(`${pattern} `)
-        );
-      });
-
-      if (matchesPattern) {
-        console.log(
-          `Row ${rowIndex + 1}: Field '${key}' contains instruction pattern:`,
-          {
-            value: String(value),
-            lowerValue: strValue,
-            matchedPattern: instructionPatterns.find(
-              (pattern) =>
-                strValue.startsWith(pattern) ||
-                strValue.includes(` ${pattern}`) ||
-                strValue.includes(`${pattern} `),
-            ),
-          },
-        );
-      }
-
-      return matchesPattern;
-    });
-
-    if (hasInstructionPatterns) {
-      console.log(
-        `Row ${rowIndex + 1}: Contains instruction patterns - REJECTING`,
-      );
+    // Check if row is an obvious instruction/header row
+    const firstCell = String(Object.values(row)[0] || "").toLowerCase().trim();
+    if (
+      firstCell.startsWith("instruction") ||
+      firstCell.startsWith("note:") ||
+      firstCell.startsWith("tip:") ||
+      firstCell.startsWith("help:") ||
+      firstCell.startsWith("example:")
+    ) {
+      console.log(`Row ${rowIndex + 1}: Contains instruction prefix - REJECTING`);
       return false;
     }
 
-    // Check for numbered list patterns (1., 2., a., b., etc.)
-    const hasNumberedListPattern = Object.values(row).some((value) => {
-      const strValue = String(value).trim();
-      return /^\d+\.\s/.test(strValue) || /^[a-z]\.\s/i.test(strValue);
-    });
-
-    if (hasNumberedListPattern) {
-      console.log(`Row ${rowIndex + 1}: Contains numbered list patterns`);
-      return false;
-    }
-
-    // More lenient check - accept if it has any meaningful data
-    // This is much more permissive and should catch most valid invoice rows
     console.log(`Row ${rowIndex + 1}: Accepting as meaningful data`);
     return hasAnyData;
   }
@@ -752,8 +693,13 @@ class FileProcessor {
             });
           }
 
+          let invType = item.invoiceType || item.invoice_type || "Sale Invoice";
+          if (invType === "Standard" || invType === "Standard Invoice" || invType === "Sale") {
+            invType = "Sale Invoice";
+          }
+
           groupedInvoices.set(groupingKey, {
-            invoiceType: item.invoiceType || item.invoice_type || "Standard",
+            invoiceType: invType,
             invoiceDate:
               this.convertExcelDateToYYYYMMDD(
                 item.invoiceDate || item.invoice_date,

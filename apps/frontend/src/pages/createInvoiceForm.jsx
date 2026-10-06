@@ -2011,6 +2011,19 @@ export default function CreateInvoice() {
 
             // Set input value to match the product name
             setProductInputValue(matchingProduct.name);
+
+            // Restore weight on item if available in matchingProduct
+            if (matchingProduct.weight !== undefined && matchingProduct.weight !== null) {
+              const pWeight = String(matchingProduct.weight);
+              setFormData((prev) => {
+                const items = [...prev.items];
+                if (items[0]) {
+                  items[0] = { ...items[0], weight: pWeight, productId: matchingProduct.id };
+                  return { ...prev, items };
+                }
+                return prev;
+              });
+            }
           } else {
             console.log(
               `No matching product found for editing item:`,
@@ -2027,6 +2040,61 @@ export default function CreateInvoice() {
       }
     }
   }, [products, editingItemIndex]);
+
+  // Sync missing weight in addedItems when products are loaded
+  useEffect(() => {
+    if (addedItems.length > 0 && products.length > 0) {
+      setAddedItems((prevItems) => {
+        let hasChanges = false;
+        const updatedItems = prevItems.map((item) => {
+          if (!item.weight || item.weight === "0") {
+            const matchedProd = products.find(
+              (p) =>
+                (item.productId && String(p.id) === String(item.productId)) ||
+                (normalizeHsCode(p.hsCode).toLowerCase() === normalizeHsCode(item.hsCode).toLowerCase() &&
+                  (p.name || "").trim().toLowerCase() === (item.name || "").trim().toLowerCase())
+            );
+            if (matchedProd && matchedProd.weight !== undefined && matchedProd.weight !== null && String(matchedProd.weight) !== "") {
+              hasChanges = true;
+              return {
+                ...item,
+                weight: String(matchedProd.weight),
+                productId: item.productId || matchedProd.id,
+              };
+            }
+          }
+          return item;
+        });
+        return hasChanges ? updatedItems : prevItems;
+      });
+    }
+  }, [products]);
+
+  // Sync weight for current editing item when product selection or products list updates
+  useEffect(() => {
+    const currentItem = formData.items[0];
+    if (currentItem && (!currentItem.weight || currentItem.weight === "0") && products.length > 0) {
+      const prodId = selectedProductIdByItem[0];
+      const matchedProd = products.find(
+        (p) =>
+          (prodId && String(p.id) === String(prodId)) ||
+          (currentItem.hsCode && currentItem.name &&
+            normalizeHsCode(p.hsCode).toLowerCase() === normalizeHsCode(currentItem.hsCode).toLowerCase() &&
+            (p.name || "").trim().toLowerCase() === (currentItem.name || "").trim().toLowerCase())
+      );
+      if (matchedProd && matchedProd.weight !== undefined && matchedProd.weight !== null && String(matchedProd.weight) !== "") {
+        const pWeight = String(matchedProd.weight);
+        setFormData((prev) => {
+          const items = [...prev.items];
+          if (items[0] && (!items[0].weight || items[0].weight === "0")) {
+            items[0] = { ...items[0], weight: pWeight, productId: items[0].productId || matchedProd.id };
+            return { ...prev, items };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [selectedProductIdByItem, products, formData.items[0]?.name, formData.items[0]?.hsCode, formData.items[0]?.weight]);
 
   // Fix unit cost calculation when editing - ensure unit cost is calculated from retail price and quantity
   useEffect(() => {
@@ -2937,7 +3005,23 @@ export default function CreateInvoice() {
       return;
     }
 
-    const itemWeight = parseFloat(currentItem.weight || 0);
+    let itemWeight = parseFloat(currentItem.weight || 0);
+    // Fallback: If weight is missing on currentItem, check if matching product has weight in products list
+    if ((!currentItem.weight || isNaN(itemWeight) || itemWeight <= 0) && products.length > 0) {
+      const prodId = selectedProductIdByItem[0];
+      const matchedProd = products.find(
+        (p) =>
+          (prodId && String(p.id) === String(prodId)) ||
+          (currentItem.hsCode && currentItem.name &&
+            normalizeHsCode(p.hsCode).toLowerCase() === normalizeHsCode(currentItem.hsCode).toLowerCase() &&
+            (p.name || "").trim().toLowerCase() === (currentItem.name || "").trim().toLowerCase())
+      );
+      if (matchedProd && matchedProd.weight !== undefined && matchedProd.weight !== null) {
+        itemWeight = parseFloat(matchedProd.weight);
+        currentItem.weight = String(matchedProd.weight);
+      }
+    }
+
     if (!currentItem.weight || isNaN(itemWeight) || itemWeight <= 0) {
       Swal.fire({
         icon: "error",
@@ -3297,17 +3381,24 @@ export default function CreateInvoice() {
           0: targetProduct.id,
         }));
 
-        // RE-RESTORE UoM and billOfLadingUoM in case they were cleared by effects
-        if (itemToEdit.uoM) {
-          console.log("Re-restoring UoM in formData:", itemToEdit.uoM);
-          setFormData((prev) => {
-            const items = [...prev.items];
-            if (items[0]) {
-              items[0] = { ...items[0], uoM: itemToEdit.uoM };
-            }
-            return { ...prev, items };
-          });
-        }
+        // RE-RESTORE UoM, billOfLadingUoM, and weight in case they were cleared or missing
+        const restoredWeight =
+          targetProduct.weight !== undefined && targetProduct.weight !== null
+            ? String(targetProduct.weight)
+            : itemToEdit.weight || "";
+
+        setFormData((prev) => {
+          const items = [...prev.items];
+          if (items[0]) {
+            items[0] = {
+              ...items[0],
+              weight: restoredWeight || items[0].weight || "",
+              productId: targetProduct.id,
+              ...(itemToEdit.uoM ? { uoM: itemToEdit.uoM } : {}),
+            };
+          }
+          return { ...prev, items };
+        });
       } else if (itemToEdit.productId) {
         setSelectedProductIdByItem((prev) => ({
           ...prev,

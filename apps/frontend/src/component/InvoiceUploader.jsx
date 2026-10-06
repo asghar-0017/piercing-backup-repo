@@ -378,6 +378,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     "Invoice Type": "invoiceType",
     "Invoice Date": "invoiceDate",
     "Invoice Ref No": "invoiceRefNo",
+    "DN Invoice Ref No": "invoiceRefNo",
     "Company Invoice Ref No": "companyInvoiceRefNo",
     "Buyer NTN/CNIC": "buyerNTNCNIC",
     "Transaction Type": "transctypeId",
@@ -439,6 +440,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
     invoice_number: "invoiceRefNo",
     internal_invoice_no: "companyInvoiceRefNo",
     internal_invoice_number: "companyInvoiceRefNo",
+    company_invoice_ref_no: "companyInvoiceRefNo",
     buyer_ntn_cnic: "buyerNTNCNIC",
     buyer_ntn: "buyerNTNCNIC",
     transaction_type: "transctypeId",
@@ -549,9 +551,7 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
   const hasMeaningfulData = (row, rowIndex) => {
     // Check for meaningful invoice-level data
     const hasInvoiceData =
-      (row.invoiceType &&
-        row.invoiceType.trim() !== "" &&
-        row.invoiceType !== "Standard") ||
+      (row.invoiceType && row.invoiceType.trim() !== "") ||
       (row.invoiceDate && row.invoiceDate.trim() !== "") ||
       (row.companyInvoiceRefNo &&
         row.companyInvoiceRefNo.trim() !== "" &&
@@ -583,7 +583,6 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
     // Debug logging for empty rows
     if (!hasData && rowIndex < 10) {
-      // Only log first 10 for debugging
       console.log(`🚫 Row ${rowIndex + 1} filtered out as empty:`, {
         invoiceType: row.invoiceType,
         companyInvoiceRefNo: row.companyInvoiceRefNo,
@@ -610,86 +609,23 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
       );
     });
 
-    // If no data at all, skip
     if (!hasAnyData) {
       return false;
     }
 
-    // Check for instruction patterns in any field - if found, reject
-    const instructionPatterns = [
-      "auto-calculates",
-      "enter ",
-      "use the",
-      "dropdown",
-      "validated",
-      "hardcoded",
-      "fallback",
-      "unit cost",
-      "value sales",
-      "sales tax",
-      "computed",
-      "computed as",
-      "divided by",
-    ];
-
-    const hasInstructionPatterns = Object.values(row).some((value) => {
-      const strValue = String(value).toLowerCase();
-      return instructionPatterns.some((pattern) => strValue.includes(pattern));
-    });
-
-    if (hasInstructionPatterns) {
+    // Check if row is an obvious instruction/header row
+    const firstCell = String(Object.values(row)[0] || "").toLowerCase().trim();
+    if (
+      firstCell.startsWith("instruction") ||
+      firstCell.startsWith("note:") ||
+      firstCell.startsWith("tip:") ||
+      firstCell.startsWith("help:") ||
+      firstCell.startsWith("example:")
+    ) {
       return false;
     }
 
-    // Check for numbered list patterns (1., 2., a., b., etc.)
-    const hasNumberedListPattern = Object.values(row).some((value) => {
-      const strValue = String(value).trim();
-      return /^\d+\.\s/.test(strValue) || /^[a-z]\.\s/i.test(strValue);
-    });
-
-    if (hasNumberedListPattern) {
-      return false;
-    }
-
-    // Check for common invoice-related keywords in any field
-    const invoiceKeywords = [
-      "invoice",
-      "bill",
-      "receipt",
-      "order",
-      "purchase",
-      "sale",
-      "product",
-      "item",
-      "quantity",
-      "price",
-      "amount",
-      "total",
-    ];
-    const hasInvoiceKeywords = Object.values(row).some((value) => {
-      const strValue = String(value).toLowerCase();
-      return invoiceKeywords.some((keyword) => strValue.includes(keyword));
-    });
-
-    // Check for numeric values that might indicate quantities or prices
-    const hasNumericData = Object.values(row).some((value) => {
-      const strValue = String(value).trim();
-      const numValue = parseFloat(strValue);
-      return !isNaN(numValue) && numValue > 0;
-    });
-
-    // Check for date-like values
-    const hasDateData = Object.values(row).some((value) => {
-      const strValue = String(value).trim();
-      // Simple date pattern check
-      return (
-        /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(strValue) ||
-        /^\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}$/.test(strValue)
-      );
-    });
-
-    // Accept if it has any meaningful data and either invoice keywords, numeric data, or date data
-    return hasAnyData && (hasInvoiceKeywords || hasNumericData || hasDateData);
+    return hasAnyData;
   };
 
   // Buyer selection removed; buyer details should be provided in the sheet
@@ -948,10 +884,11 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
         if (lines[i].trim()) {
           const values = parseCSVLine(lines[i]);
 
-          // Check if this row has any meaningful data in the first few columns
+          // Check if this row has any meaningful data in the header columns
+          const searchLen = headers && headers.length > 0 ? headers.length : values.length;
           const hasData = values
-            .slice(0, 5)
-            .some((value) => value && value.trim() !== "");
+            .slice(0, searchLen)
+            .some((value) => value && String(value).trim() !== "");
 
           if (hasData) {
             const row = {};
@@ -1018,8 +955,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
           );
         }
 
-        // Get headers from first row and normalize
-        const headers = jsonData[0].map((header) => normalizeHeader(header));
+        // Get headers from first 45 main columns (columns beyond index 44 are reference lists)
+        const maxDataCols = 45;
+        const rawHeaderRow = jsonData[0].slice(0, maxDataCols);
+        const headers = rawHeaderRow.map((header) => normalizeHeader(header));
 
         // Log available headers for debugging
         console.log("Available headers in Excel file:", headers);
@@ -1043,9 +982,10 @@ const InvoiceUploader = ({ onUpload, onClose, isOpen, selectedTenant }) => {
 
           // Check if row exists and has any meaningful data
           if (row && Array.isArray(row)) {
-            // Check if the row has any non-empty cells in the first few columns (key fields)
+            // Check if the row has any non-empty cells in the header columns
+            const searchLen = headers && headers.length > 0 ? headers.length : row.length;
             const hasData = row
-              .slice(0, 5)
+              .slice(0, searchLen)
               .some(
                 (cell) =>
                   cell !== null &&

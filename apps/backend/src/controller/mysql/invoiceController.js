@@ -5268,16 +5268,20 @@ export const bulkCreateInvoices = async (req, res) => {
           continue; // Skip this invoice without adding to errors
         }
 
-        // Validate invoice type
+        // Validate invoice type - normalize Standard, Standard Invoice, or Sale to Sale Invoice
+        let rawType = String(invoiceData.invoiceType || "").trim();
+        if (!rawType || rawType === "Standard" || rawType === "Standard Invoice" || rawType === "Sale") {
+          rawType = "Sale Invoice";
+          invoiceData.invoiceType = "Sale Invoice";
+        }
+
         if (
-          !["Sale Invoice", "Debit Note"].includes(
-            String(invoiceData.invoiceType || "").trim(),
-          )
+          !["Sale Invoice", "Debit Note", "Credit Note"].includes(rawType)
         ) {
           validationErrors.push({
             index: i,
             row: i + 1,
-            error: 'Invoice type must be "Sale Invoice" or "Debit Note"',
+            error: `Invalid Invoice type "${rawType}". Must be "Sale Invoice", "Debit Note", or "Credit Note"`,
           });
           continue;
         }
